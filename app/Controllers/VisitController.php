@@ -1,0 +1,493 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use App\Core\Controller;
+use Throwable;
+
+class VisitController extends Controller
+{
+    public function edit(): void
+    {
+        require_roles(['ADMIN', 'NURSE', 'CASHIER']);
+
+        $visitId = (int) ($_GET['id'] ?? 0);
+        $visit = $this->findVisit($visitId);
+
+        if (!$visit) {
+            http_response_code(404);
+            exit('Visit not found');
+        }
+
+        $services = db()->query('SELECT * FROM services WHERE is_active = 1 ORDER BY service_name ASC')->fetchAll();
+        $items = db()->query('SELECT * FROM inventory_items WHERE is_active = 1 ORDER BY item_name ASC')->fetchAll();
+
+        $addedServicesStmt = db()->prepare(
+            'SELECT visit_services.*, services.service_name
+             FROM visit_services
+             INNER JOIN services ON services.id = visit_services.service_id
+             WHERE visit_services.visit_id = :visit_id
+             ORDER BY visit_services.id DESC'
+        );
+        $addedServicesStmt->execute(['visit_id' => $visitId]);
+        $addedServices = $addedServicesStmt->fetchAll();
+
+        $usedItemsStmt = db()->prepare(
+            'SELECT visit_item_usages.*, inventory_items.item_name, inventory_items.unit_name
+             FROM visit_item_usages
+             INNER JOIN inventory_items ON inventory_items.id = visit_item_usages.item_id
+             WHERE visit_item_usages.visit_id = :visit_id
+             ORDER BY visit_item_usages.id DESC'
+        );
+        $usedItemsStmt->execute(['visit_id' => $visitId]);
+        $usedItems = $usedItemsStmt->fetchAll();
+
+        $frequentServices = db()->query(
+            'SELECT services.id, services.service_name, services.price, COALESCE(SUM(visit_services.qty), 0) AS total_qty
+             FROM services
+             LEFT JOIN visit_services ON visit_services.service_id = services.id
+             LEFT JOIN visits ON visits.id = visit_services.visit_id
+             WHERE services.is_active = 1
+             GROUP BY services.id, services.service_name, services.price
+             ORDER BY total_qty DESC, services.service_name ASC
+             LIMIT 6'
+        )->fetchAll();
+
+        $frequentItems = db()->query(
+            'SELECT inventory_items.id, inventory_items.item_name, inventory_items.unit_name, inventory_items.default_price,
+                    COALESCE(SUM(visit_item_usages.qty), 0) AS total_qty
+             FROM inventory_items
+             LEFT JOIN visit_item_usages ON visit_item_usages.item_id = inventory_items.id
+             WHERE inventory_items.is_active = 1
+             GROUP BY inventory_items.id, inventory_items.item_name, inventory_items.unit_name, inventory_items.default_price
+             ORDER BY total_qty DESC, inventory_items.item_name ASC
+             LIMIT 6'
+        )->fetchAll();
+
+        $serviceTotal = array_sum(array_map(static fn(array $row): float => (float) $row['line_total'], $addedServices));
+        $itemTotal = array_sum(array_map(static fn(array $row): float => (float) $row['line_total'], $usedItems));
+        $serviceCount = count($addedServices);
+        $itemCount = count($usedItems);
+        $grandTotal = $serviceTotal + $itemTotal;
+
+        $this->render('visits/edit', [
+            'pageTitle' => 'บันทึกการตรวจและการพยาบาล',
+            'visit' => $visit,
+            'services' => $services,
+            'items' => $items,
+            'addedServices' => $addedServices,
+            'usedItems' => $usedItems,
+            'frequentServices' => $frequentServices,
+            'frequentItems' => $frequentItems,
+            'serviceTotal' => $serviceTotal,
+            'itemTotal' => $itemTotal,
+            'serviceCount' => $serviceCount,
+            'itemCount' => $itemCount,
+            'grandTotal' => $grandTotal,
+            'hasBillableItems' => $grandTotal > 0,
+            'nursingTemplates' => $this->nursingTemplates(),
+            'adviceTemplates' => $this->adviceTemplates(),
+        ]);
+    }
+
+    public function saveClinical(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $visit = $this->findVisit($visitId);
+
+        if (!$visit) {
+            flash('error', 'ไม่พบข้อมูล Visit');
+            redirect('queue');
+        }
+
+        $data = [
+            'visit_id' => $visitId,
+            'chief_complaint' => trim((string) ($_POST['chief_complaint'] ?? '')),
+            'nursing_note' => trim((string) ($_POST['nursing_note'] ?? '')),
+            'advice' => trim((string) ($_POST['advice'] ?? '')),
+            'followup_date' => trim((string) ($_POST['followup_date'] ?? '')),
+            'bp_systolic' => $_POST['bp_systolic'] !== '' ? (int) $_POST['bp_systolic'] : null,
+            'bp_diastolic' => $_POST['bp_diastolic'] !== '' ? (int) $_POST['bp_diastolic'] : null,
+            'temp_c' => $_POST['temp_c'] !== '' ? (float) $_POST['temp_c'] : null,
+            'pulse_rate' => $_POST['pulse_rate'] !== '' ? (int) $_POST['pulse_rate'] : null,
+            'spo2' => $_POST['spo2'] !== '' ? (int) $_POST['spo2'] : null,
+            'weight_kg' => $_POST['weight_kg'] !== '' ? (float) $_POST['weight_kg'] : null,
+        ];
+
+        try {
+            $pdo = db();
+            $pdo->beginTransaction();
+
+            $pdo->prepare(
+                'UPDATE visits
+                 SET chief_complaint = :chief_complaint,
+                     nursing_note = :nursing_note,
+                     advice = :advice,
+                     followup_date = :followup_date,
+                     updated_at = NOW()
+                 WHERE id = :visit_id'
+            )->execute([
+                'chief_complaint' => $data['chief_complaint'] ?: null,
+                'nursing_note' => $data['nursing_note'] ?: null,
+                'advice' => $data['advice'] ?: null,
+                'followup_date' => $data['followup_date'] ?: null,
+                'visit_id' => $visitId,
+            ]);
+
+            $pdo->prepare(
+                'INSERT INTO visit_vitals (
+                    visit_id, bp_systolic, bp_diastolic, temp_c, pulse_rate, spo2, weight_kg, recorded_by, recorded_at, created_at, updated_at
+                 ) VALUES (
+                    :visit_id, :bp_systolic, :bp_diastolic, :temp_c, :pulse_rate, :spo2, :weight_kg, :recorded_by, NOW(), NOW(), NOW()
+                 )
+                 ON DUPLICATE KEY UPDATE
+                    bp_systolic = VALUES(bp_systolic),
+                    bp_diastolic = VALUES(bp_diastolic),
+                    temp_c = VALUES(temp_c),
+                    pulse_rate = VALUES(pulse_rate),
+                    spo2 = VALUES(spo2),
+                    weight_kg = VALUES(weight_kg),
+                    recorded_by = VALUES(recorded_by),
+                    recorded_at = NOW(),
+                    updated_at = NOW()'
+            )->execute([
+                'visit_id' => $visitId,
+                'bp_systolic' => $data['bp_systolic'],
+                'bp_diastolic' => $data['bp_diastolic'],
+                'temp_c' => $data['temp_c'],
+                'pulse_rate' => $data['pulse_rate'],
+                'spo2' => $data['spo2'],
+                'weight_kg' => $data['weight_kg'],
+                'recorded_by' => current_user()['id'],
+            ]);
+
+            if ($data['followup_date']) {
+                $pdo->prepare(
+                    'INSERT INTO appointments (
+                        patient_id, visit_id, appointment_date, purpose, status, note, created_at, updated_at
+                     ) VALUES (
+                        :patient_id, :visit_id, :appointment_date, :purpose, "SCHEDULED", :note, NOW(), NOW()
+                     )'
+                )->execute([
+                    'patient_id' => $visit['patient_id'],
+                    'visit_id' => $visitId,
+                    'appointment_date' => $data['followup_date'],
+                    'purpose' => 'นัดติดตาม',
+                    'note' => $data['advice'] ?: null,
+                ]);
+            }
+
+            $workflowAction = (string) ($_POST['workflow_action'] ?? 'save');
+            if ($workflowAction === 'save_and_payment') {
+                if (!$this->visitHasBillableItems($visitId)) {
+                    $pdo->commit();
+                    flash('error', 'บันทึกข้อมูลแล้ว แต่ยังส่งชำระเงินไม่ได้ กรุณาเพิ่มบริการหรือยา/เวชภัณฑ์อย่างน้อย 1 รายการก่อน');
+                    redirect('visit-edit', ['id' => $visitId]);
+                }
+
+                $pdo->prepare(
+                    'UPDATE queue_entries
+                     SET status = "WAITING_PAYMENT", updated_at = NOW()
+                     WHERE visit_id = :visit_id'
+                )->execute(['visit_id' => $visitId]);
+            }
+
+            $pdo->commit();
+
+            if ($workflowAction === 'save_and_payment') {
+                flash('success', 'บันทึกข้อมูลและส่งไปยังห้องการเงินแล้ว');
+                redirect('queue');
+            }
+
+            flash('success', 'บันทึกการตรวจและการพยาบาลเรียบร้อย');
+        } catch (Throwable $throwable) {
+            if (db()->inTransaction()) {
+                db()->rollBack();
+            }
+            flash('error', 'ไม่สามารถบันทึกการตรวจได้: ' . $throwable->getMessage());
+        }
+
+        redirect('visit-edit', ['id' => $visitId]);
+    }
+
+    public function addService(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $serviceId = (int) ($_POST['service_id'] ?? 0);
+        $qty = max(1, (int) ($_POST['qty'] ?? 1));
+
+        $serviceStmt = db()->prepare('SELECT * FROM services WHERE id = :id LIMIT 1');
+        $serviceStmt->execute(['id' => $serviceId]);
+        $service = $serviceStmt->fetch();
+
+        if (!$service || $visitId <= 0) {
+            flash('error', 'ไม่พบรายการบริการ');
+            redirect('queue');
+        }
+
+        $lineTotal = $qty * (float) $service['price'];
+
+        db()->prepare(
+            'INSERT INTO visit_services (visit_id, service_id, qty, unit_price, line_total, created_at, updated_at)
+             VALUES (:visit_id, :service_id, :qty, :unit_price, :line_total, NOW(), NOW())'
+        )->execute([
+            'visit_id' => $visitId,
+            'service_id' => $serviceId,
+            'qty' => $qty,
+            'unit_price' => $service['price'],
+            'line_total' => $lineTotal,
+        ]);
+
+        flash('success', 'เพิ่มบริการเรียบร้อย');
+        redirect('visit-edit', ['id' => $visitId]);
+    }
+
+    public function removeService(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+
+        $serviceLineId = (int) ($_POST['service_line_id'] ?? 0);
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+
+        db()->prepare('DELETE FROM visit_services WHERE id = :id')->execute(['id' => $serviceLineId]);
+        flash('success', 'ลบบริการเรียบร้อย');
+        redirect('visit-edit', ['id' => $visitId]);
+    }
+
+    public function addItemUsage(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $itemId = (int) ($_POST['item_id'] ?? 0);
+        $qty = (float) ($_POST['qty'] ?? 0);
+        $usageNote = trim((string) ($_POST['usage_note'] ?? ''));
+
+        if ($visitId <= 0 || $itemId <= 0 || $qty <= 0) {
+            flash('error', 'กรุณาเลือกรายการยา/เวชภัณฑ์และจำนวน');
+            redirect('visit-edit', ['id' => $visitId]);
+        }
+
+        try {
+            $pdo = db();
+            $pdo->beginTransaction();
+
+            $itemStmt = $pdo->prepare('SELECT * FROM inventory_items WHERE id = :id LIMIT 1');
+            $itemStmt->execute(['id' => $itemId]);
+            $item = $itemStmt->fetch();
+
+            if (!$item) {
+                throw new \RuntimeException('ไม่พบรายการคลัง');
+            }
+
+            $remainingQty = $qty;
+            $batchStmt = $pdo->prepare(
+                'SELECT * FROM inventory_batches
+                 WHERE item_id = :item_id AND qty_balance > 0
+                 ORDER BY expiry_date IS NULL ASC, expiry_date ASC, received_date ASC, id ASC
+                 FOR UPDATE'
+            );
+            $batchStmt->execute(['item_id' => $itemId]);
+            $batches = $batchStmt->fetchAll();
+
+            $availableQty = array_sum(array_map(static fn(array $batch): float => (float) $batch['qty_balance'], $batches));
+            if ($availableQty < $qty) {
+                throw new \RuntimeException('สต็อกคงเหลือไม่เพียงพอ');
+            }
+
+            $lineTotal = $qty * (float) $item['default_price'];
+            $pdo->prepare(
+                'INSERT INTO visit_item_usages (visit_id, item_id, qty, unit_price, line_total, usage_note, created_at, updated_at)
+                 VALUES (:visit_id, :item_id, :qty, :unit_price, :line_total, :usage_note, NOW(), NOW())'
+            )->execute([
+                'visit_id' => $visitId,
+                'item_id' => $itemId,
+                'qty' => $qty,
+                'unit_price' => $item['default_price'],
+                'line_total' => $lineTotal,
+                'usage_note' => $usageNote ?: null,
+            ]);
+
+            $usageId = (int) $pdo->lastInsertId();
+
+            foreach ($batches as $batch) {
+                if ($remainingQty <= 0) {
+                    break;
+                }
+
+                $takeQty = min($remainingQty, (float) $batch['qty_balance']);
+                $newBalance = (float) $batch['qty_balance'] - $takeQty;
+
+                $pdo->prepare(
+                    'UPDATE inventory_batches SET qty_balance = :qty_balance, updated_at = NOW() WHERE id = :id'
+                )->execute([
+                    'qty_balance' => $newBalance,
+                    'id' => $batch['id'],
+                ]);
+
+                $pdo->prepare(
+                    'INSERT INTO stock_movements (
+                        batch_id, item_id, movement_type, qty, unit_cost, reference_type, reference_id, note,
+                        movement_datetime, created_by, created_at, updated_at
+                     ) VALUES (
+                        :batch_id, :item_id, "OUT", :qty, :unit_cost, "VISIT_USAGE", :reference_id, :note,
+                        NOW(), :created_by, NOW(), NOW()
+                     )'
+                )->execute([
+                    'batch_id' => $batch['id'],
+                    'item_id' => $itemId,
+                    'qty' => $takeQty,
+                    'unit_cost' => $batch['cost_per_unit'],
+                    'reference_id' => $usageId,
+                    'note' => $usageNote ?: null,
+                    'created_by' => current_user()['id'],
+                ]);
+
+                $remainingQty -= $takeQty;
+            }
+
+            $pdo->commit();
+            flash('success', 'เพิ่มรายการยา/เวชภัณฑ์เรียบร้อย');
+        } catch (Throwable $throwable) {
+            if (db()->inTransaction()) {
+                db()->rollBack();
+            }
+            flash('error', 'ไม่สามารถเพิ่มรายการยา/เวชภัณฑ์ได้: ' . $throwable->getMessage());
+        }
+
+        redirect('visit-edit', ['id' => $visitId]);
+    }
+
+    public function removeItemUsage(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+
+        $usageId = (int) ($_POST['usage_id'] ?? 0);
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+
+        try {
+            $pdo = db();
+            $pdo->beginTransaction();
+
+            $usageStmt = $pdo->prepare('SELECT * FROM visit_item_usages WHERE id = :id LIMIT 1');
+            $usageStmt->execute(['id' => $usageId]);
+            $usage = $usageStmt->fetch();
+
+            if (!$usage) {
+                throw new \RuntimeException('ไม่พบรายการใช้งาน');
+            }
+
+            $movementsStmt = $pdo->prepare(
+                'SELECT * FROM stock_movements WHERE reference_type = "VISIT_USAGE" AND reference_id = :reference_id'
+            );
+            $movementsStmt->execute(['reference_id' => $usageId]);
+            $movements = $movementsStmt->fetchAll();
+
+            foreach ($movements as $movement) {
+                $pdo->prepare(
+                    'UPDATE inventory_batches SET qty_balance = qty_balance + :qty, updated_at = NOW() WHERE id = :id'
+                )->execute([
+                    'qty' => $movement['qty'],
+                    'id' => $movement['batch_id'],
+                ]);
+            }
+
+            $pdo->prepare('DELETE FROM stock_movements WHERE reference_type = "VISIT_USAGE" AND reference_id = :reference_id')->execute([
+                'reference_id' => $usageId,
+            ]);
+            $pdo->prepare('DELETE FROM visit_item_usages WHERE id = :id')->execute(['id' => $usageId]);
+
+            $pdo->commit();
+            flash('success', 'ลบรายการยา/เวชภัณฑ์เรียบร้อย');
+        } catch (Throwable $throwable) {
+            if (db()->inTransaction()) {
+                db()->rollBack();
+            }
+            flash('error', 'ไม่สามารถลบรายการได้: ' . $throwable->getMessage());
+        }
+
+        redirect('visit-edit', ['id' => $visitId]);
+    }
+
+    public function markReadyForPayment(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+
+        if (!$this->visitHasBillableItems($visitId)) {
+            flash('error', 'ยังไม่มีรายการคิดเงิน กรุณาเพิ่มบริการหรือยา/เวชภัณฑ์ก่อนส่งชำระเงิน');
+            redirect('visit-edit', ['id' => $visitId]);
+        }
+
+        db()->prepare(
+            'UPDATE queue_entries
+             SET status = "WAITING_PAYMENT", updated_at = NOW()
+             WHERE visit_id = :visit_id'
+        )->execute(['visit_id' => $visitId]);
+
+        flash('success', 'ส่งคิวไปยังห้องการเงินแล้ว');
+        redirect('queue');
+    }
+
+    private function findVisit(int $visitId): array|false
+    {
+        $stmt = db()->prepare(
+            'SELECT visits.*, patients.id AS patient_id, patients.hn, patients.first_name, patients.last_name, patients.gender, patients.birth_date,
+                    patients.phone, patients.drug_allergy, patients.underlying_disease,
+                    queue_entries.queue_no, queue_entries.status,
+                    visit_vitals.bp_systolic, visit_vitals.bp_diastolic, visit_vitals.temp_c,
+                    visit_vitals.pulse_rate, visit_vitals.spo2, visit_vitals.weight_kg
+             FROM visits
+             INNER JOIN patients ON patients.id = visits.patient_id
+             LEFT JOIN queue_entries ON queue_entries.visit_id = visits.id
+             LEFT JOIN visit_vitals ON visit_vitals.visit_id = visits.id
+             WHERE visits.id = :id
+             LIMIT 1'
+        );
+        $stmt->execute(['id' => $visitId]);
+
+        return $stmt->fetch();
+    }
+
+    private function visitHasBillableItems(int $visitId): bool
+    {
+        $stmt = db()->prepare(
+            'SELECT
+                (SELECT COUNT(*) FROM visit_services WHERE visit_id = :visit_id) AS service_count,
+                (SELECT COUNT(*) FROM visit_item_usages WHERE visit_id = :visit_id) AS item_count'
+        );
+        $stmt->execute(['visit_id' => $visitId]);
+        $result = $stmt->fetch() ?: ['service_count' => 0, 'item_count' => 0];
+
+        return ((int) $result['service_count'] + (int) $result['item_count']) > 0;
+    }
+
+    private function nursingTemplates(): array
+    {
+        return [
+            ['label' => 'ซักประวัติและประเมินอาการ', 'text' => 'ซักประวัติและประเมินอาการเบื้องต้น'],
+            ['label' => 'วัดสัญญาณชีพ', 'text' => 'วัดสัญญาณชีพครบถ้วนและบันทึกผลเรียบร้อย'],
+            ['label' => 'ทำแผล', 'text' => 'ทำแผล/ล้างแผลตามขั้นตอนและประเมินแผลหลังทำ'],
+            ['label' => 'ให้ยา/เวชภัณฑ์', 'text' => 'ให้ยาและเวชภัณฑ์ตามรายการ พร้อมอธิบายวิธีใช้'],
+            ['label' => 'ให้คำแนะนำ', 'text' => 'ให้คำแนะนำการดูแลตนเองและอาการที่ควรกลับมาพบเจ้าหน้าที่'],
+        ];
+    }
+
+    private function adviceTemplates(): array
+    {
+        return [
+            ['label' => 'พักผ่อนและดื่มน้ำ', 'text' => 'พักผ่อนให้เพียงพอ ดื่มน้ำมาก ๆ และสังเกตอาการต่อเนื่อง'],
+            ['label' => 'รับประทานยาตามแผน', 'text' => 'รับประทานยาตามที่ได้รับอย่างครบถ้วนและตรงเวลา'],
+            ['label' => 'อาการแย่ลงให้กลับมา', 'text' => 'หากมีไข้สูง หอบเหนื่อย ปวดมากขึ้น หรืออาการแย่ลง ให้กลับมาพบเจ้าหน้าที่ทันที'],
+            ['label' => 'ดูแลแผล', 'text' => 'ดูแลแผลให้แห้งสะอาด หลีกเลี่ยงการแกะเกา และมาพบเจ้าหน้าที่หากมีบวมแดงหรือมีหนอง'],
+            ['label' => 'มาตามนัด', 'text' => 'มาตามวันนัดเพื่อติดตามอาการและประเมินผลการรักษา'],
+        ];
+    }
+}

@@ -1,0 +1,536 @@
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(180deg, #f4f7fb 0%, #edf2f7 100%);
+    min-height: 100vh;
+}
+
+.brand-gradient {
+    background: linear-gradient(135deg, #0f766e 0%, #0ea5e9 100%);
+}
+
+.sidebar {
+    min-height: 100vh;
+    background: #0f172a;
+}
+
+.sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.78);
+    border-radius: 0.75rem;
+    margin-bottom: 0.35rem;
+}
+
+.sidebar .nav-link.active,
+.sidebar .nav-link:hover {
+    color: #fff;
+    background: rgba(14, 165, 233, 0.18);
+}
+
+.stat-card {
+    border: 0;
+    border-radius: 1rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.section-card {
+    border: 0;
+    border-radius: 1rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.queue-badge {
+    min-width: 98px;
+}
+
+.login-card {
+    max-width: 430px;
+    border-radius: 1.25rem;
+    overflow: hidden;
+}
+
+.queue-stat,
+.queue-next-card,
+.queue-work-card,
+.visit-header-card,
+.payment-case-card {
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.queue-stat {
+    padding: 1.25rem;
+    border-left: 6px solid transparent;
+}
+
+.queue-stat-label {
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+.queue-stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.queue-stat-waiting {
+    border-color: #f59e0b;
+    background: #fffaf0;
+}
+
+.queue-stat-service {
+    border-color: #06b6d4;
+    background: #f0fdff;
+}
+
+.queue-stat-payment {
+    border-color: #64748b;
+    background: #f8fafc;
+}
+
+.queue-stat-complete {
+    border-color: #16a34a;
+    background: #f0fdf4;
+}
+
+.queue-next-card,
+.visit-header-card,
+.payment-case-card {
+    padding: 1.5rem;
+}
+
+.queue-next-card-featured {
+    border: 1px solid #dbeafe;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.queue-next-title {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.queue-next-meta,
+.queue-record-meta {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.queue-meta-pill,
+.queue-record-meta div {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.queue-meta-pill {
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    width: fit-content;
+}
+
+.queue-meta-label,
+.queue-record-meta span {
+    font-size: 0.8rem;
+    color: #64748b;
+    min-width: 1.8rem;
+}
+
+.queue-next-complaint {
+    font-size: 1.05rem;
+}
+
+.queue-work-card {
+    border: 1px solid #e2e8f0;
+    padding: 1rem;
+}
+
+.queue-work-card-compact {
+    padding: 1rem;
+}
+
+.queue-board-card {
+    height: auto;
+}
+
+.queue-board-list {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.queue-empty-state {
+    border: 1px dashed #cbd5e1;
+    border-radius: 1rem;
+    padding: 1rem;
+    text-align: center;
+    color: #64748b;
+    background: #f8fafc;
+}
+
+.queue-empty-state-compact {
+    padding: 0.85rem 1rem;
+}
+
+.visit-chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-content: flex-start;
+}
+
+.visit-chip {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-radius: 999px;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.875rem;
+}
+
+.visit-total-card,
+.payment-breakdown {
+    background: #f8fafc;
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.visit-vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.workflow-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.workflow-list-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    padding: 0.9rem 1rem;
+    background: #fff;
+}
+
+.shortcut-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.shortcut-btn {
+    border-radius: 999px;
+}
+
+.template-panel {
+    border: 1px dashed #cbd5e1;
+    border-radius: 1rem;
+    background: #f8fafc;
+    padding: 1rem;
+}
+
+.payment-preview {
+    border-radius: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 1rem;
+}
+
+.workflow-warning {
+    border-radius: 1rem;
+    border: 0;
+}
+
+.queue-next-actions form {
+    margin: 0;
+}
+
+.patient-search-form {
+    max-width: 560px;
+}
+
+.patient-result-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.patient-card-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.patient-result-card,
+.patient-quick-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #fff;
+    padding: 1rem 1.1rem;
+}
+
+.patient-history-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #fff;
+    padding: 1.1rem;
+}
+
+.patient-result-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.patient-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.patient-meta-row div {
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+}
+
+.patient-meta-row span {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.patient-card-actions {
+    min-width: 150px;
+}
+
+.visit-action-sticky {
+    position: sticky;
+    top: 1.5rem;
+}
+
+.visit-action-card {
+    border: 1px solid #dbeafe;
+}
+
+.queue-display-body {
+    background: linear-gradient(180deg, #eaf4ff 0%, #f8fbff 100%);
+}
+
+.queue-display-shell {
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+.queue-display-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.queue-display-brand {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.queue-display-subtitle,
+.queue-display-time {
+    color: #475569;
+}
+
+.queue-display-current {
+    border-radius: 1.5rem;
+    padding: 2rem;
+    color: #fff;
+    background: linear-gradient(135deg, #0f766e 0%, #0284c7 100%);
+    box-shadow: 0 20px 40px rgba(2, 132, 199, 0.2);
+}
+
+.queue-display-next,
+.queue-display-list-card {
+    border-radius: 1.5rem;
+    padding: 1.75rem;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.queue-display-number {
+    font-size: clamp(3rem, 8vw, 5.5rem);
+    font-weight: 800;
+    line-height: 1;
+}
+
+.queue-display-number-empty {
+    font-size: 2rem;
+}
+
+.queue-display-name {
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.queue-display-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.queue-display-meta span,
+.queue-display-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.queue-display-note {
+    font-size: 1.05rem;
+    opacity: 0.92;
+}
+
+.queue-display-next-number {
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.queue-display-next-name {
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.queue-display-next-meta,
+.queue-display-next-note {
+    color: #475569;
+}
+
+.queue-display-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.queue-display-stat-card {
+    border-radius: 1rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.queue-display-stat-card span {
+    display: block;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+}
+
+.queue-display-stat-card strong {
+    font-size: 1.8rem;
+    color: #0f172a;
+}
+
+.queue-display-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.queue-display-list-item {
+    border-radius: 1rem;
+    padding: 1.25rem;
+    background: #ffffff;
+    border: 1px solid #dbeafe;
+}
+
+.queue-display-list-queue {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #0284c7;
+}
+
+.queue-display-list-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 0.5rem;
+}
+
+.queue-display-list-note {
+    color: #475569;
+    margin-top: 0.5rem;
+}
+
+.receipt-sheet {
+    border-radius: 1.25rem;
+}
+
+.receipt-table thead th {
+    background: #f8fafc;
+    border-bottom-width: 1px;
+}
+
+@media (max-width: 991.98px) {
+    .visit-vitals-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .queue-next-title {
+        font-size: 1.6rem;
+    }
+
+    .visit-action-sticky {
+        position: static;
+    }
+
+    .queue-display-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .visit-vitals-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .queue-meta-pill {
+        width: 100%;
+        border-radius: 0.85rem;
+    }
+
+    .patient-result-summary,
+    .queue-display-topbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .queue-display-shell {
+        padding: 1rem;
+    }
+
+    .queue-display-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: #fff;
+    }
+}
