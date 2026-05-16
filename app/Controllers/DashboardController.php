@@ -30,6 +30,40 @@ class DashboardController extends Controller
              ORDER BY month_label ASC'
         )->fetchAll();
 
+        $dailyClose = db()->query(
+            'SELECT COUNT(*) AS receipt_count,
+                    COALESCE(SUM(subtotal_service), 0) AS subtotal_service,
+                    COALESCE(SUM(subtotal_item), 0) AS subtotal_item,
+                    COALESCE(SUM(discount_amount), 0) AS discount_amount,
+                    COALESCE(SUM(total_amount), 0) AS total_amount,
+                    COALESCE(SUM(paid_amount), 0) AS paid_amount,
+                    COALESCE(SUM(change_amount), 0) AS change_amount
+             FROM payments
+             WHERE DATE(paid_at) = CURDATE()
+               AND payment_status = "PAID"'
+        )->fetch();
+
+        $dailyPaymentMethods = db()->query(
+            'SELECT payment_method, COUNT(*) AS receipt_count, COALESCE(SUM(total_amount), 0) AS total_amount
+             FROM payments
+             WHERE DATE(paid_at) = CURDATE()
+               AND payment_status = "PAID"
+             GROUP BY payment_method
+             ORDER BY total_amount DESC, payment_method ASC'
+        )->fetchAll();
+
+        $latestReceipts = db()->query(
+            'SELECT payments.receipt_no, payments.total_amount, payments.payment_method, payments.paid_at,
+                    patients.hn, patients.first_name, patients.last_name
+             FROM payments
+             INNER JOIN visits ON visits.id = payments.visit_id
+             INNER JOIN patients ON patients.id = visits.patient_id
+             WHERE DATE(payments.paid_at) = CURDATE()
+               AND payments.payment_status = "PAID"
+             ORDER BY payments.paid_at DESC, payments.id DESC
+             LIMIT 5'
+        )->fetchAll();
+
         $popularServices = db()->query(
             'SELECT services.service_name, SUM(visit_services.qty) AS total_qty, SUM(visit_services.line_total) AS total_income
              FROM visit_services
@@ -97,11 +131,61 @@ class DashboardController extends Controller
             'pageTitle' => 'Dashboard',
             'todayStats' => $todayStats,
             'monthlyRevenue' => $monthlyRevenue,
+            'dailyClose' => $dailyClose,
+            'dailyPaymentMethods' => $dailyPaymentMethods,
+            'latestReceipts' => $latestReceipts,
+            'latestBackup' => $this->latestBackup(),
             'popularServices' => $popularServices,
             'workQueues' => $workQueues,
             'todayAppointments' => $todayAppointments,
             'lowStocks' => $lowStocks,
             'expiryAlerts' => $expiryAlerts,
+            'pageStyles' => [app_url('assets/css/dashboard.css')],
         ]);
+    }
+
+    private function latestBackup(): ?array
+    {
+        $exportDirectory = storage_path('exports');
+        $retentionLimit = 30;
+
+        if (!is_dir($exportDirectory)) {
+            return [
+                'retention_limit' => $retentionLimit,
+                'total_count' => 0,
+                'latest' => null,
+            ];
+        }
+
+        $files = glob($exportDirectory . '/clinic_backup_*.sql');
+
+        if (!$files) {
+            return [
+                'retention_limit' => $retentionLimit,
+                'total_count' => 0,
+                'latest' => null,
+            ];
+        }
+
+        usort(
+            $files,
+            static fn(string $left, string $right): int => (filemtime($right) ?: 0) <=> (filemtime($left) ?: 0)
+        );
+
+        $latestFile = $files[0];
+        $timestamp = filemtime($latestFile) ?: null;
+        $sizeBytes = filesize($latestFile) ?: 0;
+
+        return [
+            'retention_limit' => $retentionLimit,
+            'total_count' => count($files),
+            'latest' => [
+                'filename' => basename($latestFile),
+                'generated_at' => $timestamp ? date('Y-m-d H:i:s', $timestamp) : null,
+                'date' => $timestamp ? date('Y-m-d', $timestamp) : null,
+                'is_today' => $timestamp ? date('Y-m-d', $timestamp) === date('Y-m-d') : false,
+                'size_kb' => round($sizeBytes / 1024, 1),
+            ],
+        ];
     }
 }

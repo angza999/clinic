@@ -1,0 +1,1067 @@
+# Changelog For AI
+
+## Purpose
+This file tracks product, workflow, schema, and UI changes in a format that future AI sessions can continue from without losing context.
+
+## Update Rule
+Whenever work changes business logic, workflow, schema, validation, UI pattern, or module boundaries:
+- add a new entry at the top
+- list the edited files
+- describe flow impact
+- note which AI context files were updated
+
+## Entry Template
+```md
+## YYYY-MM-DD - Short Title
+
+### Type
+- feature | bugfix | refactor | schema | ux | docs
+
+### Summary
+- What changed
+
+### Why
+- Business or technical reason
+
+### Files
+- path/to/file1
+- path/to/file2
+
+### Flow Impact
+- registration | queue | smart exam | payment | stock | report | settings | users
+
+### Database Impact
+- none | describe
+
+### UI Impact
+- none | describe
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- DATABASE_SCHEMA.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- SMART_EXAM_LOGIC.md
+- KNOWN_ISSUES.md
+- FUTURE_FEATURES.md
+- DECISIONS.md
+
+### Notes
+- Risks, follow-up items, or guardrails
+```
+
+## Current Notable Changes
+
+## 2026-05-16 - Database Setup Guide Phase 15
+
+### Type
+- docs
+
+### Summary
+- Added a dedicated MySQL/Navicat setup and troubleshooting guide.
+- Documented the current local database defaults from `config/database.php`.
+- Added fixes for common connection errors such as `using password: NO`, `Unknown database`, and `SQLSTATE[HY000] [2002]`.
+- Linked the guide from `README.md`.
+
+### Why
+- Local setup problems can block clinic deployment and testing.
+- The Navicat error pattern showed the project needs a clear, production-minded setup guide.
+
+### Files
+- `docs/database-setup.md`
+- `README.md`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/PROJECT_RULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- setup
+- database
+- support
+
+### Database Impact
+- no schema change
+- documents connection values and optional user creation SQL
+
+### UI Impact
+- none
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- PROJECT_RULES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Do not commit real production database passwords.
+- The default local config remains `root` with blank password for XAMPP/Laragon style development.
+
+## 2026-05-16 - Backup Retention Policy Phase 14
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Backup creation now applies a file retention policy after a successful SQL dump.
+- The system keeps the latest 30 `clinic_backup_*.sql` files and removes older matching backup files.
+- Dashboard backup status now shows current backup file count against the retention limit.
+- Backup SQL header includes the active retention policy.
+
+### Why
+- Local backup files should not grow indefinitely on clinic computers.
+- Operators should see that the system has a simple retention rule without needing to inspect folders manually.
+
+### Files
+- `app/Controllers/BackupController.php`
+- `app/Controllers/DashboardController.php`
+- `app/Views/dashboard/index.php`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+- `ai-brain/FUTURE_FEATURES.md`
+- `ai-brain/KNOWN_ISSUES.md`
+
+### Flow Impact
+- backup
+- dashboard
+- daily close
+
+### Database Impact
+- no schema change
+- retention is file-based
+
+### UI Impact
+- Dashboard shows backup count and retention limit in the daily close backup indicator.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- FUTURE_FEATURES.md
+- KNOWN_ISSUES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Cleanup only targets files matching `clinic_backup_*.sql` in the export directory.
+- Persistent backup audit logs remain future work.
+
+## 2026-05-16 - Backup History Indicator Phase 13
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Dashboard now reads the latest SQL backup file from `storage/exports`.
+- Daily close panel shows whether a backup was created today.
+- The backup status displays latest backup time, filename, and file size.
+
+### Why
+- A one-operator clinic needs a visible reminder that backup was completed before closing the clinic.
+- This reduces reliance on memory without adding a separate backup history database table yet.
+
+### Files
+- `app/Controllers/DashboardController.php`
+- `app/Views/dashboard/index.php`
+- `public/assets/css/dashboard.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- dashboard
+- backup
+- daily close
+
+### Database Impact
+- no schema change
+- reads backup files from `storage/exports`
+
+### UI Impact
+- Adds compact backup status inside the daily close action area.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- CHANGELOG_AI.md
+
+### Notes
+- This is file-based history only; a persistent backup log table remains a future enhancement.
+
+## 2026-05-16 - End-of-Day Backup Safety Phase 12
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Dashboard daily close now includes an end-of-day action area.
+- If queue/payment work remains, the primary action sends the operator to clear pending work before backup.
+- If no work remains and the user is Admin, Dashboard exposes a confirmed `สำรองข้อมูลปิดวัน` action.
+- SQL backup files now include daily-close metadata in the dump header: generated time, close date, receipt count, paid total, and pending work count.
+
+### Why
+- A one-nurse clinic needs a safe, obvious final step before closing the clinic and turning off the computer.
+- Backup should be treated as part of the daily close workflow, not a hidden report utility.
+
+### Files
+- `app/Controllers/BackupController.php`
+- `app/Views/dashboard/index.php`
+- `public/assets/css/dashboard.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- dashboard
+- reports
+- backup
+- queue
+- payment
+
+### Database Impact
+- no schema change
+- backup reads existing `payments` and `queue_entries` for metadata
+
+### UI Impact
+- Dashboard daily close panel now has a final action block for clearing pending work, opening reports, or downloading end-of-day backup.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- CHANGELOG_AI.md
+
+### Notes
+- This is still a direct SQL dump download; retention, backup history, and scheduled/background backup remain future work.
+
+## 2026-05-16 - Daily Close Summary Phase 11
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Dashboard now includes a daily close summary panel.
+- Shows net paid revenue, receipt count, discount total, payment-method split, pending work checklist, and latest receipts.
+- Dashboard close status changes when queue/payment work remains.
+
+### Why
+- A one-nurse clinic needs a quick operational close view before ending the day.
+
+### Files
+- `app/Controllers/DashboardController.php`
+- `app/Views/dashboard/index.php`
+- `public/assets/css/dashboard.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- dashboard
+- payment
+- queue
+- reports
+
+### Database Impact
+- no schema change
+- reads existing `payments`, `visits`, `patients`, and `queue_entries`
+
+### UI Impact
+- Dashboard gains an end-of-day operational close panel.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+
+### Notes
+- This is not a formal accounting ledger.
+- Keep deeper financial reports in the Reports module.
+
+## 2026-05-16 - Smart Exam Stock Safety Phase 10
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Smart Exam item queries now include reorder level and nearest batch expiry.
+- Frequent medicine/supply buttons show stock safety badges.
+- Item dropdown includes stock status and expiry information.
+- Out-of-stock items remain disabled before submit.
+
+### Why
+- Nurses should see stock risk at the point of ordering, not only inside the inventory module.
+
+### Files
+- `app/Controllers/QueueController.php`
+- `app/Views/queue/exam.php`
+- `public/assets/css/smart-exam.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- stock
+- inventory
+
+### Database Impact
+- no schema change
+- reads existing `inventory_items.reorder_level` and `inventory_batches.expiry_date`
+
+### UI Impact
+- Smart Exam medicine/supply shortcuts show `พร้อมใช้`, `ใกล้หมด`, `ใกล้หมดอายุ`, or `หมด`.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- SMART_EXAM_LOGIC.md
+
+### Notes
+- Only out-of-stock blocks ordering.
+- Low stock and expiring soon are warnings, not blockers.
+
+## 2026-05-16 - Receipt Care Instructions Phase 9
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Receipt query now includes visit advice and follow-up date.
+- Receipt page shows a printable after-care instruction panel when advice or follow-up exists.
+- Receipt remains clean when no after-care data exists.
+
+### Why
+- In a one-nurse clinic, the printed receipt can also serve as the patient handout for home-care instructions and next appointment date.
+
+### Files
+- `app/Controllers/PaymentController.php`
+- `app/Views/payments/receipt.php`
+- `public/assets/css/app.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- payment
+- receipt
+- appointments
+
+### Database Impact
+- no schema change
+- reads existing `visits.advice` and `visits.followup_date`
+
+### UI Impact
+- Receipt page gains a print-friendly after-care panel only when data exists.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- SMART_EXAM_LOGIC.md
+
+### Notes
+- Do not show empty care panels.
+- Keep receipt print-friendly and avoid turning it into a full clinical note.
+
+## 2026-05-14 - Appointment Check-In Phase 8
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Queue page now shows scheduled appointments due today or overdue.
+- Added appointment check-in route to create a visit and queue from an appointment.
+- Check-in redirects directly to Smart Exam.
+- System reuses an existing active queue for the patient if one already exists today.
+
+### Why
+- Follow-up appointments should become active exam cases without the nurse manually searching and creating a queue.
+
+### Files
+- `public/index.php`
+- `app/Controllers/QueueController.php`
+- `app/Views/queue/index.php`
+- `public/assets/css/queue.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- appointments
+- queue
+- smart exam
+
+### Database Impact
+- no schema change
+- updates existing `appointments.status` and `appointments.visit_id`
+- creates `visits` and `queue_entries` through existing workflow
+
+### UI Impact
+- Queue page has a compact due appointment panel above patient search.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- SMART_EXAM_LOGIC.md
+
+### Notes
+- Appointment check-in is not a full appointment calendar.
+- Avoid duplicate active queues for the same patient on the same day.
+
+## 2026-05-14 - Follow-Up Appointment Sync Phase 7
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Added advice and follow-up date fields to Smart Exam.
+- Smart Exam finish now syncs `visits.followup_date` into `appointments`.
+- Advanced visit clinical save also syncs follow-up appointments to prevent duplicate scheduled rows.
+- Clearing follow-up date removes scheduled appointments linked to the visit.
+
+### Why
+- A one-nurse clinic needs follow-up scheduling to happen during case closure, not in a separate admin workflow.
+
+### Files
+- `app/Controllers/QueueController.php`
+- `app/Controllers/VisitController.php`
+- `app/Views/queue/exam.php`
+- `public/assets/css/smart-exam.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- appointments
+- patients
+- dashboard
+
+### Database Impact
+- no schema change
+- writes existing `appointments` rows during Smart Exam finish and advanced visit save
+
+### UI Impact
+- Smart Exam now includes a compact advice/follow-up scheduling section.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- SMART_EXAM_LOGIC.md
+
+### Notes
+- This is appointment sync, not a full calendar module.
+- One visit should have at most one scheduled follow-up appointment from this workflow.
+
+## 2026-05-14 - Patient Snapshot Phase 6
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Added compact patient snapshot inside Smart Exam.
+- Snapshot shows allergy, underlying disease, visit count, prior unpaid cases, latest historical vitals, upcoming appointments, and recent treatment visits.
+- Added a link from Smart Exam to the full patient history page.
+- Kept recent visits collapsed by default to reduce cognitive load.
+
+### Why
+- In a one-nurse clinic, the operator needs key historical context without leaving the exam screen.
+
+### Files
+- `app/Controllers/QueueController.php`
+- `app/Views/queue/exam.php`
+- `public/assets/css/smart-exam.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- patients
+
+### Database Impact
+- none
+
+### UI Impact
+- Smart Exam now has a compact read-only patient snapshot above the main clinical workflow.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- SMART_EXAM_LOGIC.md
+
+### Notes
+- Snapshot must stay compact and should not replace full patient history.
+- Do not auto-copy old clinical text into current visits without explicit nurse action.
+
+## 2026-05-14 - Configurable Smart Presets Phase 5
+
+### Type
+- feature
+- schema
+- ux
+- docs
+
+### Summary
+- Added `smart_exam_presets` table for database-backed Smart Exam presets.
+- Settings page now shows editable Smart Exam preset forms for Admin.
+- Smart Exam reads active presets from database before falling back to legacy hardcoded presets.
+- Default presets are seeded automatically when the preset table is empty.
+- Backup export includes `smart_exam_presets`.
+
+### Why
+- Clinic operators should be able to adjust common Smart Exam workflows without changing PHP code.
+
+### Files
+- `public/index.php`
+- `app/Controllers/SettingsController.php`
+- `app/Controllers/QueueController.php`
+- `app/Controllers/BackupController.php`
+- `app/Views/settings/index.php`
+- `database/schema.sql`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/DATABASE_SCHEMA.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- settings
+- backup
+
+### Database Impact
+- new table `smart_exam_presets`
+
+### UI Impact
+- settings page includes preset editor cards
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- DATABASE_SCHEMA.md
+- SMART_EXAM_LOGIC.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Preset keys must remain stable.
+- Service and item code validation is still operational/manual; invalid codes will fail during preset application.
+
+## 2026-05-14 - Quick Register Phase 4
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Added quick registration directly inside the Queue page.
+- Added `POST:queue-quick-register` to create patient, visit, and queue in one workflow.
+- Quick register redirects directly to Smart Exam.
+- Added duplicate guard using phone/name with explicit override checkbox.
+- Added frontend duplicate hint against loaded patient options.
+
+### Why
+- For a one-nurse clinic, new walk-in intake should not require leaving queue, creating a patient, returning to queue, then opening Smart Exam manually.
+
+### Files
+- `public/index.php`
+- `app/Controllers/QueueController.php`
+- `app/Views/queue/index.php`
+- `public/assets/js/queue.js`
+- `public/assets/css/queue.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- registration
+- queue
+- smart exam handoff
+
+### Database Impact
+- none
+- writes to existing `patients`, `visits`, and `queue_entries`
+
+### UI Impact
+- queue page now includes compact new-patient registration
+- duplicate warning appears near the quick register form
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- SMART_EXAM_LOGIC.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Quick register is not a replacement for full patient demographics.
+- Keep duplicate prevention conservative and visible.
+
+## 2026-05-14 - Queue Continuation Phase 3
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Receipt return action now sends the operator back to queue with `from_receipt=1`.
+- Queue page shows a continuation panel after returning from receipt.
+- Next waiting queue can be called and opened in Smart Exam with one action.
+- Added queue keyboard shortcuts: `Alt+N` for next case and `Alt+S` for patient search.
+
+### Why
+- In a one-operator clinic, the nurse should move from receipt to the next Smart Exam case without extra page hunting or duplicate clicks.
+
+### Files
+- `app/Views/payments/receipt.php`
+- `app/Views/queue/index.php`
+- `public/assets/js/queue.js`
+- `public/assets/css/queue.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- receipt
+- queue
+- smart exam handoff
+
+### Database Impact
+- none
+
+### UI Impact
+- queue page now has a post-receipt continuation state
+- keyboard-first queue operation is supported
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- SMART_EXAM_LOGIC.md
+- UI_UX_GUIDE.md
+- CHANGELOG_AI.md
+
+### Notes
+- `Alt+N` should only trigger when a next-case action exists.
+- Keep the continuation card lightweight; it should not replace the queue board.
+
+## 2026-05-14 - Receipt Handoff Phase 2
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Smart Exam inline payment now redirects directly to the receipt page after successful payment.
+- Receipt page supports `source=smart_exam` and shows a post-case action panel.
+- Nurse role can view receipts for one-operator clinic workflow.
+- Standalone payment completion also routes to the receipt page before returning to payment history.
+
+### Why
+- A single nurse should be able to receive payment, print receipt, and return to the queue without hunting through the finance module.
+
+### Files
+- `app/Controllers/QueueController.php`
+- `app/Controllers/PaymentController.php`
+- `app/Views/payments/receipt.php`
+- `public/assets/css/app.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- payment
+- receipt printing
+- queue return
+
+### Database Impact
+- none
+- uses existing `payments.id` to route receipt handoff
+
+### UI Impact
+- receipt page now prioritizes print receipt and return to queue
+- payments page link is visible only for Admin/Cashier
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- SYSTEM_FLOW.md
+- SMART_EXAM_LOGIC.md
+- UI_UX_GUIDE.md
+- CHANGELOG_AI.md
+
+### Notes
+- Do not auto-print by default.
+- Receipt access for Nurse is intentional in one-operator clinic mode.
+
+## 2026-05-13 - Smart Exam Inline Payment Phase 1
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- added compact payment fields directly to the Smart Exam summary panel
+- added `receive_payment` finish mode to record payment and close the case from Smart Exam
+- kept `waiting_payment` as a secondary path for delayed payment
+- added frontend net total, change, and paid-amount validation
+
+### Why
+- one-operator clinics should finish most paid cases from Smart Exam without switching to the payment workspace
+
+### Files
+- `app/Controllers/QueueController.php`
+- `app/Views/queue/exam.php`
+- `public/assets/js/smart-exam.js`
+- `public/assets/css/smart-exam.css`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- payment
+- queue completion
+
+### Database Impact
+- none
+- uses existing `payments` table and receipt running number logic
+
+### UI Impact
+- Smart Exam now exposes payment method, discount, paid amount, net total, and change in the right summary panel
+- primary paid-case action is now `รับเงินและปิดเคส`
+- delayed payment remains available as `บันทึกรอชำระ`
+
+### AI Context Updates Required
+- SMART_EXAM_LOGIC.md
+- UI_UX_GUIDE.md
+- CHANGELOG_AI.md
+
+### Notes
+- keep the standalone payments page as backlog/history for `WAITING_PAYMENT` and receipts
+
+## 2026-05-13 - Payment Access Guardrail In UI
+
+### Type
+- bugfix
+- ux
+- docs
+
+### Summary
+- removed payment navigation and dashboard shortcuts for roles that cannot open the payment workspace
+- changed unauthorized page access from raw `403` text to a flash message with redirect back to the role-appropriate home page
+- kept `WAITING_PAYMENT` visible to nurses as status text without exposing a forbidden link
+
+### Why
+- nurses were still able to click `payments` from some UI entry points and hit a plain 403 page, which feels broken and unprofessional in production
+
+### Files
+- `app/Core/Auth.php`
+- `app/Views/layouts/app.php`
+- `app/Views/dashboard/index.php`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- dashboard
+- payment
+- role permission
+
+### Database Impact
+- none
+
+### UI Impact
+- payment links are now shown only to `ADMIN` and `CASHIER`
+- nurse dashboard shows `รอการเงิน` as a non-clickable state instead of a forbidden shortcut
+
+### AI Context Updates Required
+- CHANGELOG_AI.md
+
+### Notes
+- keep route-level permission checks in controllers; UI hiding is only the first layer
+
+## 2026-05-13 - Smart Exam Phase 3 Professional Polish
+
+### Type
+- ux
+- feature
+- docs
+
+### Summary
+- switched Smart Exam to compact topbar mode so the page reads like a workstation, not a duplicate hero page
+- added compact patient identity chips for queue, HN, and VN
+- surfaced drug allergy state in both the active case panel and summary panel
+- added keyboard progression for vitals, clinical textareas, service entry, medicine entry, and finish handoff
+- refreshed AI context docs for the new Smart Exam behavior
+
+### Why
+- Smart Exam is a high-frequency nurse workflow and needs stronger scan speed, less pointer dependence, and a more professional medical-system feel
+
+### Files
+- `app/Controllers/QueueController.php`
+- `app/Views/layouts/app.php`
+- `app/Views/queue/exam.php`
+- `public/assets/css/app.css`
+- `public/assets/css/smart-exam.css`
+- `public/assets/js/smart-exam.js`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- nurse workflow
+
+### Database Impact
+- none
+
+### UI Impact
+- Smart Exam now uses compact workstation context in the topbar
+- patient identity and allergy state are more visible above the fold
+- keyboard-first progression is available for frequent form actions
+
+### AI Context Updates Required
+- UI_UX_GUIDE.md
+- SMART_EXAM_LOGIC.md
+- CHANGELOG_AI.md
+
+### Notes
+- This phase focuses on professional polish and operator speed, not new billing or clinical business rules
+
+## 2026-05-13 - Smart Exam Phase 2 Workflow Guidance
+
+### Type
+- ux
+- feature
+- docs
+
+### Summary
+- added readiness checklist before finishing Smart Exam
+- made step bar reflect `active`, `complete`, and `idle` states
+- highlighted the latest preset after redirect
+- disabled finish actions when the workflow is not actually ready
+- added selected state for Smart Preset helper buttons
+
+### Why
+- Nurses should not have to infer readiness from scattered sections
+- The screen needed to show the next action clearly
+
+### Files
+- `app/Controllers/QueueController.php`
+- `app/Views/queue/exam.php`
+- `public/assets/js/smart-exam.js`
+- `public/assets/css/smart-exam.css`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- nurse workflow
+
+### Database Impact
+- none
+
+### UI Impact
+- summary panel now shows readiness before finish
+- preset feedback after redirect is clearer
+- finish actions are safer because they reflect actual page state
+
+### AI Context Updates Required
+- SMART_EXAM_LOGIC.md
+- UI_UX_GUIDE.md
+- CHANGELOG_AI.md
+
+### Notes
+- This phase added UI guidance and state handling, not backend auto-order behavior
+
+## 2026-05-13 - Smart Exam Phase 1 Compact Layout
+
+### Type
+- ux
+- docs
+
+### Summary
+- reduced top-of-page height and removed duplicate hero behavior
+- converted service presets into compact tiles
+- merged Smart Preset helpers into the clinical block
+- tightened Smart Exam spacing and reduced card density
+- narrowed the sidebar slightly to recover workspace width
+
+### Why
+- The original Smart Exam consumed too much vertical space and felt closer to a prototype dashboard than a production clinic screen
+
+### Files
+- `app/Views/queue/exam.php`
+- `public/assets/css/smart-exam.css`
+- `public/assets/css/app.css`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- smart exam
+- nurse workflow
+
+### Database Impact
+- none
+
+### UI Impact
+- less scrolling on notebook screens
+- denser clinical workspace
+- faster preset and summary scanning
+
+### AI Context Updates Required
+- UI_UX_GUIDE.md
+- CHANGELOG_AI.md
+
+### Notes
+- No business logic changes were introduced in this phase
+
+## 2026-05-13 - Development Checklist Integration
+
+### Type
+- docs
+- process
+
+### Summary
+- added `ai-brain/DEVELOPMENT_CHECKLIST.md`
+- linked checklist usage into project context and rules
+- defined context update as part of done criteria
+
+### Why
+- The project must stay usable across many AI sessions without context drift
+
+### Files
+- `ai-brain/DEVELOPMENT_CHECKLIST.md`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/PROJECT_RULES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- docs
+- process
+
+### Database Impact
+- none
+
+### UI Impact
+- none
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- PROJECT_RULES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Every future feature should use the checklist before closing the task
+
+## 2026-05-12 - Smart Exam Flow Stabilization
+
+### Type
+- bugfix
+- ux
+- schema
+
+### Summary
+- fixed add/remove service redirect from Smart Exam back to `queue-exam`
+- fixed nurse finish flow so it returns to queue instead of forcing payment page navigation
+- connected `resp_rate` in visit detail and Smart Exam
+- fixed PDO named placeholder duplication issues affecting finish logic
+
+### Why
+- Smart Exam is the operational core for nurse workflow and regressions here immediately affect real use
+
+### Files
+- `app/Controllers/VisitController.php`
+- `app/Controllers/QueueController.php`
+- `app/Controllers/UserController.php`
+- `app/Views/visits/edit.php`
+
+### Flow Impact
+- smart exam
+- payment handoff
+- visit detail
+
+### Database Impact
+- no new schema added in this round
+- existing `resp_rate` usage became fully wired into the workflow
+
+### UI Impact
+- visit detail shows `Resp`
+- Smart Exam redirect behavior is stable
+
+### AI Context Updates Required
+- SMART_EXAM_LOGIC.md
+- CHANGELOG_AI.md
+
+### Notes
+- Avoid reintroducing duplicate named placeholders in PDO statements

@@ -28,15 +28,43 @@ class BackupController extends Controller
             'payments',
             'appointments',
             'system_settings',
+            'smart_exam_presets',
             'running_numbers',
             'audit_logs',
         ];
 
+        $retentionLimit = 30;
         $filename = 'clinic_backup_' . date('Ymd_His') . '.sql';
         $fullPath = storage_path('exports/' . $filename);
+        $exportDirectory = dirname($fullPath);
         $pdo = db();
 
-        $sqlDump = "-- Backup generated at " . date('Y-m-d H:i:s') . PHP_EOL;
+        if (!is_dir($exportDirectory)) {
+            mkdir($exportDirectory, 0777, true);
+        }
+
+        $dailyClose = $pdo->query(
+            'SELECT COUNT(*) AS receipt_count,
+                    COALESCE(SUM(total_amount), 0) AS total_amount
+             FROM payments
+             WHERE DATE(paid_at) = CURDATE()
+               AND payment_status = "PAID"'
+        )->fetch();
+
+        $pendingWorkCount = (int) $pdo->query(
+            'SELECT COUNT(*)
+             FROM queue_entries
+             WHERE queue_date = CURDATE()
+               AND status IN ("WAITING", "IN_SERVICE", "WAITING_PAYMENT")'
+        )->fetchColumn();
+
+        $sqlDump = "-- Dong Mahawan Clinic backup" . PHP_EOL;
+        $sqlDump .= "-- Generated at: " . date('Y-m-d H:i:s') . PHP_EOL;
+        $sqlDump .= "-- Daily close date: " . date('Y-m-d') . PHP_EOL;
+        $sqlDump .= "-- Today receipt count: " . (string) ($dailyClose['receipt_count'] ?? 0) . PHP_EOL;
+        $sqlDump .= "-- Today paid total: " . (string) ($dailyClose['total_amount'] ?? 0) . PHP_EOL;
+        $sqlDump .= "-- Pending queue/payment work: " . (string) $pendingWorkCount . PHP_EOL;
+        $sqlDump .= "-- Backup retention: keep latest " . (string) $retentionLimit . " clinic_backup_*.sql files" . PHP_EOL;
         $sqlDump .= "SET FOREIGN_KEY_CHECKS=0;" . PHP_EOL . PHP_EOL;
 
         foreach ($tables as $table) {
@@ -61,10 +89,31 @@ class BackupController extends Controller
         $sqlDump .= "SET FOREIGN_KEY_CHECKS=1;" . PHP_EOL;
 
         file_put_contents($fullPath, $sqlDump);
+        $this->cleanupOldBackups($exportDirectory, $retentionLimit);
 
         header('Content-Type: application/sql');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         readfile($fullPath);
         exit;
+    }
+
+    private function cleanupOldBackups(string $exportDirectory, int $retentionLimit): void
+    {
+        $files = glob(rtrim($exportDirectory, '/\\') . '/clinic_backup_*.sql');
+
+        if (!$files || count($files) <= $retentionLimit) {
+            return;
+        }
+
+        usort(
+            $files,
+            static fn(string $left, string $right): int => (filemtime($right) ?: 0) <=> (filemtime($left) ?: 0)
+        );
+
+        foreach (array_slice($files, $retentionLimit) as $oldBackup) {
+            if (is_file($oldBackup)) {
+                unlink($oldBackup);
+            }
+        }
     }
 }

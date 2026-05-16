@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\NumberGenerator;
+use RuntimeException;
 use Throwable;
 
 class PaymentController extends Controller
@@ -16,11 +17,11 @@ class PaymentController extends Controller
 
         $rows = db()->query(
             'SELECT visits.id AS visit_id, visits.visit_no, visits.visit_datetime, patients.hn,
-                    patients.first_name, patients.last_name, queue_entries.queue_no, queue_entries.status,
+                    patients.first_name, patients.last_name, queue_entries.id AS queue_id, queue_entries.queue_no, queue_entries.status,
                     COALESCE(service_totals.total_service, 0) AS total_service,
                     COALESCE(item_totals.total_item, 0) AS total_item,
                     (COALESCE(service_totals.total_service, 0) + COALESCE(item_totals.total_item, 0)) AS grand_total,
-                    payments.id AS payment_id, payments.receipt_no, payments.payment_status
+                    payments.id AS payment_id, payments.receipt_no, payments.payment_status, payments.total_amount AS payment_total
              FROM visits
              INNER JOIN patients ON patients.id = visits.patient_id
              INNER JOIN queue_entries ON queue_entries.visit_id = visits.id
@@ -40,8 +41,9 @@ class PaymentController extends Controller
         )->fetchAll();
 
         $this->render('payments/index', [
-            'pageTitle' => 'การเงินและชำระเงิน',
+            'pageTitle' => 'การเงินและรับชำระ',
             'rows' => $rows,
+            'pageStyles' => [app_url('assets/css/payments.css')],
         ]);
     }
 
@@ -53,13 +55,23 @@ class PaymentController extends Controller
         $discountAmount = (float) ($_POST['discount_amount'] ?? 0);
         $paidAmount = (float) ($_POST['paid_amount'] ?? 0);
         $paymentMethod = trim((string) ($_POST['payment_method'] ?? 'CASH'));
+        $receiptPaymentId = 0;
 
         if ($visitId <= 0) {
-            flash('error', 'ไม่พบ Visit สำหรับชำระเงิน');
+            flash('error', 'ไม่พบข้อมูลการชำระเงินที่ต้องการบันทึก');
             redirect('payments');
         }
 
         try {
+            $queue = $this->findQueueByVisit($visitId);
+            if (!$queue) {
+                throw new RuntimeException('ไม่พบคิวของผู้รับบริการรายการนี้');
+            }
+
+            if ($queue['status'] !== 'WAITING_PAYMENT') {
+                throw new RuntimeException('รายการนี้ยังไม่อยู่ในสถานะรอชำระเงิน');
+            }
+
             $pdo = db();
             $pdo->beginTransaction();
 
@@ -71,11 +83,15 @@ class PaymentController extends Controller
             $itemStmt->execute(['visit_id' => $visitId]);
             $itemTotal = (float) ($itemStmt->fetch()['total_amount'] ?? 0);
 
+            if (($serviceTotal + $itemTotal) <= 0) {
+                throw new RuntimeException('ยังไม่มีรายการคิดเงิน กรุณาตรวจสอบข้อมูลจากห้องตรวจก่อน');
+            }
+
             $totalAmount = max(0, $serviceTotal + $itemTotal - $discountAmount);
             $changeAmount = max(0, $paidAmount - $totalAmount);
 
             if ($paidAmount < $totalAmount) {
-                throw new \RuntimeException('จำนวนเงินรับชำระน้อยกว่ายอดชำระ');
+                throw new RuntimeException('ยอดรับชำระน้อยกว่ายอดที่ต้องชำระ');
             }
 
             $receiptNo = NumberGenerator::nextReceiptNo();
@@ -120,13 +136,53 @@ class PaymentController extends Controller
                  WHERE visit_id = :visit_id'
             )->execute(['visit_id' => $visitId]);
 
+            $paymentIdStmt = $pdo->prepare('SELECT id FROM payments WHERE visit_id = :visit_id LIMIT 1');
+            $paymentIdStmt->execute(['visit_id' => $visitId]);
+            $receiptPaymentId = (int) $paymentIdStmt->fetchColumn();
+
             $pdo->commit();
-            flash('success', 'รับชำระเงินเรียบร้อย');
+            flash('success', 'รับชำระเงินและปิดเคสเรียบร้อยแล้ว');
         } catch (Throwable $throwable) {
+            $receiptPaymentId = 0;
             if (db()->inTransaction()) {
                 db()->rollBack();
             }
-            flash('error', 'ไม่สามารถรับชำระเงินได้: ' . $throwable->getMessage());
+            flash('error', 'ไม่สามารถบันทึกการชำระเงินได้: ' . $throwable->getMessage());
+        }
+
+        if ($receiptPaymentId > 0) {
+            redirect('receipt', ['id' => $receiptPaymentId, 'source' => 'payments']);
+        }
+
+        redirect('payments');
+    }
+
+    public function sendBack(): void
+    {
+        require_roles(['ADMIN', 'CASHIER']);
+
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+
+        try {
+            $queue = $this->findQueueByVisit($visitId);
+            if (!$queue) {
+                throw new RuntimeException('ไม่พบคิวที่ต้องการส่งกลับห้องตรวจ');
+            }
+
+            if ($queue['status'] !== 'WAITING_PAYMENT') {
+                throw new RuntimeException('ส่งกลับห้องตรวจได้เฉพาะเคสที่อยู่ในสถานะรอชำระเงิน');
+            }
+
+            db()->prepare(
+                'UPDATE queue_entries
+                 SET status = "IN_SERVICE", updated_at = NOW()
+                 WHERE visit_id = :visit_id'
+            )->execute(['visit_id' => $visitId]);
+
+            flash('success', 'ส่งเคสกลับไปที่ห้องตรวจเรียบร้อยแล้ว');
+            redirect('visit-edit', ['id' => $visitId]);
+        } catch (Throwable $throwable) {
+            flash('error', 'ไม่สามารถส่งเคสกลับห้องตรวจได้: ' . $throwable->getMessage());
         }
 
         redirect('payments');
@@ -134,11 +190,13 @@ class PaymentController extends Controller
 
     public function receipt(): void
     {
-        require_roles(['ADMIN', 'CASHIER']);
+        require_roles(['ADMIN', 'CASHIER', 'NURSE']);
 
         $paymentId = (int) ($_GET['id'] ?? 0);
+        $source = trim((string) ($_GET['source'] ?? 'payments'));
         $stmt = db()->prepare(
-            'SELECT payments.*, visits.visit_no, visits.visit_datetime, patients.hn, patients.first_name, patients.last_name,
+            'SELECT payments.*, visits.visit_no, visits.visit_datetime, visits.advice, visits.followup_date,
+                    patients.hn, patients.first_name, patients.last_name,
                     users.full_name AS cashier_name
              FROM payments
              INNER JOIN visits ON visits.id = payments.visit_id
@@ -176,6 +234,21 @@ class PaymentController extends Controller
             'payment' => $payment,
             'serviceLines' => $serviceLines->fetchAll(),
             'itemLines' => $itemLines->fetchAll(),
+            'source' => $source,
         ], 'layouts/blank');
+    }
+
+    private function findQueueByVisit(int $visitId): ?array
+    {
+        $stmt = db()->prepare(
+            'SELECT *
+             FROM queue_entries
+             WHERE visit_id = :visit_id
+             LIMIT 1'
+        );
+        $stmt->execute(['visit_id' => $visitId]);
+
+        $queue = $stmt->fetch();
+        return $queue ?: null;
     }
 }

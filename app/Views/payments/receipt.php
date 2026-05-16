@@ -3,6 +3,12 @@ $clinicName = (string) system_setting('clinic_name', config('app.name'));
 $clinicAddress = (string) system_setting('clinic_address', '');
 $clinicPhone = (string) system_setting('clinic_phone', '');
 $receiptFooter = (string) system_setting('queue_note', config('app.receipt_footer'));
+$source = (string) ($source ?? 'payments');
+$isSmartExamReceipt = $source === 'smart_exam';
+$canOpenPayments = has_role(['ADMIN', 'CASHIER']);
+$adviceText = trim((string) ($payment['advice'] ?? ''));
+$followupDate = trim((string) ($payment['followup_date'] ?? ''));
+$hasCareInstructions = $adviceText !== '' || $followupDate !== '';
 ?>
 
 <div class="row justify-content-center receipt-sheet-wrap">
@@ -102,11 +108,46 @@ $receiptFooter = (string) system_setting('queue_note', config('app.receipt_foote
                     </div>
                 </div>
 
+                <?php if ($hasCareInstructions): ?>
+                    <div class="receipt-care-panel mb-4">
+                        <div class="receipt-care-title">คำแนะนำหลังรับบริการ</div>
+                        <?php if ($adviceText !== ''): ?>
+                            <div class="receipt-care-block">
+                                <span>คำแนะนำกลับบ้าน</span>
+                                <strong><?= nl2br(e($adviceText)) ?></strong>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($followupDate !== ''): ?>
+                            <div class="receipt-care-block followup">
+                                <span>วันนัดติดตาม</span>
+                                <strong><?= thai_date_only($followupDate) ?></strong>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($receiptFooter !== ''): ?>
                     <div class="text-center text-muted mb-4"><?= nl2br(e($receiptFooter)) ?></div>
                 <?php endif; ?>
 
-                <div class="d-flex justify-content-center gap-2 no-print flex-wrap">
+                <div class="receipt-action-panel no-print">
+                    <?php if ($isSmartExamReceipt): ?>
+                        <div class="receipt-action-note">
+                            <strong>ปิดเคสเรียบร้อย</strong>
+                            <span>พิมพ์ใบเสร็จหรือกลับไปคิวเพื่อรับเคสถัดไป</span>
+                        </div>
+                    <?php endif; ?>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <button class="btn btn-primary" onclick="window.print()">พิมพ์ใบเสร็จ</button>
+                        <a href="<?= e(route_url('queue', ['from_receipt' => 1])) ?>" class="btn btn-success">กลับไปคิววันนี้</a>
+                        <?php if ($canOpenPayments): ?>
+                            <a href="<?= e(route_url('payments')) ?>" class="btn btn-outline-secondary">ไปหน้าการเงิน</a>
+                        <?php endif; ?>
+                    </div>
+                    <div class="receipt-shortcut-hint">Shortcut: กด Ctrl+P เพื่อพิมพ์จาก browser ได้ทันที</div>
+                </div>
+
+                <div class="d-flex justify-content-center gap-2 no-print flex-wrap receipt-legacy-actions">
                     <a href="<?= e(route_url('payments')) ?>" class="btn btn-outline-secondary">กลับไปหน้าการเงิน</a>
                     <button class="btn btn-primary" onclick="window.print()">พิมพ์ใบเสร็จ</button>
                 </div>

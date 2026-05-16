@@ -1,0 +1,423 @@
+# Database Schema: ดงมหาวันคลินิก
+
+## Overview
+ฐานข้อมูลใช้ MySQL/MariaDB และออกแบบแบบ transactional workflow สำหรับคลินิกขนาดเล็ก โดยเน้น queue-driven visit lifecycle
+
+## Core Design Principles
+- `patients` คือ master patient record
+- `visits` คือ encounter ของแต่ละครั้ง
+- `queue_entries` คือสถานะหน้างานของ visit
+- `visit_services` และ `visit_item_usages` คือรายการคิดเงิน
+- `inventory_batches` + `stock_movements` คือ source of truth ของ stock
+- `payments` ปิดรอบการเงินของ visit
+
+## Table Catalog
+
+### `roles`
+Purpose:
+- เก็บ role หลักของระบบ
+
+Key Fields:
+- `id`
+- `role_code`
+- `role_name`
+
+Relations:
+- 1:N ไป `users`
+
+### `users`
+Purpose:
+- เก็บบัญชีเจ้าหน้าที่
+
+Key Fields:
+- `id`
+- `role_id`
+- `full_name`
+- `username`
+- `password_hash`
+- `phone`
+- `is_active`
+- `last_login_at`
+
+Relations:
+- N:1 ไป `roles`
+- 1:N แบบ reference ไป `visits.created_by`
+- 1:N แบบ reference ไป `visit_vitals.recorded_by`
+- 1:N แบบ reference ไป `payments.paid_by`
+- 1:N แบบ reference ไป `stock_movements.created_by`
+- 1:N แบบ reference ไป `audit_logs.user_id`
+
+### `patients`
+Purpose:
+- เก็บแฟ้มผู้ป่วยหลัก
+
+Key Fields:
+- `id`
+- `hn`
+- `citizen_id`
+- `title_name`
+- `first_name`
+- `last_name`
+- `gender`
+- `birth_date`
+- `phone`
+- `address`
+- `underlying_disease`
+- `drug_allergy`
+- `note`
+- `is_active`
+
+Relations:
+- 1:N ไป `visits`
+- 1:N ไป `appointments`
+
+### `visits`
+Purpose:
+- เก็บ encounter แต่ละครั้งของผู้ป่วย
+
+Key Fields:
+- `id`
+- `visit_no`
+- `patient_id`
+- `visit_datetime`
+- `chief_complaint`
+- `present_illness`
+- `physical_exam`
+- `diagnosis`
+- `nursing_note`
+- `advice`
+- `followup_date`
+- `created_by`
+
+Relations:
+- N:1 ไป `patients`
+- N:1 ไป `users`
+- 1:1 ไป `queue_entries`
+- 1:1 ไป `visit_vitals`
+- 1:N ไป `visit_services`
+- 1:N ไป `visit_item_usages`
+- 0..1:1 ไป `payments`
+- 0..N ไป `appointments`
+
+### `queue_entries`
+Purpose:
+- เก็บสถานะ queue operational ของ visit
+
+Key Fields:
+- `id`
+- `visit_id`
+- `queue_date`
+- `queue_no`
+- `status`
+- `checked_in_at`
+- `called_at`
+- `finished_at`
+
+Relations:
+- 1:1 ไป `visits`
+
+Notes:
+- unique (`visit_id`)
+- unique (`queue_date`, `queue_no`)
+- status เป็น workflow state ที่สำคัญที่สุดของหน้างาน
+
+### `visit_vitals`
+Purpose:
+- เก็บ vital signs ของ visit
+
+Key Fields:
+- `visit_id`
+- `bp_systolic`
+- `bp_diastolic`
+- `temp_c`
+- `pulse_rate`
+- `resp_rate`
+- `spo2`
+- `weight_kg`
+- `recorded_by`
+- `recorded_at`
+
+Relations:
+- 1:1 ไป `visits`
+- N:1 ไป `users`
+
+### `services`
+Purpose:
+- master รายการบริการ
+
+Key Fields:
+- `id`
+- `service_code`
+- `service_name`
+- `category`
+- `price`
+- `is_active`
+
+Relations:
+- 1:N ไป `visit_services`
+
+### `visit_services`
+Purpose:
+- บันทึกรายการบริการที่ใช้ใน visit
+
+Key Fields:
+- `id`
+- `visit_id`
+- `service_id`
+- `qty`
+- `unit_price`
+- `line_total`
+- `remark`
+
+Relations:
+- N:1 ไป `visits`
+- N:1 ไป `services`
+
+Notes:
+- ใช้ทั้งคิดเงินจริงและ mark preset source ผ่าน `remark`
+
+### `inventory_items`
+Purpose:
+- master รายการยา/เวชภัณฑ์/อุปกรณ์
+
+Key Fields:
+- `id`
+- `item_code`
+- `item_name`
+- `item_type`
+- `unit_name`
+- `reorder_level`
+- `default_cost`
+- `default_price`
+- `is_active`
+
+Relations:
+- 1:N ไป `inventory_batches`
+- 1:N ไป `visit_item_usages`
+- 1:N ไป `stock_movements`
+
+### `inventory_batches`
+Purpose:
+- เก็บ stock ระดับ lot/batch
+
+Key Fields:
+- `id`
+- `item_id`
+- `lot_no`
+- `expiry_date`
+- `qty_in`
+- `qty_balance`
+- `cost_per_unit`
+- `received_date`
+
+Relations:
+- N:1 ไป `inventory_items`
+- 1:N ไป `stock_movements`
+
+Notes:
+- ใช้ FEFO / expiry-oriented consumption
+
+### `stock_movements`
+Purpose:
+- audit trail ของ stock movement
+
+Key Fields:
+- `id`
+- `batch_id`
+- `item_id`
+- `movement_type`
+- `qty`
+- `unit_cost`
+- `reference_type`
+- `reference_id`
+- `note`
+- `movement_datetime`
+- `created_by`
+
+Relations:
+- N:1 ไป `inventory_batches`
+- N:1 ไป `inventory_items`
+- N:1 ไป `users`
+
+Movement Types:
+- `IN`
+- `OUT`
+- `ADJUST`
+
+### `visit_item_usages`
+Purpose:
+- บันทึกการใช้ยา/เวชภัณฑ์/อุปกรณ์ใน visit
+
+Key Fields:
+- `id`
+- `visit_id`
+- `item_id`
+- `qty`
+- `unit_price`
+- `line_total`
+- `usage_note`
+
+Relations:
+- N:1 ไป `visits`
+- N:1 ไป `inventory_items`
+
+Notes:
+- เป็น source ของค่า item subtotal
+- ต้องสัมพันธ์กับ stock movement
+
+### `payments`
+Purpose:
+- บันทึกการชำระเงินและใบเสร็จ
+
+Key Fields:
+- `id`
+- `visit_id`
+- `receipt_no`
+- `subtotal_service`
+- `subtotal_item`
+- `discount_amount`
+- `total_amount`
+- `paid_amount`
+- `change_amount`
+- `payment_method`
+- `payment_status`
+- `paid_at`
+- `paid_by`
+
+Relations:
+- 1:1 ไป `visits`
+- N:1 ไป `users`
+
+Payment Methods:
+- `CASH`
+- `TRANSFER`
+- `QR`
+
+Payment Status:
+- `UNPAID`
+- `PAID`
+- `VOID`
+
+### `appointments`
+Purpose:
+- เก็บนัดหมายติดตาม
+
+Key Fields:
+- `id`
+- `patient_id`
+- `visit_id`
+- `appointment_date`
+- `appointment_time`
+- `purpose`
+- `status`
+- `note`
+
+Relations:
+- N:1 ไป `patients`
+- optional N:1 ไป `visits`
+
+### `system_settings`
+Purpose:
+- เก็บค่าคลินิกและ behavior ที่ปรับได้จาก admin
+
+Key Fields:
+- `clinic_name`
+- `clinic_address`
+- `clinic_phone`
+- `receipt_prefix`
+- `hn_prefix`
+- `expiry_alert_days`
+- `queue_note`
+
+Notes:
+- มีผลต่อ numbering และข้อความบนเอกสาร
+
+### `audit_logs`
+Purpose:
+- เตรียมไว้สำหรับ action logging
+
+Key Fields:
+- `user_id`
+- `action`
+- `table_name`
+- `record_id`
+- `detail_json`
+
+Current State:
+- schema มีแล้ว แต่ระบบยังใช้ไม่เต็ม
+
+### `running_numbers`
+Purpose:
+- เก็บ running number ตามประเภทและวันที่
+
+Key Fields:
+- `number_type`
+- `running_date`
+- `last_no`
+
+Used For:
+- HN
+- VN
+- QUEUE
+- RECEIPT
+
+## Relationship Summary
+- `roles.id` -> `users.role_id`
+- `patients.id` -> `visits.patient_id`
+- `visits.id` -> `queue_entries.visit_id`
+- `visits.id` -> `visit_vitals.visit_id`
+- `visits.id` -> `visit_services.visit_id`
+- `services.id` -> `visit_services.service_id`
+- `inventory_items.id` -> `inventory_batches.item_id`
+- `inventory_items.id` -> `visit_item_usages.item_id`
+- `visits.id` -> `visit_item_usages.visit_id`
+- `inventory_batches.id` -> `stock_movements.batch_id`
+- `visits.id` -> `payments.visit_id`
+- `patients.id` -> `appointments.patient_id`
+
+## Important Business Rules In Schema
+- หนึ่ง visit มี queue entry เดียว
+- หนึ่ง visit มี payment หลักหนึ่งรายการ
+- HN ไม่ reset รายวัน
+- VN, queue, receipt reset ตามวัน
+- qty balance อยู่ที่ batch ไม่ใช่ item summary table
+
+## Performance Notes
+- schema ปัจจุบันพอเหมาะกับคลินิกขนาดเล็กถึงกลาง
+- ถ้า scale สูงขึ้น ให้พิจารณา:
+  - เพิ่ม covering index ตาม report query
+  - archive payments/report snapshot
+  - แยก read model สำหรับ dashboard
+
+## Schema Change Rules For AI
+เมื่อแก้ schema:
+1. อัปเดต `database/schema.sql`
+2. อัปเดตไฟล์นี้
+3. อัปเดต flow ที่เกี่ยวข้องใน `SYSTEM_FLOW.md`
+4. ถ้าเป็น Smart Exam field ให้แก้ `SMART_EXAM_LOGIC.md`
+5. ห้าม rely เฉพาะ runtime auto-alter เป็น long-term solution
+
+### `smart_exam_presets`
+Purpose: configurable Smart Exam quick presets for common clinic workflows.
+
+Key fields:
+- `preset_key`: stable preset identifier used by Smart Exam forms
+- `label`: button label shown to nurse
+- `description`: short helper text
+- `theme`: visual style class such as `preset-wound`
+- `service_codes`: comma/space separated service codes to add
+- `item_codes_json`: JSON array of `{code, qty}` item usages
+- `cc`, `pi`, `pe`, `dx`: clinical defaults
+- `advice`: default patient advice
+- `followup_days`: optional follow-up date offset
+- `sort_order`: display order
+- `is_active`: hide/show preset
+
+Relations:
+- `service_codes` maps to `services.service_code`
+- `item_codes_json[].code` maps to `inventory_items.item_code`
+
+Rules:
+- Presets are configurable from Settings.
+- Smart Exam reads active presets from this table first.
+- Hardcoded fallback remains for safety if table creation/query fails.

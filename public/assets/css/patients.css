@@ -1,0 +1,129 @@
+.patient-search-form {
+  max-width: 560px;
+}
+
+.patient-hero-card {
+  padding: 1.25rem 1.4rem;
+}
+
+.patient-result-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.patient-card-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.patient-result-card,
+.patient-quick-card,
+.patient-history-card {
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.patient-result-card,
+.patient-quick-card {
+  padding: 1rem 1.1rem;
+}
+
+.patient-history-card {
+  border: 1px solid #e2e8f0;
+  padding: 1.1rem;
+}
+
+.patient-search-panel {
+  border: 1px solid #dbeafe;
+}
+
+.patient-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(380px, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.patient-panel-heading {
+  align-items: center;
+}
+
+.compact-card-list .patient-result-card {
+  padding: 1rem 1.1rem;
+}
+
+.patient-result-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.patient-result-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.patient-meta-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.patient-meta-row div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.patient-meta-row span {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.patient-card-actions {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 200px;
+}
+
+.patient-search-panel .form-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.compact-textarea {
+  min-height: 78px;
+}
+
+@media (max-width: 1399.98px) {
+  .patient-meta-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .patient-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .patient-result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-card-actions {
+    min-width: 0;
+  }
+
+  .patient-card-actions .btn {
+    width: 100%;
+  }
+}

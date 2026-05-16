@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use RuntimeException;
 use Throwable;
 
 class VisitController extends Controller
@@ -48,7 +49,6 @@ class VisitController extends Controller
             'SELECT services.id, services.service_name, services.price, COALESCE(SUM(visit_services.qty), 0) AS total_qty
              FROM services
              LEFT JOIN visit_services ON visit_services.service_id = services.id
-             LEFT JOIN visits ON visits.id = visit_services.visit_id
              WHERE services.is_active = 1
              GROUP BY services.id, services.service_name, services.price
              ORDER BY total_qty DESC, services.service_name ASC
@@ -71,9 +71,12 @@ class VisitController extends Controller
         $serviceCount = count($addedServices);
         $itemCount = count($usedItems);
         $grandTotal = $serviceTotal + $itemTotal;
+        $isEditable = has_role(['ADMIN', 'NURSE']) && is_visit_editable_status($visit['status'] ?? null);
+        $statusGuidance = $this->statusGuidance((string) ($visit['status'] ?? 'WAITING'), $grandTotal > 0);
+        $recentVisits = $this->recentVisitsForPatient((int) $visit['patient_id'], $visitId);
 
         $this->render('visits/edit', [
-            'pageTitle' => 'บันทึกการตรวจและการพยาบาล',
+            'pageTitle' => 'รายละเอียดขั้นสูง',
             'visit' => $visit,
             'services' => $services,
             'items' => $items,
@@ -89,6 +92,9 @@ class VisitController extends Controller
             'hasBillableItems' => $grandTotal > 0,
             'nursingTemplates' => $this->nursingTemplates(),
             'adviceTemplates' => $this->adviceTemplates(),
+            'isEditable' => $isEditable,
+            'statusGuidance' => $statusGuidance,
+            'recentVisits' => $recentVisits,
         ]);
     }
 
@@ -100,8 +106,13 @@ class VisitController extends Controller
         $visit = $this->findVisit($visitId);
 
         if (!$visit) {
-            flash('error', 'ไม่พบข้อมูล Visit');
+            flash('error', 'ไม่พบข้อมูลการรักษาที่ต้องการบันทึก');
             redirect('queue');
+        }
+
+        if (!is_visit_editable_status($visit['status'] ?? null)) {
+            flash('error', 'เคสนี้ไม่ได้อยู่ในสถานะกำลังตรวจ กรุณาเรียกคิวเข้าตรวจก่อน หรือส่งกลับจากการเงินก่อนแก้ไข');
+            $this->redirectAfterVisitAction($visitId);
         }
 
         $data = [
@@ -114,6 +125,7 @@ class VisitController extends Controller
             'bp_diastolic' => $_POST['bp_diastolic'] !== '' ? (int) $_POST['bp_diastolic'] : null,
             'temp_c' => $_POST['temp_c'] !== '' ? (float) $_POST['temp_c'] : null,
             'pulse_rate' => $_POST['pulse_rate'] !== '' ? (int) $_POST['pulse_rate'] : null,
+            'resp_rate' => $_POST['resp_rate'] !== '' ? (int) $_POST['resp_rate'] : null,
             'spo2' => $_POST['spo2'] !== '' ? (int) $_POST['spo2'] : null,
             'weight_kg' => $_POST['weight_kg'] !== '' ? (float) $_POST['weight_kg'] : null,
         ];
@@ -131,24 +143,25 @@ class VisitController extends Controller
                      updated_at = NOW()
                  WHERE id = :visit_id'
             )->execute([
-                'chief_complaint' => $data['chief_complaint'] ?: null,
-                'nursing_note' => $data['nursing_note'] ?: null,
-                'advice' => $data['advice'] ?: null,
-                'followup_date' => $data['followup_date'] ?: null,
+                'chief_complaint' => $data['chief_complaint'] !== '' ? $data['chief_complaint'] : null,
+                'nursing_note' => $data['nursing_note'] !== '' ? $data['nursing_note'] : null,
+                'advice' => $data['advice'] !== '' ? $data['advice'] : null,
+                'followup_date' => $data['followup_date'] !== '' ? $data['followup_date'] : null,
                 'visit_id' => $visitId,
             ]);
 
             $pdo->prepare(
                 'INSERT INTO visit_vitals (
-                    visit_id, bp_systolic, bp_diastolic, temp_c, pulse_rate, spo2, weight_kg, recorded_by, recorded_at, created_at, updated_at
+                    visit_id, bp_systolic, bp_diastolic, temp_c, pulse_rate, resp_rate, spo2, weight_kg, recorded_by, recorded_at, created_at, updated_at
                  ) VALUES (
-                    :visit_id, :bp_systolic, :bp_diastolic, :temp_c, :pulse_rate, :spo2, :weight_kg, :recorded_by, NOW(), NOW(), NOW()
+                    :visit_id, :bp_systolic, :bp_diastolic, :temp_c, :pulse_rate, :resp_rate, :spo2, :weight_kg, :recorded_by, NOW(), NOW(), NOW()
                  )
                  ON DUPLICATE KEY UPDATE
                     bp_systolic = VALUES(bp_systolic),
                     bp_diastolic = VALUES(bp_diastolic),
                     temp_c = VALUES(temp_c),
                     pulse_rate = VALUES(pulse_rate),
+                    resp_rate = VALUES(resp_rate),
                     spo2 = VALUES(spo2),
                     weight_kg = VALUES(weight_kg),
                     recorded_by = VALUES(recorded_by),
@@ -160,12 +173,13 @@ class VisitController extends Controller
                 'bp_diastolic' => $data['bp_diastolic'],
                 'temp_c' => $data['temp_c'],
                 'pulse_rate' => $data['pulse_rate'],
+                'resp_rate' => $data['resp_rate'],
                 'spo2' => $data['spo2'],
                 'weight_kg' => $data['weight_kg'],
                 'recorded_by' => current_user()['id'],
             ]);
 
-            if ($data['followup_date']) {
+            if ($data['followup_date'] !== '') {
                 $pdo->prepare(
                     'INSERT INTO appointments (
                         patient_id, visit_id, appointment_date, purpose, status, note, created_at, updated_at
@@ -176,16 +190,18 @@ class VisitController extends Controller
                     'patient_id' => $visit['patient_id'],
                     'visit_id' => $visitId,
                     'appointment_date' => $data['followup_date'],
-                    'purpose' => 'นัดติดตาม',
-                    'note' => $data['advice'] ?: null,
+                    'purpose' => 'นัดติดตามอาการ',
+                    'note' => $data['advice'] !== '' ? $data['advice'] : null,
                 ]);
             }
+
+            $this->syncFollowupAppointment($pdo, $visitId);
 
             $workflowAction = (string) ($_POST['workflow_action'] ?? 'save');
             if ($workflowAction === 'save_and_payment') {
                 if (!$this->visitHasBillableItems($visitId)) {
                     $pdo->commit();
-                    flash('error', 'บันทึกข้อมูลแล้ว แต่ยังส่งชำระเงินไม่ได้ กรุณาเพิ่มบริการหรือยา/เวชภัณฑ์อย่างน้อย 1 รายการก่อน');
+                    flash('error', 'บันทึกข้อมูลแล้ว แต่ยังส่งการเงินไม่ได้ กรุณาเพิ่มบริการหรือยา/เวชภัณฑ์/อุปกรณ์อย่างน้อย 1 รายการก่อน');
                     redirect('visit-edit', ['id' => $visitId]);
                 }
 
@@ -199,19 +215,96 @@ class VisitController extends Controller
             $pdo->commit();
 
             if ($workflowAction === 'save_and_payment') {
-                flash('success', 'บันทึกข้อมูลและส่งไปยังห้องการเงินแล้ว');
+                flash('success', 'บันทึกข้อมูลและส่งต่อไปยังการเงินเรียบร้อยแล้ว');
                 redirect('queue');
             }
 
-            flash('success', 'บันทึกการตรวจและการพยาบาลเรียบร้อย');
+            flash('success', 'บันทึกข้อมูลการรักษาเรียบร้อยแล้ว');
         } catch (Throwable $throwable) {
             if (db()->inTransaction()) {
                 db()->rollBack();
             }
-            flash('error', 'ไม่สามารถบันทึกการตรวจได้: ' . $throwable->getMessage());
+            flash('error', 'ไม่สามารถบันทึกข้อมูลการรักษาได้: ' . $throwable->getMessage());
         }
 
-        redirect('visit-edit', ['id' => $visitId]);
+        $this->redirectAfterVisitAction($visitId);
+    }
+
+    private function syncFollowupAppointment(\PDO $pdo, int $visitId): void
+    {
+        $stmt = $pdo->prepare(
+            'SELECT visits.patient_id, visits.followup_date, visits.advice
+             FROM visits
+             WHERE visits.id = :visit_id
+             LIMIT 1'
+        );
+        $stmt->execute(['visit_id' => $visitId]);
+        $visit = $stmt->fetch();
+
+        if (!$visit) {
+            return;
+        }
+
+        if (empty($visit['followup_date'])) {
+            $pdo->prepare(
+                'DELETE FROM appointments
+                 WHERE visit_id = :visit_id
+                   AND status = "SCHEDULED"'
+            )->execute(['visit_id' => $visitId]);
+            return;
+        }
+
+        $existingStmt = $pdo->prepare(
+            'SELECT id
+             FROM appointments
+             WHERE visit_id = :visit_id
+               AND status = "SCHEDULED"
+             ORDER BY id ASC
+             LIMIT 1'
+        );
+        $existingStmt->execute(['visit_id' => $visitId]);
+        $appointmentId = (int) $existingStmt->fetchColumn();
+
+        $payload = [
+            'patient_id' => $visit['patient_id'],
+            'visit_id' => $visitId,
+            'appointment_date' => $visit['followup_date'],
+            'purpose' => 'นัดติดตามอาการ',
+            'note' => !empty($visit['advice']) ? $visit['advice'] : null,
+        ];
+
+        if ($appointmentId > 0) {
+            $payload['id'] = $appointmentId;
+            $pdo->prepare(
+                'UPDATE appointments
+                 SET patient_id = :patient_id,
+                     visit_id = :visit_id,
+                     appointment_date = :appointment_date,
+                     purpose = :purpose,
+                     note = :note,
+                     updated_at = NOW()
+                 WHERE id = :id'
+            )->execute($payload);
+
+            $pdo->prepare(
+                'DELETE FROM appointments
+                 WHERE visit_id = :visit_id
+                   AND status = "SCHEDULED"
+                   AND id <> :id'
+            )->execute([
+                'visit_id' => $visitId,
+                'id' => $appointmentId,
+            ]);
+            return;
+        }
+
+        $pdo->prepare(
+            'INSERT INTO appointments (
+                patient_id, visit_id, appointment_date, purpose, status, note, created_at, updated_at
+             ) VALUES (
+                :patient_id, :visit_id, :appointment_date, :purpose, "SCHEDULED", :note, NOW(), NOW()
+             )'
+        )->execute($payload);
     }
 
     public function addService(): void
@@ -219,6 +312,8 @@ class VisitController extends Controller
         require_roles(['ADMIN', 'NURSE']);
 
         $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $this->assertVisitEditable($visitId);
+
         $serviceId = (int) ($_POST['service_id'] ?? 0);
         $qty = max(1, (int) ($_POST['qty'] ?? 1));
 
@@ -227,7 +322,7 @@ class VisitController extends Controller
         $service = $serviceStmt->fetch();
 
         if (!$service || $visitId <= 0) {
-            flash('error', 'ไม่พบรายการบริการ');
+            flash('error', 'ไม่พบบริการที่เลือก');
             redirect('queue');
         }
 
@@ -244,8 +339,8 @@ class VisitController extends Controller
             'line_total' => $lineTotal,
         ]);
 
-        flash('success', 'เพิ่มบริการเรียบร้อย');
-        redirect('visit-edit', ['id' => $visitId]);
+        flash('success', 'เพิ่มบริการเรียบร้อยแล้ว');
+        $this->redirectAfterVisitAction($visitId);
     }
 
     public function removeService(): void
@@ -254,10 +349,11 @@ class VisitController extends Controller
 
         $serviceLineId = (int) ($_POST['service_line_id'] ?? 0);
         $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $this->assertVisitEditable($visitId);
 
         db()->prepare('DELETE FROM visit_services WHERE id = :id')->execute(['id' => $serviceLineId]);
-        flash('success', 'ลบบริการเรียบร้อย');
-        redirect('visit-edit', ['id' => $visitId]);
+        flash('success', 'ลบบริการเรียบร้อยแล้ว');
+        $this->redirectAfterVisitAction($visitId);
     }
 
     public function addItemUsage(): void
@@ -265,13 +361,15 @@ class VisitController extends Controller
         require_roles(['ADMIN', 'NURSE']);
 
         $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $this->assertVisitEditable($visitId);
+
         $itemId = (int) ($_POST['item_id'] ?? 0);
         $qty = (float) ($_POST['qty'] ?? 0);
         $usageNote = trim((string) ($_POST['usage_note'] ?? ''));
 
         if ($visitId <= 0 || $itemId <= 0 || $qty <= 0) {
-            flash('error', 'กรุณาเลือกรายการยา/เวชภัณฑ์และจำนวน');
-            redirect('visit-edit', ['id' => $visitId]);
+            flash('error', 'กรุณาเลือกรายการยา/เวชภัณฑ์/อุปกรณ์และจำนวนให้ถูกต้อง');
+            $this->redirectAfterVisitAction($visitId);
         }
 
         try {
@@ -283,7 +381,7 @@ class VisitController extends Controller
             $item = $itemStmt->fetch();
 
             if (!$item) {
-                throw new \RuntimeException('ไม่พบรายการคลัง');
+                throw new RuntimeException('ไม่พบรายการคลังที่เลือก');
             }
 
             $remainingQty = $qty;
@@ -298,7 +396,7 @@ class VisitController extends Controller
 
             $availableQty = array_sum(array_map(static fn(array $batch): float => (float) $batch['qty_balance'], $batches));
             if ($availableQty < $qty) {
-                throw new \RuntimeException('สต็อกคงเหลือไม่เพียงพอ');
+                throw new RuntimeException('สต็อกคงเหลือไม่เพียงพอ');
             }
 
             $lineTotal = $qty * (float) $item['default_price'];
@@ -311,7 +409,7 @@ class VisitController extends Controller
                 'qty' => $qty,
                 'unit_price' => $item['default_price'],
                 'line_total' => $lineTotal,
-                'usage_note' => $usageNote ?: null,
+                'usage_note' => $usageNote !== '' ? $usageNote : null,
             ]);
 
             $usageId = (int) $pdo->lastInsertId();
@@ -345,7 +443,7 @@ class VisitController extends Controller
                     'qty' => $takeQty,
                     'unit_cost' => $batch['cost_per_unit'],
                     'reference_id' => $usageId,
-                    'note' => $usageNote ?: null,
+                    'note' => $usageNote !== '' ? $usageNote : null,
                     'created_by' => current_user()['id'],
                 ]);
 
@@ -353,15 +451,15 @@ class VisitController extends Controller
             }
 
             $pdo->commit();
-            flash('success', 'เพิ่มรายการยา/เวชภัณฑ์เรียบร้อย');
+            flash('success', 'เพิ่มรายการยา/เวชภัณฑ์/อุปกรณ์เรียบร้อยแล้ว');
         } catch (Throwable $throwable) {
             if (db()->inTransaction()) {
                 db()->rollBack();
             }
-            flash('error', 'ไม่สามารถเพิ่มรายการยา/เวชภัณฑ์ได้: ' . $throwable->getMessage());
+            flash('error', 'ไม่สามารถเพิ่มรายการยา/เวชภัณฑ์/อุปกรณ์ได้: ' . $throwable->getMessage());
         }
 
-        redirect('visit-edit', ['id' => $visitId]);
+        $this->redirectAfterVisitAction($visitId);
     }
 
     public function removeItemUsage(): void
@@ -370,6 +468,7 @@ class VisitController extends Controller
 
         $usageId = (int) ($_POST['usage_id'] ?? 0);
         $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $this->assertVisitEditable($visitId);
 
         try {
             $pdo = db();
@@ -380,7 +479,7 @@ class VisitController extends Controller
             $usage = $usageStmt->fetch();
 
             if (!$usage) {
-                throw new \RuntimeException('ไม่พบรายการใช้งาน');
+                throw new RuntimeException('ไม่พบรายการที่ต้องการลบ');
             }
 
             $movementsStmt = $pdo->prepare(
@@ -404,7 +503,7 @@ class VisitController extends Controller
             $pdo->prepare('DELETE FROM visit_item_usages WHERE id = :id')->execute(['id' => $usageId]);
 
             $pdo->commit();
-            flash('success', 'ลบรายการยา/เวชภัณฑ์เรียบร้อย');
+            flash('success', 'ลบรายการยา/เวชภัณฑ์/อุปกรณ์เรียบร้อยแล้ว');
         } catch (Throwable $throwable) {
             if (db()->inTransaction()) {
                 db()->rollBack();
@@ -412,7 +511,7 @@ class VisitController extends Controller
             flash('error', 'ไม่สามารถลบรายการได้: ' . $throwable->getMessage());
         }
 
-        redirect('visit-edit', ['id' => $visitId]);
+        $this->redirectAfterVisitAction($visitId);
     }
 
     public function markReadyForPayment(): void
@@ -420,9 +519,20 @@ class VisitController extends Controller
         require_roles(['ADMIN', 'NURSE']);
 
         $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $visit = $this->findVisit($visitId);
+
+        if (!$visit) {
+            flash('error', 'ไม่พบข้อมูลการรักษา');
+            redirect('queue');
+        }
+
+        if (!is_visit_editable_status($visit['status'] ?? null)) {
+            flash('error', 'เคสนี้ไม่ได้อยู่ในสถานะกำลังตรวจ');
+        $this->redirectAfterVisitAction($visitId);
+        }
 
         if (!$this->visitHasBillableItems($visitId)) {
-            flash('error', 'ยังไม่มีรายการคิดเงิน กรุณาเพิ่มบริการหรือยา/เวชภัณฑ์ก่อนส่งชำระเงิน');
+            flash('error', 'ยังไม่มีรายการคิดเงิน กรุณาเพิ่มบริการหรือยา/เวชภัณฑ์/อุปกรณ์ก่อนส่งชำระเงิน');
             redirect('visit-edit', ['id' => $visitId]);
         }
 
@@ -432,7 +542,7 @@ class VisitController extends Controller
              WHERE visit_id = :visit_id'
         )->execute(['visit_id' => $visitId]);
 
-        flash('success', 'ส่งคิวไปยังห้องการเงินแล้ว');
+        flash('success', 'ส่งเคสไปยังห้องการเงินเรียบร้อยแล้ว');
         redirect('queue');
     }
 
@@ -441,7 +551,7 @@ class VisitController extends Controller
         $stmt = db()->prepare(
             'SELECT visits.*, patients.id AS patient_id, patients.hn, patients.first_name, patients.last_name, patients.gender, patients.birth_date,
                     patients.phone, patients.drug_allergy, patients.underlying_disease,
-                    queue_entries.queue_no, queue_entries.status,
+                    queue_entries.id AS queue_id, queue_entries.queue_no, queue_entries.status,
                     visit_vitals.bp_systolic, visit_vitals.bp_diastolic, visit_vitals.temp_c,
                     visit_vitals.pulse_rate, visit_vitals.spo2, visit_vitals.weight_kg
              FROM visits
@@ -454,6 +564,39 @@ class VisitController extends Controller
         $stmt->execute(['id' => $visitId]);
 
         return $stmt->fetch();
+    }
+
+    private function redirectAfterVisitAction(int $visitId): void
+    {
+        $returnTo = (string) ($_POST['return_to'] ?? '');
+
+        if ($returnTo === 'queue-exam') {
+            redirect('queue-exam', ['id' => $visitId]);
+        }
+
+        redirect('visit-edit', ['id' => $visitId]);
+    }
+
+    private function recentVisitsForPatient(int $patientId, int $excludeVisitId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT visits.id, visits.visit_no, visits.visit_datetime, visits.chief_complaint, visits.nursing_note, visits.advice,
+                    queue_entries.queue_no, queue_entries.status,
+                    COALESCE((SELECT SUM(line_total) FROM visit_services WHERE visit_id = visits.id), 0) AS service_total,
+                    COALESCE((SELECT SUM(line_total) FROM visit_item_usages WHERE visit_id = visits.id), 0) AS item_total
+             FROM visits
+             LEFT JOIN queue_entries ON queue_entries.visit_id = visits.id
+             WHERE visits.patient_id = :patient_id
+               AND visits.id <> :exclude_visit_id
+             ORDER BY visits.visit_datetime DESC, visits.id DESC
+             LIMIT 3'
+        );
+        $stmt->execute([
+            'patient_id' => $patientId,
+            'exclude_visit_id' => $excludeVisitId,
+        ]);
+
+        return $stmt->fetchAll();
     }
 
     private function visitHasBillableItems(int $visitId): bool
@@ -469,13 +612,66 @@ class VisitController extends Controller
         return ((int) $result['service_count'] + (int) $result['item_count']) > 0;
     }
 
+    private function assertVisitEditable(int $visitId): void
+    {
+        $visit = $this->findVisit($visitId);
+
+        if (!$visit) {
+            flash('error', 'ไม่พบข้อมูลการรักษา');
+            redirect('queue');
+        }
+
+        if (!is_visit_editable_status($visit['status'] ?? null)) {
+            flash('error', 'แก้ไขข้อมูลได้เฉพาะเคสที่อยู่ระหว่างตรวจเท่านั้น');
+            redirect('visit-edit', ['id' => $visitId]);
+        }
+    }
+
+    private function statusGuidance(string $status, bool $hasBillableItems): array
+    {
+        return match ($status) {
+            'WAITING' => [
+                'title' => 'เคสนี้ยังไม่ได้เริ่มตรวจ',
+                'message' => 'กรุณาเรียกคิวเข้าตรวจก่อน จึงจะบันทึกข้อมูลการรักษาและเพิ่มรายการได้',
+                'class' => 'warning',
+            ],
+            'IN_SERVICE' => [
+                'title' => 'กำลังตรวจ',
+                'message' => $hasBillableItems
+                    ? 'ขั้นตอนถัดไป: ตรวจสอบข้อมูลให้ครบ แล้วกดบันทึกและส่งชำระเงิน'
+                    : 'ขั้นตอนถัดไป: บันทึกข้อมูลให้ครบ และเพิ่มบริการหรือยา/เวชภัณฑ์/อุปกรณ์ก่อนส่งชำระเงิน',
+                'class' => 'info',
+            ],
+            'WAITING_PAYMENT' => [
+                'title' => 'เคสนี้รอชำระเงิน',
+                'message' => 'ยอดถูกส่งไปการเงินแล้ว หากต้องการแก้รายการให้ส่งกลับห้องตรวจก่อน',
+                'class' => 'secondary',
+            ],
+            'COMPLETED' => [
+                'title' => 'เคสนี้ปิดเรียบร้อยแล้ว',
+                'message' => 'ข้อมูลถูกปิดเคสแล้ว หน้านี้เปิดไว้เพื่อดูรายละเอียดเท่านั้น',
+                'class' => 'success',
+            ],
+            'CANCELLED' => [
+                'title' => 'เคสนี้ถูกยกเลิกแล้ว',
+                'message' => 'คิวนี้ไม่ควรถูกแก้ไขต่อใน flow ปกติ',
+                'class' => 'danger',
+            ],
+            default => [
+                'title' => 'สถานะยังไม่ชัดเจน',
+                'message' => 'กรุณากลับไปตรวจสอบที่หน้าคิวอีกครั้ง',
+                'class' => 'warning',
+            ],
+        };
+    }
+
     private function nursingTemplates(): array
     {
         return [
-            ['label' => 'ซักประวัติและประเมินอาการ', 'text' => 'ซักประวัติและประเมินอาการเบื้องต้น'],
+            ['label' => 'ซักประวัติและประเมินอาการ', 'text' => 'ซักประวัติและประเมินอาการเบื้องต้นเรียบร้อย'],
             ['label' => 'วัดสัญญาณชีพ', 'text' => 'วัดสัญญาณชีพครบถ้วนและบันทึกผลเรียบร้อย'],
-            ['label' => 'ทำแผล', 'text' => 'ทำแผล/ล้างแผลตามขั้นตอนและประเมินแผลหลังทำ'],
-            ['label' => 'ให้ยา/เวชภัณฑ์', 'text' => 'ให้ยาและเวชภัณฑ์ตามรายการ พร้อมอธิบายวิธีใช้'],
+            ['label' => 'ทำแผล', 'text' => 'ทำแผล/ล้างแผลตามขั้นตอน และประเมินแผลหลังทำเรียบร้อย'],
+            ['label' => 'ให้ยาและอุปกรณ์', 'text' => 'ให้ยาและอุปกรณ์ตามรายการ พร้อมอธิบายวิธีใช้เรียบร้อย'],
             ['label' => 'ให้คำแนะนำ', 'text' => 'ให้คำแนะนำการดูแลตนเองและอาการที่ควรกลับมาพบเจ้าหน้าที่'],
         ];
     }
@@ -486,7 +682,7 @@ class VisitController extends Controller
             ['label' => 'พักผ่อนและดื่มน้ำ', 'text' => 'พักผ่อนให้เพียงพอ ดื่มน้ำมาก ๆ และสังเกตอาการต่อเนื่อง'],
             ['label' => 'รับประทานยาตามแผน', 'text' => 'รับประทานยาตามที่ได้รับอย่างครบถ้วนและตรงเวลา'],
             ['label' => 'อาการแย่ลงให้กลับมา', 'text' => 'หากมีไข้สูง หอบเหนื่อย ปวดมากขึ้น หรืออาการแย่ลง ให้กลับมาพบเจ้าหน้าที่ทันที'],
-            ['label' => 'ดูแลแผล', 'text' => 'ดูแลแผลให้แห้งสะอาด หลีกเลี่ยงการแกะเกา และมาพบเจ้าหน้าที่หากมีบวมแดงหรือมีหนอง'],
+            ['label' => 'ดูแลแผล', 'text' => 'ดูแลแผลให้แห้งสะอาด หลีกเลี่ยงการแกะเกา และกลับมาพบเจ้าหน้าที่หากมีบวมแดงหรือมีหนอง'],
             ['label' => 'มาตามนัด', 'text' => 'มาตามวันนัดเพื่อติดตามอาการและประเมินผลการรักษา'],
         ];
     }

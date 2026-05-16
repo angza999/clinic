@@ -36,6 +36,7 @@ Web application สำหรับระบบบริหารจัดกา�
 - `config/` ไฟล์ตั้งค่า app และ database
 - `database/schema.sql` โครงสร้างฐานข้อมูลพร้อม seed เริ่มต้น
 - `docs/system-design.md` เอกสารโครงสร้างระบบ
+- `docs/database-setup.md` คู่มือตั้งค่า MySQL/Navicat และแก้ปัญหา connection
 - `storage/` export, backup, log และไฟล์ชั่วคราว
 
 ## การติดตั้ง
@@ -44,6 +45,12 @@ Web application สำหรับระบบบริหารจัดกา�
 3. แก้ค่าการเชื่อมต่อฐานข้อมูลใน `config/database.php`
 4. ตั้ง web root ไปที่โฟลเดอร์ `public/`
 5. เปิดระบบผ่าน Apache / Nginx หรือใช้ PHP built-in server
+
+ถ้าเชื่อมต่อ MySQL/Navicat ไม่ผ่าน ให้อ่านคู่มือ:
+
+```text
+docs/database-setup.md
+```
 
 ตัวอย่างการรันด้วย PHP built-in server
 
@@ -77,6 +84,7 @@ http://localhost:8000
 ## เอกสารสำคัญในโปรเจกต์
 - `database/schema.sql` โครงสร้างฐานข้อมูล
 - `docs/system-design.md` โครงสร้างระบบ, ER, flow
+- `docs/database-setup.md` ค่าเชื่อมต่อ MySQL/Navicat และ troubleshooting
 - `config/database.php` การเชื่อมต่อฐานข้อมูล
 - `public/index.php` route หลักของระบบ
 

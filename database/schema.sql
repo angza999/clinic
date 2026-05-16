@@ -10,6 +10,7 @@ USE `dongmahawan_clinic`;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS `audit_logs`;
+DROP TABLE IF EXISTS `smart_exam_presets`;
 DROP TABLE IF EXISTS `system_settings`;
 DROP TABLE IF EXISTS `appointments`;
 DROP TABLE IF EXISTS `payments`;
@@ -88,6 +89,9 @@ CREATE TABLE `visits` (
   `patient_id` bigint unsigned NOT NULL,
   `visit_datetime` datetime NOT NULL,
   `chief_complaint` text DEFAULT NULL,
+  `present_illness` text DEFAULT NULL,
+  `physical_exam` text DEFAULT NULL,
+  `diagnosis` varchar(255) DEFAULT NULL,
   `nursing_note` text DEFAULT NULL,
   `advice` text DEFAULT NULL,
   `followup_date` date DEFAULT NULL,
@@ -128,6 +132,7 @@ CREATE TABLE `visit_vitals` (
   `bp_diastolic` int DEFAULT NULL,
   `temp_c` decimal(4,1) DEFAULT NULL,
   `pulse_rate` int DEFAULT NULL,
+  `resp_rate` int DEFAULT NULL,
   `spo2` int DEFAULT NULL,
   `weight_kg` decimal(6,2) DEFAULT NULL,
   `recorded_by` bigint unsigned DEFAULT NULL,
@@ -153,6 +158,29 @@ CREATE TABLE `services` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_services_service_code` (`service_code`),
   KEY `idx_services_service_name` (`service_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `smart_exam_presets` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `preset_key` varchar(80) NOT NULL,
+  `label` varchar(120) NOT NULL,
+  `description` text DEFAULT NULL,
+  `theme` varchar(80) DEFAULT NULL,
+  `service_codes` text DEFAULT NULL,
+  `item_codes_json` text DEFAULT NULL,
+  `cc` varchar(255) DEFAULT NULL,
+  `pi` text DEFAULT NULL,
+  `pe` text DEFAULT NULL,
+  `dx` varchar(255) DEFAULT NULL,
+  `advice` text DEFAULT NULL,
+  `followup_days` int DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT 50,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_smart_exam_presets_key` (`preset_key`),
+  KEY `idx_smart_exam_presets_active` (`is_active`,`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `visit_services` (
@@ -357,4 +385,3 @@ INSERT INTO `inventory_batches` (`item_id`, `lot_no`, `expiry_date`, `qty_in`, `
 INSERT INTO `stock_movements` (`batch_id`, `item_id`, `movement_type`, `qty`, `unit_cost`, `reference_type`, `reference_id`, `note`, `movement_datetime`, `created_by`)
 SELECT id, item_id, 'IN', qty_in, cost_per_unit, 'BATCH_RECEIVE', id, 'Initial stock', NOW(), 1
 FROM inventory_batches;
-

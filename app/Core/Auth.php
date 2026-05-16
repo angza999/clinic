@@ -75,8 +75,8 @@ class Auth
         self::requireLogin();
 
         if (!self::hasRole($roles)) {
-            http_response_code(403);
-            exit('You do not have permission to access this page.');
+            \flash('error', 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
+            \redirect(\default_home_page());
         }
     }
 

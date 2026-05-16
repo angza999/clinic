@@ -1,0 +1,281 @@
+.queue-patient-picker {
+  position: relative;
+}
+
+.queue-patient-picker .form-label {
+  color: #0f766e;
+  font-size: 0.9rem;
+  font-weight: 800;
+  margin-bottom: 0.45rem;
+}
+
+.queue-patient-results {
+  display: none;
+  margin-top: 0.55rem;
+  border: 1px solid #dbeafe;
+  border-radius: 0.9rem;
+  background: #ffffff;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+  overflow: hidden;
+}
+
+.queue-patient-results.is-open {
+  display: grid;
+}
+
+.queue-patient-option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  border: 0;
+  border-bottom: 1px solid #e5edf7;
+  background: #ffffff;
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.queue-patient-option:last-child {
+  border-bottom: 0;
+}
+
+.queue-patient-option:hover,
+.queue-patient-option:focus {
+  background: #eef6ff;
+  outline: 0;
+}
+
+.queue-patient-option strong,
+.queue-patient-option small {
+  display: block;
+}
+
+.queue-patient-option strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.queue-patient-option small {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+
+.queue-patient-option em {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 800;
+  padding: 0.28rem 0.55rem;
+}
+
+.queue-patient-empty {
+  color: #64748b;
+  font-size: 0.9rem;
+  padding: 0.85rem;
+  text-align: center;
+}
+
+.queue-patient-selected {
+  display: grid;
+  gap: 0.1rem;
+  margin-top: 0.55rem;
+  border: 1px solid #99f6e4;
+  border-radius: 0.85rem;
+  background: #f0fdfa;
+  color: #0f766e;
+  padding: 0.65rem 0.75rem;
+}
+
+.queue-patient-selected span {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.queue-patient-selected strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.queue-patient-selected small {
+  color: #475569;
+}
+
+.queue-register-redirect {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.queue-register-redirect p {
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.queue-quick-register-form {
+  display: grid;
+  gap: 0.7rem;
+  border: 1px solid #dbeafe;
+  border-radius: 0.9rem;
+  background: #ffffff;
+  padding: 0.85rem;
+}
+
+.queue-quick-register-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.queue-duplicate-warning {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid #fed7aa;
+  border-radius: 0.75rem;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.86rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.queue-duplicate-warning strong {
+  color: #7c2d12;
+}
+
+.queue-duplicate-warning small {
+  color: #9a3412;
+}
+
+.queue-confirm-duplicate {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.queue-continuation-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 68%);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.08);
+  padding: 1rem 1.15rem;
+}
+
+.queue-continuation-card h3 {
+  margin: 0 0 0.35rem;
+  color: #0f172a;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.queue-continuation-card p {
+  margin: 0;
+  color: #475569;
+}
+
+.queue-continuation-action {
+  flex: 0 0 auto;
+}
+
+.queue-next-action-hint {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin-bottom: 0.5rem;
+}
+
+.queue-appointment-panel {
+  border-color: #bfdbfe;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.queue-appointment-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.queue-appointment-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid #dbeafe;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  padding: 0.75rem;
+}
+
+.queue-appointment-card strong,
+.queue-appointment-card span,
+.queue-appointment-card small {
+  display: block;
+}
+
+.queue-appointment-card strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.queue-appointment-card span {
+  color: #475569;
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+
+.queue-appointment-card small {
+  color: #64748b;
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}
+
+.queue-appointment-card form {
+  flex: 0 0 auto;
+}
+
+.queue-appointment-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.88rem;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+@media (max-width: 767.98px) {
+  .queue-continuation-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .queue-appointment-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .queue-appointment-card form,
+  .queue-appointment-card .btn {
+    width: 100%;
+  }
+
+  .queue-continuation-action,
+  .queue-continuation-action .btn {
+    width: 100%;
+  }
+
+  .queue-quick-register-grid {
+    grid-template-columns: 1fr;
+  }
+}

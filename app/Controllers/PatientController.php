@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Controllers;
 
 use App\Core\ClinicWorkflow;
@@ -44,6 +42,7 @@ class PatientController extends Controller
             'patients' => $patients,
             'keyword' => $keyword,
             'recentPatients' => array_slice($patients, 0, 8),
+            'pageStyles' => [app_url('assets/css/patients.css')],
         ]);
     }
 
@@ -118,7 +117,7 @@ class PatientController extends Controller
 
     public function store(): void
     {
-        require_roles(['ADMIN']);
+        require_roles(['ADMIN', 'NURSE']);
 
         $input = [
             'title_name' => trim((string) ($_POST['title_name'] ?? '')),
@@ -176,22 +175,58 @@ class PatientController extends Controller
 
             $patientId = (int) $pdo->lastInsertId();
 
-            if ($workflowAction === 'save_and_queue') {
+            if (in_array($workflowAction, ['save_and_treat', 'save_and_queue'], true)) {
                 $workflow = ClinicWorkflow::createVisitAndQueue(
                     $patientId,
                     $chiefComplaint,
                     (int) current_user()['id']
                 );
 
-                flash('success', "ลงทะเบียนและรับคิวสำเร็จ HN: {$hn} / คิว {$workflow['queue_no']}");
-                redirect('queue');
+                flash('success', "ลงทะเบียนเรียบร้อย HN: {$hn} และเปิด Smart Exam ให้แล้ว");
+                redirect('queue-exam', ['id' => $workflow['visit_id']]);
             }
 
-            flash('success', "บันทึกผู้รับบริการสำเร็จ HN: {$hn}");
+            flash('success', "บันทึกผู้รับบริการเรียบร้อย HN: {$hn}");
         } catch (Throwable $throwable) {
             flash('error', 'ไม่สามารถบันทึกข้อมูลผู้รับบริการได้: ' . $throwable->getMessage());
         }
 
         redirect('patients');
+    }
+
+    public function startTreatment(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+
+        $patientId = (int) ($_POST['patient_id'] ?? 0);
+        $chiefComplaint = trim((string) ($_POST['chief_complaint'] ?? ''));
+
+        if ($patientId <= 0) {
+            flash('error', 'ไม่พบข้อมูลผู้รับบริการที่ต้องการเริ่มรักษา');
+            redirect('patients');
+        }
+
+        try {
+            $patientStmt = db()->prepare('SELECT id, hn, first_name, last_name FROM patients WHERE id = :id AND is_active = 1 LIMIT 1');
+            $patientStmt->execute(['id' => $patientId]);
+            $patient = $patientStmt->fetch();
+
+            if (!$patient) {
+                flash('error', 'ไม่พบข้อมูลผู้รับบริการที่เลือก');
+                redirect('patients');
+            }
+
+            $workflow = ClinicWorkflow::createVisitAndQueue(
+                $patientId,
+                $chiefComplaint,
+                (int) current_user()['id']
+            );
+
+            flash('success', 'เปิด Smart Exam ให้ ' . $patient['first_name'] . ' ' . $patient['last_name'] . ' เรียบร้อยแล้ว');
+            redirect('queue-exam', ['id' => $workflow['visit_id']]);
+        } catch (Throwable $throwable) {
+            flash('error', 'ไม่สามารถเริ่มรักษาได้: ' . $throwable->getMessage());
+            redirect('patients');
+        }
     }
 }

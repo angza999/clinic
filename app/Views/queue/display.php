@@ -60,7 +60,7 @@ $completedCount = count(array_filter($todayQueues, static fn(array $queue): bool
         <div class="d-flex justify-content-between align-items-center gap-3 mb-4 flex-wrap">
             <div>
                 <div class="h4 mb-1">รายการคิวรอ</div>
-                <div class="text-muted">แสดงคิวที่กำลังรอรับบริการลำดับถัด ๆ ไป</div>
+                <div class="text-muted">แสดงคิวที่กำลังรอรับบริการตามลำดับถัดไป</div>
             </div>
             <div class="queue-display-chip">ทั้งหมด <?= e((string) $waitingCount) ?> คิว</div>
         </div>

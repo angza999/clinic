@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use App\Core\Auth;
 use App\Core\Database;
 
@@ -264,7 +262,7 @@ function queue_status_meta(string $status): array
         'IN_SERVICE' => ['label' => 'กำลังตรวจ', 'class' => 'info text-dark'],
         'WAITING_PAYMENT' => ['label' => 'รอชำระเงิน', 'class' => 'secondary'],
         'COMPLETED' => ['label' => 'เสร็จสิ้น', 'class' => 'success'],
-        'CANCELLED' => ['label' => 'ยกเลิก', 'class' => 'danger'],
+        'CANCELLED' => ['label' => 'ยกเลิกเคส', 'class' => 'danger'],
         default => ['label' => $status, 'class' => 'light text-dark'],
     };
 }
@@ -273,4 +271,22 @@ function storage_path(string $path = ''): string
 {
     $fullPath = BASE_PATH . '/storage' . ($path ? '/' . ltrim($path, '/') : '');
     return str_replace('\\', '/', $fullPath);
+}
+
+function can_transition_queue_status(string $fromStatus, string $toStatus): bool
+{
+    $allowedTransitions = [
+        'WAITING' => ['IN_SERVICE', 'CANCELLED'],
+        'IN_SERVICE' => ['WAITING_PAYMENT', 'COMPLETED', 'CANCELLED'],
+        'WAITING_PAYMENT' => ['IN_SERVICE', 'COMPLETED', 'CANCELLED'],
+        'COMPLETED' => [],
+        'CANCELLED' => [],
+    ];
+
+    return in_array($toStatus, $allowedTransitions[$fromStatus] ?? [], true);
+}
+
+function is_visit_editable_status(?string $status): bool
+{
+    return (string) $status === 'IN_SERVICE';
 }

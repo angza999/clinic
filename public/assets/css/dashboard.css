@@ -1,0 +1,231 @@
+.dashboard-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.dashboard-side-stack,
+.dashboard-bottom-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboard-bottom-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-close-panel {
+  border-color: #bfdbfe;
+}
+
+.dashboard-close-status {
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.dashboard-close-status.is-clear {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.dashboard-close-status.has-pending {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.dashboard-close-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(260px, 1fr) minmax(260px, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.dashboard-close-total,
+.dashboard-close-methods,
+.dashboard-close-checklist,
+.dashboard-receipt-strip {
+  border: 1px solid #dbeafe;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 1rem;
+}
+
+.dashboard-close-total {
+  display: grid;
+  align-content: center;
+  gap: 0.4rem;
+}
+
+.dashboard-close-total span,
+.dashboard-close-total small,
+.dashboard-close-line small,
+.dashboard-receipt-item span {
+  color: #64748b;
+}
+
+.dashboard-close-total strong {
+  color: #0f172a;
+  font-size: clamp(1.8rem, 4vw, 2.55rem);
+  line-height: 1;
+}
+
+.dashboard-close-title {
+  color: #0f766e;
+  font-size: 0.88rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-close-line,
+.dashboard-check-item,
+.dashboard-receipt-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-top: 1px solid #e2e8f0;
+  padding: 0.65rem 0;
+}
+
+.dashboard-close-line:first-of-type,
+.dashboard-check-item:first-of-type,
+.dashboard-receipt-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.dashboard-check-item {
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  margin-top: 0.5rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.dashboard-check-item.is-done {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.dashboard-check-item.is-pending {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.dashboard-receipt-strip {
+  margin-top: 1rem;
+}
+
+.dashboard-receipt-list {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.dashboard-close-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 1rem;
+  background: #eff6ff;
+  padding: 1rem;
+}
+
+.dashboard-close-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.dashboard-backup-status {
+  display: inline-grid;
+  gap: 0.15rem;
+  margin-top: 0.85rem;
+  border: 1px solid #dbeafe;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  padding: 0.65rem 0.8rem;
+}
+
+.dashboard-backup-status span {
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.dashboard-backup-status strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.dashboard-backup-status small {
+  color: #64748b;
+}
+
+.dashboard-backup-status.is-current {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.dashboard-backup-status.is-current span {
+  color: #166534;
+}
+
+.dashboard-backup-status.is-stale {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.dashboard-backup-status.is-stale span {
+  color: #9a3412;
+}
+
+.compact-workflow-list .workflow-list-item {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+
+@media (max-width: 1399.98px) {
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .dashboard-stat-grid,
+  .dashboard-main-grid,
+  .dashboard-bottom-grid,
+  .dashboard-close-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-close-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-close-action-buttons {
+    justify-content: stretch;
+  }
+
+  .dashboard-close-action-buttons .btn {
+    flex: 1 1 180px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .dashboard-stat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

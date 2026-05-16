@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use RuntimeException;
 use Throwable;
 
 class InventoryController extends Controller
@@ -54,7 +55,7 @@ class InventoryController extends Controller
         ];
 
         if ($data['item_code'] === '' || $data['item_name'] === '' || $data['unit_name'] === '') {
-            flash('error', 'กรุณากรอกรหัส ชื่อรายการ และหน่วยนับ');
+            flash('error', 'กรุณากรอกรหัสรายการ ชื่อรายการ และหน่วยนับให้ครบ');
             redirect('inventory');
         }
 
@@ -75,7 +76,7 @@ class InventoryController extends Controller
                 updated_at = NOW()'
         )->execute($data);
 
-        flash('success', 'บันทึกรายการคลังเรียบร้อย');
+        flash('success', 'บันทึกรายการคลังเรียบร้อยแล้ว');
         redirect('inventory');
     }
 
@@ -91,7 +92,7 @@ class InventoryController extends Controller
         $receivedDate = trim((string) ($_POST['received_date'] ?? date('Y-m-d')));
 
         if ($itemId <= 0 || $qtyIn <= 0) {
-            flash('error', 'กรุณาเลือกสินค้าและจำนวนรับเข้าให้ถูกต้อง');
+            flash('error', 'กรุณาเลือกรายการและระบุจำนวนรับเข้าให้ถูกต้อง');
             redirect('inventory');
         }
 
@@ -132,7 +133,7 @@ class InventoryController extends Controller
             ]);
 
             $pdo->commit();
-            flash('success', 'บันทึกรับเข้าสินค้าเรียบร้อย');
+            flash('success', 'บันทึกรับสินค้าเข้าคลังเรียบร้อยแล้ว');
         } catch (Throwable $throwable) {
             if (db()->inTransaction()) {
                 db()->rollBack();
@@ -152,7 +153,7 @@ class InventoryController extends Controller
         $note = trim((string) ($_POST['note'] ?? ''));
 
         if ($batchId <= 0 || $adjustQty === 0.0) {
-            flash('error', 'กรุณาระบุล็อตและจำนวนปรับสต็อก');
+            flash('error', 'กรุณาเลือกล็อตและระบุจำนวนปรับสต๊อก');
             redirect('inventory');
         }
 
@@ -165,12 +166,12 @@ class InventoryController extends Controller
             $batch = $batchStmt->fetch();
 
             if (!$batch) {
-                throw new \RuntimeException('ไม่พบล็อตสินค้า');
+                throw new RuntimeException('ไม่พบล็อตสินค้า');
             }
 
             $newBalance = (float) $batch['qty_balance'] + $adjustQty;
             if ($newBalance < 0) {
-                throw new \RuntimeException('จำนวนคงเหลือไม่เพียงพอ');
+                throw new RuntimeException('จำนวนคงเหลือไม่เพียงพอสำหรับการปรับ');
             }
 
             $pdo->prepare('UPDATE inventory_batches SET qty_balance = :qty_balance, updated_at = NOW() WHERE id = :id')->execute([
@@ -195,15 +196,14 @@ class InventoryController extends Controller
             ]);
 
             $pdo->commit();
-            flash('success', 'ปรับสต็อกเรียบร้อย');
+            flash('success', 'ปรับสต๊อกเรียบร้อยแล้ว');
         } catch (Throwable $throwable) {
             if (db()->inTransaction()) {
                 db()->rollBack();
             }
-            flash('error', 'ไม่สามารถปรับสต็อกได้: ' . $throwable->getMessage());
+            flash('error', 'ไม่สามารถปรับสต๊อกได้: ' . $throwable->getMessage());
         }
 
         redirect('inventory');
     }
 }
-
