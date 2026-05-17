@@ -324,6 +324,9 @@ Key Fields:
 - `clinic_name`
 - `clinic_address`
 - `clinic_phone`
+- `clinic_tax_id`
+- `receipt_logo_text`
+- `receipt_footer`
 - `receipt_prefix`
 - `hn_prefix`
 - `expiry_alert_days`
@@ -331,6 +334,10 @@ Key Fields:
 
 Notes:
 - มีผลต่อ numbering และข้อความบนเอกสาร
+
+Receipt Branding Notes:
+- `clinic_tax_id`, `receipt_logo_text`, and `receipt_footer` support printable clinic identity.
+- Existing databases are patched by `SettingsController::ensureSettingsSchema()` when Settings is opened or saved.
 
 ### `audit_logs`
 Purpose:

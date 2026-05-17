@@ -131,6 +131,7 @@ AI ต้องไม่เพิ่ม transition ใหม่โดยไม�
    - redirect ไปหน้า visit detail
 
 ### Payment Rules
+- Receipt branding reads `system_settings` only; it must not change totals, receipt numbering, or queue/payment state.
 - ห้ามรับชำระถ้ายังไม่มีรายการคิดเงิน
 - หนึ่ง visit มี payment เดียวเป็น canonical payment row
 - receipt ต้อง trace กลับไป visit ได้
@@ -234,7 +235,18 @@ AI ต้องไม่เพิ่ม transition ใหม่โดยไม�
   - link appointment to the new visit
   - redirect directly to Smart Exam
 
+### Appointment Agenda Flow
+- Admin/Nurse opens `GET:appointments`.
+- The agenda filters appointments by date range, status, and keyword.
+- The create form selects an existing active patient and inserts a scheduled appointment.
+- Scheduled appointments can be rescheduled by updating date, time, purpose, and note.
+- Scheduled appointments can be cancelled by changing status to `CANCELLED`.
+- Check-in from the agenda uses the same `POST:appointment-checkin` flow as the queue due-appointment panel.
+- If a patient already has an active queue today, the agenda shows a direct link to the existing Smart Exam instead of encouraging a duplicate queue.
+
 ### Current Limitation
+- Appointment agenda exists for create/reschedule/cancel/check-in.
+- Full calendar grid, automated reminders, and advanced recurrence are still future scope.
 - ยังไม่มี dedicated appointment calendar module
 - ยังไม่มี reschedule workflow เต็มรูปแบบ
 
@@ -359,3 +371,128 @@ Use this flow for a clinic where one nurse handles registration, exam, service, 
   - last three treatment visits
 - If the nurse needs full history, use the patient detail link.
 - The snapshot must not create, update, or auto-copy clinical data by itself.
+
+## Medical Workstation Flow Doctrine
+
+The system flow must be understood as operational workstation flow, not module navigation. Users should move through patient care as one continuous line of work.
+
+### Core Workstation Flow
+
+The primary production flow is:
+
+`intake/search -> queue -> Smart Exam -> services/items -> summary/payment -> receipt/next case`
+
+Every UI or backend change should preserve this flow and reduce unnecessary page switching.
+
+### Queue As Command Station
+Queue is not a dashboard report. Queue is the command station for starting and continuing care.
+
+Queue must prioritize:
+1. active/next patient
+2. intake/search/quick register
+3. due appointment check-in
+4. open Smart Exam
+5. payment/summary state
+6. queue boards for situational awareness
+
+Queue should not prioritize:
+- large hero text
+- passive statistics
+- decorative card groups
+- separate step cards that do not perform work
+
+### Smart Exam As Clinical Workstation
+Smart Exam is the main clinical working surface.
+
+The operational sequence is:
+1. confirm patient and risk
+2. choose preset or manually enter clinical data
+3. record vitals
+4. complete CC/PI/PE/Dx
+5. add services
+6. add medicines/equipment
+7. review sticky summary
+8. finish as paid, waiting payment, or no charge
+
+The UI should support this sequence without making the nurse interpret a dashboard.
+
+### Summary As Control Surface
+Summary is part of the workflow, not just a report.
+
+Summary must keep visible:
+- patient identity
+- allergy/risk
+- service and item counts
+- totals
+- readiness checklist
+- finish/payment actions
+
+Long service/item lists should never block the finish action. Lists may scroll, collapse, or summarize counts while the finish action remains reachable.
+
+### Progressive Disclosure Flow
+Secondary context should be available without dominating the workflow.
+
+Use progressive disclosure for:
+- previous visit history
+- detailed patient history
+- advanced visit editing
+- extended appointment context
+- low-frequency administrative details
+
+Do not use progressive disclosure for:
+- allergy/risk
+- active queue status
+- current totals
+- missing required completion fields
+- primary finish/payment actions
+
+### 14-Inch Notebook Constraint
+The main flow must work on a 14-inch notebook. This means:
+- the user should see the next action above the fold
+- Smart Exam should show patient/risk plus preset/vitals quickly
+- Queue should show command bar plus active work area quickly
+- Cards and sections should not consume vertical space unless they support immediate work
+
+### Workflow Quality Gate
+Before adding or changing a flow, verify:
+1. What is the starting state?
+2. What is the target state?
+3. What is the user's next action?
+4. Can the user complete it with fewer clicks than before?
+5. Does any critical state become hidden?
+6. Does the page become more compact without losing clinical safety?
+
+If a change makes the user scroll more, click more, or think more without improving safety, it should be redesigned.
+
+### Phase 5 Operational Flow Rule
+When a screen already has a command header, do not repeat the same state as large dashboard cards below it. Repetition should be replaced by:
+
+1. a compact command bar for current state and next action
+2. a bounded working area for the active task
+3. a sticky summary rail for totals, readiness, and finish actions
+4. scroll-limited lists for historical or secondary information
+5. responsive stacking that preserves the same workflow order on smaller screens
+
+### Stabilized Smart Exam Flow Rule
+Smart Exam should complete a common case without leaving the page:
+
+1. open active case
+2. apply preset or type clinical text
+3. merge preset clinical defaults without overwriting existing nurse-entered text
+4. add service and medicine/equipment through compact order entry
+5. show frontend suggestions and stock guards as assistance only
+6. keep backend validation authoritative for stock, payment, and queue transitions
+7. finish through summary rail as paid, waiting payment, or no charge
+
+### Inline Smart Exam Ordering
+- Smart Exam service/item forms submit normally as fallback.
+- With JavaScript available, order forms send JSON requests to the same visit endpoints.
+- The server returns the recalculated order summary after each add/remove.
+- The page updates service lines, item lines, totals, counts, readiness, and payment preview without navigation.
+- Payment/finish still uses server-side Smart Exam finish logic.
+
+### Inline Smart Exam Presets
+- Smart Exam preset buttons submit normally as fallback.
+- With JavaScript available, preset buttons send JSON requests to `queue-apply-preset`.
+- The server merges clinical fields, applies preset service/item lines if not already applied, and returns clinical + order summary payloads.
+- The page updates clinical fields and the summary rail without leaving the workstation.

@@ -139,6 +139,14 @@ Resolved:
 Lesson:
 - ห้ามใช้ named placeholder ซ้ำใน statement เดียว
 
+## D. User Audit Logging Started
+Progress:
+- Users module writes audit rows for user create/update/password reset actions.
+- Auth flow writes audit rows for login success, login failure, and logout actions.
+
+Remaining:
+- Audit coverage is still partial and should expand to payment, stock, and settings actions later.
+
 ## AI Maintenance Rule
 ถ้าเจอ bug ใหม่:
 1. เพิ่ม entry ในไฟล์นี้

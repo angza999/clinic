@@ -55,6 +55,7 @@ class UserController extends Controller
             'users' => $users,
             'editingUser' => $editingUser,
             'summary' => $summary,
+            'userAuditLogs' => $this->recentUserAuditLogs(),
         ]);
     }
 
@@ -141,6 +142,15 @@ class UserController extends Controller
                 ]);
 
                 flash('success', 'เพิ่มผู้ใช้ใหม่เรียบร้อยแล้ว');
+                $createdUserId = (int) db()->lastInsertId();
+                $this->writeUserAudit('USER_CREATED', $createdUserId, [
+                    'username' => $username,
+                    'full_name' => $fullName,
+                    'role_id' => $roleId,
+                    'role_code' => $role['role_code'],
+                    'is_active' => $isActive,
+                ]);
+
                 redirect('users');
             }
 
@@ -180,6 +190,17 @@ class UserController extends Controller
             ]);
 
             flash('success', 'บันทึกข้อมูลผู้ใช้เรียบร้อยแล้ว');
+            $this->writeUserAudit('USER_UPDATED', $userId, [
+                'before' => $this->auditUserSnapshot($existingUser),
+                'after' => [
+                    'username' => $username,
+                    'full_name' => $fullName,
+                    'role_id' => $roleId,
+                    'role_code' => $role['role_code'],
+                    'phone' => $phone ?: null,
+                    'is_active' => $isActive,
+                ],
+            ]);
         } catch (Throwable $throwable) {
             flash('error', 'ไม่สามารถบันทึกข้อมูลผู้ใช้ได้: ' . $throwable->getMessage());
         }
@@ -227,6 +248,11 @@ class UserController extends Controller
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
             ]);
 
+            $this->writeUserAudit('USER_PASSWORD_CHANGED', $userId, [
+                'username' => $user['username'],
+                'full_name' => $user['full_name'],
+            ]);
+
             flash('success', 'ตั้งรหัสผ่านใหม่ให้ ' . $user['full_name'] . ' เรียบร้อยแล้ว');
         } catch (Throwable $throwable) {
             flash('error', 'ไม่สามารถตั้งรหัสผ่านใหม่ได้: ' . $throwable->getMessage());
@@ -260,5 +286,52 @@ class UserController extends Controller
         );
 
         return (int) ($stmt->fetch()['total_admin'] ?? 0);
+    }
+
+    private function recentUserAuditLogs(): array
+    {
+        $stmt = db()->query(
+            'SELECT audit_logs.*, users.full_name AS actor_name, users.username AS actor_username
+             FROM audit_logs
+             LEFT JOIN users ON users.id = audit_logs.user_id
+             WHERE audit_logs.action IN (
+                "USER_CREATED", "USER_UPDATED", "USER_PASSWORD_CHANGED",
+                "LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT"
+             )
+             ORDER BY audit_logs.created_at DESC, audit_logs.id DESC
+             LIMIT 12'
+        );
+
+        return $stmt->fetchAll();
+    }
+
+    private function writeUserAudit(string $action, int $targetUserId, array $detail): void
+    {
+        try {
+            $actor = current_user();
+            db()->prepare(
+                'INSERT INTO audit_logs (user_id, action, table_name, record_id, detail_json, created_at)
+                 VALUES (:user_id, :action, "users", :record_id, :detail_json, NOW())'
+            )->execute([
+                'user_id' => $actor['id'] ?? null,
+                'action' => $action,
+                'record_id' => $targetUserId,
+                'detail_json' => json_encode($detail, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
+        } catch (Throwable) {
+            // User management should still complete if audit logging is temporarily unavailable.
+        }
+    }
+
+    private function auditUserSnapshot(array $user): array
+    {
+        return [
+            'username' => $user['username'] ?? null,
+            'full_name' => $user['full_name'] ?? null,
+            'role_id' => isset($user['role_id']) ? (int) $user['role_id'] : null,
+            'role_code' => $user['role_code'] ?? null,
+            'phone' => $user['phone'] ?? null,
+            'is_active' => isset($user['is_active']) ? (int) $user['is_active'] : null,
+        ];
     }
 }

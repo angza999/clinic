@@ -53,6 +53,195 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
 
 ## Current Notable Changes
 
+## 2026-05-17 - Login Audit Trail Phase 18
+
+### Type
+- feature
+- security
+- ux
+- docs
+
+### Summary
+- Login success, login failure, and logout actions now write to `audit_logs`.
+- Users page audit panel now includes authentication activity alongside user-management actions.
+- Auth audit detail stores username, role where available, IP address, and user agent, but never stores passwords.
+
+### Why
+- Clinic admins should be able to see recent access activity and failed login attempts without database tools.
+
+### Files
+- `app/Controllers/AuthController.php`
+- `app/Controllers/UserController.php`
+- `app/Views/users/index.php`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/FUTURE_FEATURES.md`
+- `ai-brain/KNOWN_ISSUES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- auth
+- users
+- audit
+
+### Database Impact
+- no schema change
+
+# 2026-05-17 - Smart Exam Inline Preset Apply
+
+### Type
+- Smart Exam workflow acceleration
+- progressive-enhancement AJAX
+- clinical preset UX
+
+### Summary
+- added JSON mode to `queue-apply-preset` for Smart Exam preset buttons
+- kept normal POST redirect fallback for reliability
+- frontend now applies preset results inline without page reload
+- updated clinical fields, active preset state, order lines, totals, readiness, and payment preview from the returned payload
+- documented inline preset behavior in AI context files
+
+### Files
+- `app/Controllers/QueueController.php`
+- `public/assets/js/smart-exam.js`
+- `public/assets/css/smart-exam.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- removes full-page reload from preset apply when JavaScript is available
+- preserves backend preset merge, duplicate preset guard, stock validation, and fallback redirect behavior
+
+### Database Impact
+- no schema change
+- uses existing `audit_logs` table
+
+### UI Impact
+- Users page recent audit panel now includes login success, login failure, and logout rows.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- MODULES.md
+- UI_UX_GUIDE.md
+- FUTURE_FEATURES.md
+- KNOWN_ISSUES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Audit write failures are swallowed so authentication flow remains available if audit logging is temporarily unavailable.
+- Payment, stock, and settings audit coverage remains future scope.
+
+## 2026-05-17 - User Audit Trail Phase 17
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- User create, update, and password reset actions now write to `audit_logs`.
+- Users page shows recent user-management audit history for Admin review.
+- Audit details intentionally exclude password values and password hashes.
+
+### Why
+- User and permission changes should be traceable before the system is used in production.
+
+### Files
+- `app/Controllers/UserController.php`
+- `app/Views/users/index.php`
+- `public/assets/css/app.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/FUTURE_FEATURES.md`
+- `ai-brain/KNOWN_ISSUES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- users
+- audit
+- admin operations
+
+### Database Impact
+- no schema change
+- uses existing `audit_logs` table
+
+### UI Impact
+- Users page adds a compact recent audit history panel.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- MODULES.md
+- UI_UX_GUIDE.md
+- FUTURE_FEATURES.md
+- KNOWN_ISSUES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Audit write failures are swallowed so user management actions do not fail if audit logging is temporarily unavailable.
+- Login, payment, stock, and settings audit coverage remains future scope.
+
+## 2026-05-17 - Receipt Branding Settings Phase 16
+
+### Type
+- feature
+- schema
+- ux
+- docs
+
+### Summary
+- Added receipt branding settings for clinic tax/register ID, compact text logo mark, and a dedicated receipt footer.
+- Receipt page now displays the configurable branding without changing totals, numbering, or payment state.
+- Settings page separates receipt footer from queue note while keeping `queue_note` as a fallback for older data.
+- Added a runtime settings schema guard until the project has formal migrations.
+
+### Why
+- Printed receipts should carry clearer clinic identity and footer text without mixing receipt wording with operational queue notes.
+
+### Files
+- `app/Controllers/SettingsController.php`
+- `app/Views/settings/index.php`
+- `app/Views/payments/receipt.php`
+- `public/assets/css/app.css`
+- `database/schema.sql`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/DATABASE_SCHEMA.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/FUTURE_FEATURES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- settings
+- receipt
+- payment display
+
+### Database Impact
+- adds nullable `clinic_tax_id`, `receipt_logo_text`, and `receipt_footer` to `system_settings`
+- existing databases are patched by `SettingsController::ensureSettingsSchema()`
+
+### UI Impact
+- Settings gains receipt branding fields.
+- Receipt header can show a compact text logo mark and tax/register ID.
+- Receipt footer now has a dedicated setting.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- DATABASE_SCHEMA.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- FUTURE_FEATURES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Image logo upload, full document templates, and multiple print layouts remain future scope.
+
 ## 2026-05-16 - Database Setup Guide Phase 15
 
 ### Type
@@ -1065,3 +1254,206 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
 
 ### Notes
 - Avoid reintroducing duplicate named placeholders in PDO statements
+# 2026-05-16 - Appointment Agenda Module
+
+### Type
+- feature
+- workflow
+- ux
+- docs
+
+### Summary
+- added a dedicated Appointment Agenda page for Admin/Nurse
+- added create, reschedule/edit, and cancel workflows for scheduled appointments
+- connected agenda rows to existing appointment check-in and active queue reuse
+- added appointment navigation, page styling, and context documentation
+
+### Why
+- Follow-up appointments already existed, but operators needed a single place to manage upcoming appointments outside the queue due-today panel.
+
+### Files
+- `app/Controllers/AppointmentController.php`
+- `app/Views/appointments/index.php`
+- `public/assets/css/appointments.css`
+- `public/index.php`
+- `app/Views/layouts/app.php`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/FUTURE_FEATURES.md`
+- `ai-brain/KNOWN_ISSUES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- appointment scheduling
+- appointment check-in
+- queue intake
+
+### Database Impact
+- no schema change
+- uses existing `appointments` table
+
+### UI Impact
+- adds agenda filters, status summary, appointment cards, inline edit controls, and create form
+- Admin/Nurse can manage appointments without using patient history as the primary appointment surface
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- MODULES.md
+- SYSTEM_FLOW.md
+- UI_UX_GUIDE.md
+- FUTURE_FEATURES.md
+- KNOWN_ISSUES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Calendar grid/reminder workflow remains future scope.
+- Syntax checked with `C:\xampp\php\php.exe -l`.
+- Manual HTTP smoke test confirmed login and `GET:appointments` render.
+
+# 2026-05-17 - Medical Workstation Product Doctrine
+
+### Type
+- product direction
+- ux architecture
+- documentation
+
+### Summary
+- reframed the project from admin dashboard / CRUD management toward Medical Workstation Software
+- documented operational-first UI, compact workflow, and workflow-first design principles
+- added workstation layout rules for command header, main working area, sticky summary, quick actions, and compact side panels
+- clarified Smart Exam and Queue as clinical/operational workstations rather than dashboards
+
+### Why
+- The product needs to scale toward production EMR/HIS behavior and should prioritize real nurse workflow, speed, reduced scroll, reduced cards, and lower cognitive load over decorative UI.
+
+### Files
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- no backend workflow changed
+- future UI decisions must preserve intake -> queue -> Smart Exam -> services/items -> summary/payment -> receipt/next case
+
+### Database Impact
+- no schema change
+
+### UI Impact
+- establishes Medical Workstation as the governing UI direction
+- forbids dashboard hero/card-wall patterns on task-heavy clinical pages
+- requires compact density, sticky summary, visible next actions, and progressive disclosure for secondary details
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- UI_UX_GUIDE.md
+- SYSTEM_FLOW.md
+- CHANGELOG_AI.md
+
+### Notes
+- This is a product/UX architecture update only. No application runtime files were changed in this entry.
+
+# 2026-05-17 - Workstation Phase 5 Tightening
+
+### Type
+- UI/UX implementation
+- clinical workstation density
+- workflow refinement
+
+### Summary
+- tightened Smart Exam into a two-zone working surface plus sticky summary rail
+- reduced duplicate Queue dashboard signals by making the command bar the primary status/action surface
+- made Visit Detail behave more like a compact clinical review workstation
+- reduced helper text, card height, repeated status blocks, and vertical scroll pressure
+- improved desktop density while preserving responsive one-column fallbacks
+
+### Files
+- `public/assets/css/smart-exam.css`
+- `public/assets/css/app.css`
+- `ai-brain/CHANGELOG_AI.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/SYSTEM_FLOW.md`
+
+### Flow Impact
+- no backend workflow changed
+- Smart Exam still follows preset -> vitals/clinical -> services/items -> summary/payment -> finish
+- Queue now treats the command bar as the primary operational surface instead of duplicating status cards
+
+### UI Impact
+- Smart Exam form uses a compact workstation grid on desktop
+- summary rail remains visible and action-focused
+- Queue status strip is hidden when the command bar already exposes the same state
+- Visit Detail panels, lists, vitals, and action rail are more compact for 14-inch notebook use
+
+# 2026-05-17 - Stabilize Smart Exam Workflow
+
+### Type
+- Smart Exam workflow stabilization
+- clinical preset intelligence
+- workstation UX refinement
+
+### Summary
+- added URI as a first-class Smart Exam preset
+- made preset clinical text merge safely without overwriting existing nurse-entered CC/PI/PE/Dx/advice
+- ensured missing default database presets are inserted without overwriting edited presets
+- aligned preset item stock movements with manual item usage traceability
+- added compact service/medicine search fields inside existing order-entry panels
+- added frontend stock guard for selected medicine quantity
+- expanded summary readiness with stock state
+- added keyboard shortcuts for search/order/finish flow
+
+### Files
+- `app/Controllers/QueueController.php`
+- `app/Views/queue/exam.php`
+- `public/assets/js/smart-exam.js`
+- `public/assets/css/smart-exam.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- preserves single-screen Smart Exam workflow
+- no queue status transition changes
+- no payment lifecycle changes
+- stock validation remains server-authoritative
+
+### Database Impact
+- no schema change
+- existing `smart_exam_presets` receives missing default preset rows only; existing preset edits are not overwritten
+
+# 2026-05-17 - Smart Exam Inline Order Entry
+
+### Type
+- Smart Exam workflow acceleration
+- progressive-enhancement AJAX
+- summary rail synchronization
+
+### Summary
+- added JSON responses to existing visit service/item add-remove endpoints when requested by Smart Exam JavaScript
+- kept normal POST redirect fallback for reliability
+- updated Smart Exam service/item forms to submit inline without full page reload
+- refreshed main order lists and sticky summary rail counts, lines, totals, readiness, and payment preview after each add/remove
+- added compact loading state for inline order forms
+
+### Files
+- `app/Controllers/VisitController.php`
+- `app/Views/queue/exam.php`
+- `public/assets/js/smart-exam.js`
+- `public/assets/css/smart-exam.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/SYSTEM_FLOW.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/SMART_EXAM_LOGIC.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- reduces reload interruption in Smart Exam order entry
+- preserves server-side stock validation and existing queue/payment lifecycle
+- keeps summary rail as the operational control surface
+
+### Database Impact
+- no schema change

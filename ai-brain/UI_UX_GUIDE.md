@@ -161,6 +161,8 @@ Smart Exam is the primary nurse workflow and must stay faster than visit detail.
 - Do not force auto-print; make printing a clear, deliberate button to avoid accidental printer dialogs.
 - If advice or follow-up exists, show it in a calm printable care panel before footer/action buttons.
 - Do not show a blank advice section on receipts without care instructions.
+- Receipt header may show a compact text logo mark, clinic tax/register ID, and a dedicated footer from Settings.
+- Receipt branding should remain calm and printable; it must not compete with receipt number, patient identity, totals, or care instructions.
 
 ### Queue Continuation
 - Returning from receipt should not feel like a dead end.
@@ -208,6 +210,20 @@ Smart Exam is the primary nurse workflow and must stay faster than visit detail.
 - Primary action should be a direct `รับนัดเข้าคิว` button.
 - If the patient already has a queue today, show/open the existing queue instead of creating another one.
 - Do not add calendar-style UI to the queue page.
+
+### Appointment Agenda
+- The agenda page is the central surface for appointment planning, not the queue page.
+- Keep filters compact: date range, status, and keyword are enough for the current workflow.
+- Appointment cards should show date/time, patient identity, purpose, status, and active queue state at a glance.
+- Reschedule/edit controls may live inline behind a compact details control because editing is secondary to check-in.
+- Cancellation should be deliberate and require confirmation.
+- Check-in should stay a primary action and reuse the existing appointment check-in flow.
+- Do not build a decorative calendar grid until the clinic needs full scheduling density and reminders.
+
+### User Management
+- Admin user cards should keep role, active status, and last login visible at a glance.
+- Recent user/security audit history belongs on the Users page so Admin can confirm account and login activity without opening database tools.
+- Audit history should be compact and should never display password values or hashes.
 
 ### Stock Safety In Smart Exam
 - Medicine and supply shortcuts should show stock status before the nurse clicks them.
@@ -258,3 +274,174 @@ Before changing UI, AI should ask:
 3. Does this help nurses finish a common case faster?
 4. Does this preserve Medical Minimal UI?
 5. Does this make the screen look more like a clinic workstation than an admin template?
+
+## Medical Workstation Design Doctrine
+
+The UI direction is Medical Workstation Software. It must not be designed like an admin dashboard, CRUD management panel, or generic SaaS template.
+
+### Design Philosophy
+- Fast is better than decorative.
+- Clear is better than clever.
+- Workflow continuity is better than separated sections.
+- Compact is better than oversized when it improves nurse speed.
+- Real operational use is better than visually impressive presentation.
+
+### Workstation Layout Mindset
+Use this page structure for operational screens:
+
+1. Command Header
+   - patient, queue, date, status, or active task
+   - primary next action
+   - no large hero copy
+
+2. Main Working Area
+   - the actual form, exam, queue action, or order entry
+   - high-frequency inputs first
+   - minimal explanatory text
+
+3. Sticky Summary Area
+   - patient/risk visibility
+   - service/item counts
+   - totals
+   - readiness
+   - finish/payment actions
+
+4. Compact Side Panel
+   - search, recent items, due appointments, or secondary context
+   - collapsible when not essential
+
+### Density Rules
+- Target desktop and 14-inch notebook first.
+- Default workstation gap: 8px to 16px.
+- Default workstation panel padding: 12px to 16px.
+- Inputs should usually be 38px to 40px tall.
+- Use 8px-based spacing; avoid one-off spacing values unless required by layout.
+- Do not use large cards for secondary information.
+- Empty states should be compact and actionable.
+
+### Card Rules
+Use cards only when they create useful grouping. Do not turn every section into a card.
+
+Avoid:
+- card inside card inside card
+- oversized cards with only text
+- cards used as decoration
+- repeated card headings that explain obvious workflow steps
+
+Prefer:
+- bounded panels for active work
+- thin borders over heavy shadows
+- compact headers
+- scroll-limited lists
+- disclosure for secondary details
+
+### Typography Rules For Workstation Pages
+- Workstation page title: 18px to 24px.
+- Panel title: 15px to 18px.
+- Body: 14px to 15px.
+- Label: 12px to 13px, semibold.
+- Avoid huge headings inside Queue, Smart Exam, Payments, and Visit Detail.
+- Remove helper paragraphs when labels and layout already explain the task.
+
+### Color Balance
+- Neutral surfaces must dominate.
+- Teal is for primary clinical/operational actions.
+- Blue is for information and links.
+- Amber/red are for warning, unpaid, allergy, or blocked action.
+- Do not build colorful card walls. Color should encode state, not decorate.
+
+### Cognitive Load Rules
+Every workstation screen should reduce thinking:
+- one obvious primary action per context
+- patient risk visible without searching
+- totals/readiness visible without scrolling
+- secondary data collapsed by default
+- repeated metadata shown as chips or compact rows
+- no paragraph-heavy operational panels
+
+### Workflow Rules
+Operational pages must be designed around the user doing the work, not reading about the work.
+
+For each page, verify:
+- Can the user start the common task within 3 seconds?
+- Is the next action visible?
+- Are patient, status, and risk clear?
+- Is the finish/submit/payment action reachable?
+- Does the page avoid unnecessary scroll on a 14-inch notebook?
+
+### Smart Exam Workstation Pattern
+Smart Exam should follow:
+
+`Patient/Risk Header -> Preset -> Vitals -> Clinical Fields -> Services -> Medicines -> Summary -> Finish`
+
+Rules:
+- Preset and vitals should appear early.
+- Patient snapshot should be a risk strip, not a history page.
+- Recent history and detailed context should be collapsed by default.
+- Summary rail must remain sticky on desktop.
+- Finish actions must not be pushed below long lists.
+- The flow should feel like one continuous clinical station, not separate dashboard widgets.
+
+### Queue Workstation Pattern
+Queue should be a command board:
+
+`Command Bar -> Next Case / Intake -> Active Exam -> Summary / Payment State -> Queue Boards`
+
+Rules:
+- Queue is not a passive dashboard.
+- Do not use large hero blocks.
+- Call/open next case should be one obvious action.
+- Due appointments and quick registration belong in compact intake surfaces.
+- Queue boards are situational awareness, not the primary work area.
+
+### Enterprise Consistency
+Reusable workstation components should be preferred:
+- `command-header`
+- `risk-strip`
+- `clinical-panel`
+- `compact-form-grid`
+- `quick-action-group`
+- `order-entry-panel`
+- `summary-rail`
+- `readiness-checklist`
+- `finish-action-bar`
+
+Future modules should adopt these patterns so the product feels like one healthcare system rather than a collection of Bootstrap pages.
+
+### Forbidden Workstation Patterns
+- Large dashboard hero on task-heavy pages.
+- Decoration-first gradients or colorful card walls.
+- Long helper text above active controls.
+- Hidden primary actions.
+- Finish actions below unbounded lists.
+- Generic CRUD tables as the first answer to clinical workflows.
+
+### Phase 5 Workstation Rules
+The next production tightening pass must keep these five rules:
+
+1. Command first: Queue and Smart Exam start with patient/status/action, not hero copy.
+2. Working surface second: vitals, presets, clinical inputs, services, and items must be grouped as active tools, not separate dashboard widgets.
+3. Summary rail always visible: totals, readiness, payment, and finish actions must stay reachable on desktop.
+4. Text only when it prevents error: remove helper paragraphs when labels, status, and controls already explain the task.
+5. Mobile fallback is stacked, not simplified away: all clinical actions remain available when columns collapse.
+
+### Stabilized Smart Exam Workflow Rules
+- Preset buttons should behave like clinical accelerators, not navigation cards.
+- Preset application must preserve existing clinical text and merge new defaults safely.
+- Suggestions should be short, editable, and non-authoritative.
+- Order entry search belongs inside the existing services/medicine panels; do not add a new search card.
+- Stock warnings should appear near order entry and summary readiness, with server validation kept as the source of truth.
+- Keyboard shortcuts may be shown as a compact hint, not a large instruction panel.
+
+### Inline Order Entry UX
+- Adding/removing services or medicines inside Smart Exam should not force a full page reload when JavaScript is available.
+- The right summary rail must update immediately after every order action.
+- Keep the normal form submit fallback so the workstation remains reliable on older devices or script failure.
+- Inline feedback should be brief and rail-based; avoid toast/popup noise.
+- Do not turn order entry into a modal cart. The nurse should stay in the same working surface.
+
+### Inline Preset UX
+- Applying a Smart Exam preset should not feel like navigation.
+- Preset feedback belongs in the existing alert/summary flow, not in a new modal.
+- After preset apply, keep the nurse near the clinical fields and update the summary rail immediately.
+- Active preset state should be visible, but not dominate the workstation.

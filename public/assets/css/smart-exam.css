@@ -574,6 +574,11 @@
   background: #f5f3ff;
 }
 
+.smart-service-card.preset-uri {
+  border-color: #7dd3fc;
+  background: #eff6ff;
+}
+
 .smart-exam-card {
   background: #fff;
   border: 1px solid #dbe4f0;
@@ -791,6 +796,41 @@
   margin-top: 12px;
 }
 
+.smart-shortcut-hint {
+  align-self: center;
+  color: var(--med-muted, #5b677a);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.smart-order-search {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.smart-order-search label {
+  color: var(--med-teal, #0f766e);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.smart-order-search input {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: var(--radius-sm, 8px);
+  background: #ffffff;
+  color: var(--med-text, #102033);
+  font-size: 0.86rem;
+}
+
+.smart-order-search input:focus {
+  border-color: #67e8f9;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+
 .smart-billing-workspace {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -939,6 +979,14 @@
   padding: 9px 11px;
   font-size: 0.92rem;
   outline: none;
+}
+
+.smart-add-line-form.is-loading,
+.smart-shortcut-grid form.is-loading,
+.smart-line-price form.is-loading,
+.smart-service-card.is-loading {
+  opacity: .68;
+  pointer-events: none;
 }
 
 .smart-line-list {
@@ -1369,5 +1417,1198 @@
 
   .smart-inline-actions {
     flex-direction: column;
+  }
+}
+
+/* UI-2 Smart Exam workstation redesign */
+.smart-exam-page-shell {
+  gap: 12px;
+}
+
+.smart-encounter-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.7fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: var(--radius-lg, 12px);
+  background: #ffffff;
+  box-shadow: var(--shadow-card, 0 8px 18px rgba(16, 32, 51, 0.045));
+}
+
+.smart-encounter-patient {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.smart-encounter-kicker {
+  color: var(--med-teal, #0f766e);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.smart-encounter-name {
+  color: var(--med-text, #102033);
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.smart-encounter-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.smart-flow-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: var(--radius-sm, 8px);
+  background: #f8fafc;
+  color: var(--med-muted, #5b677a);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.smart-flow-step strong {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.72rem;
+}
+
+.smart-flow-step.active {
+  border-color: #99f6e4;
+  background: #f0fdfa;
+  color: var(--med-teal, #0f766e);
+}
+
+.smart-flow-step.is-complete {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.smart-flow-step.is-idle {
+  opacity: 0.72;
+}
+
+.smart-encounter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.smart-exam-page-shell > .smart-exam-page-hero,
+.smart-exam-page-shell > .smart-exam-steps {
+  display: none;
+}
+
+.smart-exam-page-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 340px);
+  gap: 12px;
+}
+
+.smart-main-card,
+.smart-summary-card {
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-card, 0 8px 18px rgba(16, 32, 51, 0.045));
+}
+
+.smart-main-card {
+  padding: 14px;
+}
+
+.smart-main-card > .smart-active-case {
+  display: none;
+}
+
+.smart-patient-snapshot {
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: var(--radius-lg, 12px);
+  background: #fbfdff;
+}
+
+.smart-snapshot-head h4,
+.smart-clinical-head p,
+.smart-service-presets-hint,
+.smart-keyboard-hint,
+.smart-followup-hint {
+  display: none;
+}
+
+.smart-snapshot-grid {
+  grid-template-columns: 1.05fr 1.05fr 0.95fr 0.75fr;
+  gap: 8px;
+}
+
+.smart-snapshot-alert {
+  min-height: 54px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.smart-snapshot-alert span,
+.smart-snapshot-muted {
+  font-size: 0.72rem;
+}
+
+.smart-snapshot-alert strong {
+  font-size: 0.84rem;
+}
+
+.smart-snapshot-body {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.smart-snapshot-detail {
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: var(--radius-sm, 8px);
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.smart-snapshot-detail summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.smart-snapshot-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.smart-snapshot-detail summary span {
+  color: var(--med-teal, #0f766e);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.smart-snapshot-detail summary strong {
+  color: var(--med-muted, #5b677a);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.smart-snapshot-detail[open] {
+  padding-bottom: 10px;
+}
+
+.smart-snapshot-detail[open] .smart-snapshot-body,
+.smart-snapshot-detail[open] .smart-snapshot-recent {
+  margin: 0 10px;
+}
+
+.smart-snapshot-detail[open] .smart-snapshot-body {
+  padding-top: 10px;
+  border-top: 1px solid var(--med-border, #d9e2ec);
+}
+
+.smart-snapshot-detail[open] .smart-snapshot-recent {
+  margin-top: 8px;
+}
+
+.smart-snapshot-panel,
+.smart-snapshot-recent {
+  padding: 9px 10px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.smart-snapshot-recent {
+  max-height: 132px;
+  overflow: auto;
+}
+
+.smart-service-presets {
+  margin-bottom: 12px;
+}
+
+.smart-service-presets-head {
+  margin-bottom: 8px;
+}
+
+.smart-service-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.smart-service-card {
+  min-height: 68px;
+  padding: 10px;
+  border-radius: var(--radius-sm, 8px);
+  box-shadow: none;
+}
+
+.smart-service-card:hover,
+.smart-recent-card:hover,
+.smart-shortcut-btn:hover {
+  transform: none;
+}
+
+.smart-exam-card {
+  padding: 12px;
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: none;
+}
+
+.smart-card-head,
+.smart-clinical-head {
+  margin-bottom: 8px;
+}
+
+.smart-card-head h4,
+.smart-clinical-head h4,
+.smart-billing-head h4,
+.smart-exam-card h4 {
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.smart-vital-row {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.smart-vital-row label,
+.smart-exam-inputs label,
+.smart-followup-grid label,
+.smart-payment-grid label {
+  font-size: 0.74rem;
+  margin-bottom: 4px;
+}
+
+.smart-vital-row input,
+.smart-exam-inputs input,
+.smart-exam-inputs textarea,
+.smart-followup-grid input,
+.smart-followup-grid textarea,
+.smart-add-line-form select,
+.smart-add-line-form input,
+.smart-payment-grid select,
+.smart-payment-grid input {
+  min-height: 38px;
+  border-radius: var(--radius-sm, 8px);
+  padding: 8px 10px;
+  font-size: 0.9rem;
+}
+
+.smart-exam-inputs textarea {
+  min-height: 72px;
+  margin-bottom: 8px;
+}
+
+.smart-clinical-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.85fr);
+  gap: 12px;
+}
+
+.smart-preset-panel {
+  gap: 10px;
+  padding-left: 12px;
+}
+
+.smart-preset-buttons {
+  gap: 6px;
+}
+
+.smart-preset-btn {
+  min-height: 36px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.82rem;
+}
+
+.smart-followup-card {
+  margin-top: 12px;
+}
+
+.smart-inline-actions {
+  margin-top: 10px;
+}
+
+.smart-billing-workspace {
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.smart-billing-card {
+  gap: 10px;
+}
+
+.smart-shortcut-grid {
+  gap: 8px;
+}
+
+.smart-shortcut-btn {
+  min-height: 50px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.smart-add-line-form {
+  grid-template-columns: minmax(0, 1fr) 72px 112px;
+}
+
+.smart-add-line-form-items {
+  grid-template-columns: minmax(0, 1fr) 72px minmax(110px, .62fr) 96px;
+}
+
+.smart-line-list {
+  max-height: 176px;
+  overflow: auto;
+}
+
+.smart-line-item {
+  padding: 7px 9px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.smart-summary-card {
+  top: 12px;
+  padding: 12px;
+}
+
+.smart-exam-page-shell .smart-summary-card {
+  max-height: calc(100vh - 92px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.smart-summary-head h3 {
+  font-size: 1.08rem;
+}
+
+.smart-summary-patient,
+.smart-summary-section,
+.smart-summary-total,
+.smart-summary-clinical-flag,
+.smart-summary-meta-grid,
+.smart-inline-payment,
+.smart-finish-readiness {
+  margin-bottom: 10px;
+}
+
+.smart-summary-section {
+  padding-top: 8px;
+  border-top: 1px solid var(--med-border, #d9e2ec);
+}
+
+.smart-summary-lines {
+  max-height: 92px;
+}
+
+.smart-exam-page-shell .smart-summary-lines {
+  max-height: 74px;
+}
+
+.smart-summary-total {
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-sm, 8px);
+  background: #f8fbff;
+}
+
+.smart-summary-line {
+  font-size: 0.84rem;
+  padding: 3px 0;
+}
+
+.smart-summary-line.grand {
+  font-size: 0.98rem;
+}
+
+.smart-inline-payment {
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.smart-payment-grid {
+  grid-template-columns: 1fr;
+}
+
+.smart-payment-preview {
+  gap: 6px;
+}
+
+.smart-readiness-list {
+  gap: 6px;
+}
+
+.smart-readiness-item {
+  padding: 7px 9px;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.82rem;
+}
+
+.smart-readiness-note {
+  display: none;
+}
+
+.smart-exam-page-shell .smart-summary-actions {
+  position: sticky;
+  bottom: -12px;
+  z-index: 4;
+  margin: 0 -12px -12px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--med-border, #d9e2ec);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, #ffffff 42%);
+  box-shadow: 0 -10px 22px rgba(16, 32, 51, 0.07);
+}
+
+.smart-summary-actions .btn {
+  min-height: 40px;
+}
+
+@media (max-width: 1399px) {
+  .smart-encounter-header {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.62fr);
+  }
+
+  .smart-encounter-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .smart-service-grid,
+  .smart-vital-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1199px) {
+  .smart-encounter-header,
+  .smart-exam-page-grid,
+  .smart-clinical-grid,
+  .smart-billing-workspace,
+  .smart-snapshot-body {
+    grid-template-columns: 1fr;
+  }
+
+  .smart-summary-card {
+    position: static;
+  }
+
+  .smart-preset-panel {
+    padding-left: 0;
+    padding-top: 12px;
+    border-left: 0;
+    border-top: 1px solid #e2e8f0;
+  }
+}
+
+@media (max-width: 767px) {
+  .smart-encounter-flow,
+  .smart-snapshot-grid,
+  .smart-service-grid,
+  .smart-vital-row,
+  .smart-add-line-form,
+  .smart-add-line-form-items {
+    grid-template-columns: 1fr;
+  }
+
+  .smart-encounter-actions {
+    display: grid;
+  }
+}
+
+/* UI-3 Queue workstation layout */
+.queue-workspace {
+  gap: 12px;
+}
+
+.queue-command-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: var(--radius-lg, 12px);
+  background: #ffffff;
+  box-shadow: var(--shadow-card, 0 8px 18px rgba(16, 32, 51, 0.045));
+}
+
+.queue-command-main,
+.queue-command-focus {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.queue-command-kicker,
+.queue-command-focus span {
+  color: var(--med-teal, #0f766e);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.queue-command-title {
+  color: var(--med-text, #102033);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.queue-command-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.queue-command-metrics span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--med-text, #102033);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.queue-command-metrics .waiting {
+  border-color: #fbbf24;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.queue-command-metrics .in-service {
+  border-color: #67e8f9;
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.queue-command-metrics .payment {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.queue-command-metrics .completed {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.queue-command-focus {
+  padding: 9px 11px;
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: var(--radius-sm, 8px);
+  background: #fbfdff;
+}
+
+.queue-command-focus strong {
+  color: var(--med-text, #102033);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-command-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.queue-command-actions form {
+  margin: 0;
+}
+
+.queue-workspace > .smart-exam-hero {
+  display: none;
+}
+
+.queue-workspace > .queue-status-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.queue-workspace .queue-status-mini {
+  min-height: 58px;
+  padding: 8px 12px;
+  border-left-width: 4px;
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: none;
+}
+
+.queue-workspace .queue-status-mini span {
+  margin-bottom: 3px;
+  font-size: 0.78rem;
+}
+
+.queue-workspace .queue-status-mini strong {
+  font-size: 1.25rem;
+}
+
+.queue-workspace .smart-exam-layout {
+  grid-template-columns: minmax(280px, 0.82fr) minmax(420px, 1.32fr) minmax(300px, 0.9fr);
+  gap: 12px;
+}
+
+.queue-workspace .smart-panel-card {
+  padding: 14px;
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-card, 0 8px 18px rgba(16, 32, 51, 0.045));
+}
+
+.queue-workspace .smart-panel-head {
+  margin-bottom: 10px;
+}
+
+.queue-workspace .smart-panel-head h3 {
+  margin: 2px 0 3px;
+  font-size: 1.18rem;
+  line-height: 1.2;
+}
+
+.queue-workspace .smart-panel-head p {
+  display: none;
+}
+
+.queue-workspace .eyebrow {
+  font-size: 0.72rem;
+}
+
+.queue-workspace .smart-next-queue,
+.queue-workspace .smart-subsection {
+  padding: 12px;
+  border-radius: var(--radius-lg, 12px);
+}
+
+.queue-workspace .smart-next-queue-name,
+.queue-workspace .smart-active-name,
+.queue-workspace .smart-summary-name {
+  font-size: 1.05rem;
+}
+
+.queue-workspace .smart-next-queue-note,
+.queue-workspace .smart-active-meta,
+.queue-workspace .smart-summary-meta {
+  font-size: 0.86rem;
+}
+
+.queue-workspace .queue-appointment-panel {
+  margin-top: 12px !important;
+}
+
+.queue-workspace .queue-appointment-list {
+  gap: 8px;
+}
+
+.queue-workspace .queue-appointment-card {
+  padding: 9px 10px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.queue-workspace .stack-form {
+  gap: 10px;
+}
+
+.queue-workspace .queue-register-redirect {
+  margin-top: 12px !important;
+}
+
+.queue-workspace .queue-register-redirect p {
+  display: none;
+}
+
+.queue-workspace .queue-quick-register-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.queue-workspace textarea.form-control {
+  min-height: 74px;
+}
+
+.queue-workspace .smart-panel-left .smart-subsection:last-child {
+  display: none;
+}
+
+.queue-workspace .smart-main-card {
+  min-height: 280px;
+}
+
+.queue-workspace .smart-open-exam-card {
+  padding: 14px;
+  border-radius: var(--radius-lg, 12px);
+}
+
+.queue-workspace .smart-open-exam-card h4 {
+  font-size: 1.1rem;
+}
+
+.queue-workspace .smart-open-exam-card p,
+.queue-workspace .empty-state p {
+  display: none;
+}
+
+.queue-workspace .form-text {
+  display: none;
+}
+
+.queue-workspace .smart-open-exam-actions {
+  margin-top: 0;
+}
+
+.queue-workspace .smart-open-exam-actions .btn {
+  min-height: 44px;
+}
+
+.queue-workspace .smart-summary-hint {
+  padding: 8px 10px;
+  font-size: 0.84rem;
+}
+
+.queue-workspace .smart-summary-card {
+  position: sticky;
+  top: 12px;
+}
+
+.queue-workspace .smart-summary-section {
+  padding-top: 8px;
+  margin-bottom: 8px;
+  border-top: 1px solid var(--med-border, #d9e2ec);
+}
+
+.queue-workspace .smart-summary-total {
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-sm, 8px);
+  background: #f8fbff;
+}
+
+.queue-workspace .smart-board-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.queue-workspace .smart-board-card {
+  min-height: 126px;
+  padding: 12px;
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-card, 0 8px 18px rgba(16, 32, 51, 0.045));
+}
+
+.queue-workspace .smart-board-head h4 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.queue-workspace .smart-board-list {
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.queue-workspace .smart-board-item {
+  padding: 8px 9px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.queue-workspace .smart-board-empty {
+  min-height: 64px;
+  padding: 8px;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 1399px) {
+  .queue-command-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.74fr);
+  }
+
+  .queue-command-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1199px) {
+  .queue-command-bar,
+  .queue-workspace .smart-exam-layout,
+  .queue-workspace .smart-board-grid,
+  .queue-workspace > .queue-status-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-workspace .smart-summary-card {
+    position: static;
+  }
+}
+
+@media (max-width: 767px) {
+  .queue-command-actions {
+    display: grid;
+  }
+
+  .queue-command-actions .btn,
+  .queue-command-actions form,
+  .queue-command-actions button {
+    width: 100%;
+  }
+
+  .queue-workspace .queue-quick-register-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Workstation phase: five-point production tightening */
+.smart-exam-page-shell {
+  --workstation-gap: 10px;
+  --workstation-rail: 320px;
+}
+
+.smart-exam-page-shell .smart-encounter-header,
+.queue-workspace .queue-command-bar {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+}
+
+.smart-exam-page-shell .smart-encounter-name,
+.queue-workspace .queue-command-title {
+  font-size: 1.12rem;
+}
+
+.smart-exam-page-shell .smart-active-chips {
+  gap: 5px;
+}
+
+.smart-exam-page-shell .smart-meta-chip {
+  min-height: 24px;
+  padding: 3px 8px;
+  font-size: 0.76rem;
+}
+
+.smart-exam-page-shell .smart-flow-step {
+  min-height: 30px;
+  padding: 5px 7px;
+}
+
+.smart-exam-page-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, var(--workstation-rail));
+}
+
+.smart-exam-page-shell .smart-main-card {
+  padding: 12px;
+}
+
+.smart-exam-page-shell .smart-patient-snapshot {
+  margin-bottom: var(--workstation-gap);
+  padding: 10px;
+}
+
+.smart-exam-page-shell .smart-snapshot-head {
+  margin-bottom: 0;
+}
+
+.smart-exam-page-shell .smart-snapshot-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.smart-exam-page-shell .smart-snapshot-alert {
+  min-height: 46px;
+}
+
+.smart-exam-page-shell .smart-snapshot-detail {
+  margin-top: 8px;
+}
+
+.smart-exam-page-shell .smart-exam-form {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.74fr) minmax(0, 1.26fr);
+  gap: var(--workstation-gap);
+  align-items: start;
+}
+
+.smart-exam-page-shell .smart-exam-runtime {
+  display: none;
+}
+
+.smart-exam-page-shell .smart-service-presets {
+  grid-column: 1;
+  grid-row: 1;
+  margin-bottom: 0;
+}
+
+.smart-exam-page-shell .smart-vitals-card {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.smart-exam-page-shell .smart-clinical-card {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-height: 100%;
+}
+
+.smart-exam-page-shell .smart-followup-card,
+.smart-exam-page-shell .smart-inline-actions {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.smart-exam-page-shell .smart-service-presets-head,
+.smart-exam-page-shell .smart-card-head,
+.smart-exam-page-shell .smart-clinical-head,
+.smart-exam-page-shell .smart-billing-head {
+  min-height: 0;
+  margin-bottom: 6px;
+}
+
+.smart-exam-page-shell .smart-section-label {
+  font-size: 0.78rem;
+}
+
+.smart-exam-page-shell .smart-service-grid {
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.smart-exam-page-shell .smart-service-card {
+  min-height: 48px;
+  padding: 8px 10px;
+}
+
+.smart-exam-page-shell .smart-service-desc {
+  display: none;
+}
+
+.smart-exam-page-shell .smart-vital-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.smart-exam-page-shell .smart-clinical-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 0.5fr);
+  gap: 10px;
+}
+
+.smart-exam-page-shell .smart-exam-inputs textarea {
+  min-height: 60px;
+}
+
+.smart-exam-page-shell .smart-exam-inputs #pe {
+  min-height: 54px;
+}
+
+.smart-exam-page-shell .smart-preset-panel {
+  gap: 8px;
+}
+
+.smart-exam-page-shell .smart-preset-panel-head span {
+  display: none;
+}
+
+.smart-exam-page-shell .smart-preset-group {
+  gap: 5px;
+}
+
+.smart-exam-page-shell .smart-preset-btn {
+  min-height: 32px;
+}
+
+.smart-exam-page-shell .smart-followup-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.32fr);
+  gap: 10px;
+}
+
+.smart-exam-page-shell .smart-followup-grid textarea {
+  min-height: 58px;
+}
+
+.smart-exam-page-shell .smart-billing-workspace {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--workstation-gap);
+  margin-top: var(--workstation-gap);
+}
+
+.smart-exam-page-shell .smart-shortcut-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.smart-exam-page-shell .smart-shortcut-btn {
+  min-height: 44px;
+}
+
+.smart-exam-page-shell .smart-shortcut-btn small {
+  display: none;
+}
+
+.smart-exam-page-shell .smart-line-list {
+  max-height: 132px;
+}
+
+.smart-exam-page-shell .smart-summary-card {
+  top: 58px;
+  max-height: calc(100vh - 70px);
+  padding: 10px;
+}
+
+.smart-exam-page-shell .smart-summary-head {
+  display: none;
+}
+
+.smart-exam-page-shell .smart-summary-patient {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--med-border, #d9e2ec);
+}
+
+.smart-exam-page-shell .smart-summary-name {
+  font-size: 1.02rem;
+}
+
+.smart-exam-page-shell .smart-summary-meta-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.smart-exam-page-shell .smart-summary-metric {
+  min-height: 54px;
+  padding: 8px;
+}
+
+.smart-exam-page-shell .smart-summary-lines {
+  max-height: 58px;
+}
+
+.smart-exam-page-shell .smart-inline-payment {
+  background: #eef6ff;
+}
+
+.smart-exam-page-shell .smart-payment-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.smart-exam-page-shell .smart-payment-grid > div:first-child {
+  grid-column: 1 / -1;
+}
+
+.smart-exam-page-shell .smart-readiness-list {
+  grid-template-columns: 1fr;
+}
+
+.smart-exam-page-shell .smart-summary-actions .btn {
+  min-height: 38px;
+}
+
+.queue-workspace > .queue-status-strip {
+  display: none;
+}
+
+.queue-workspace .queue-command-bar {
+  top: 0;
+}
+
+.queue-workspace .smart-panel-head .eyebrow {
+  display: none;
+}
+
+.queue-workspace .smart-panel-head h3 {
+  font-size: 1.04rem;
+}
+
+.queue-workspace .smart-panel-left .smart-subsection {
+  margin-top: 10px !important;
+}
+
+.queue-workspace .smart-recent-list {
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.queue-workspace .smart-recent-card {
+  min-height: 48px;
+  padding: 8px 10px;
+}
+
+.queue-workspace .smart-board-grid {
+  margin-top: 2px;
+}
+
+.queue-workspace .smart-board-card {
+  min-height: 108px;
+}
+
+.queue-workspace .smart-board-list {
+  max-height: 188px;
+  overflow: auto;
+}
+
+@media (max-width: 1399px) {
+  .smart-exam-page-shell {
+    --workstation-rail: 300px;
+  }
+
+  .smart-exam-page-shell .smart-exam-form,
+  .smart-exam-page-shell .smart-clinical-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .smart-exam-page-shell .smart-service-presets,
+  .smart-exam-page-shell .smart-vitals-card,
+  .smart-exam-page-shell .smart-clinical-card {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .smart-exam-page-shell .smart-service-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1199px) {
+  .smart-exam-page-shell .smart-encounter-header,
+  .queue-workspace .queue-command-bar {
+    position: static;
+  }
+
+  .smart-exam-page-shell .smart-summary-card {
+    max-height: none;
+  }
+
+  .smart-exam-page-shell .smart-billing-workspace,
+  .smart-exam-page-shell .smart-followup-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .smart-exam-page-shell .smart-snapshot-grid,
+  .smart-exam-page-shell .smart-service-grid,
+  .smart-exam-page-shell .smart-payment-grid {
+    grid-template-columns: 1fr;
   }
 }

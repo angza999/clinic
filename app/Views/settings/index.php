@@ -4,7 +4,7 @@
             <div>
                 <div class="page-hero-eyebrow">ตั้งค่าคลินิก</div>
                 <h1 class="page-hero-title">กำหนดข้อมูลคลินิก เลขเอกสาร และข้อความที่ใช้ทั้งระบบ</h1>
-                <p class="page-hero-text">ค่าที่บันทึกในหน้านี้จะถูกนำไปใช้กับชื่อคลินิกบนเอกสาร เลข HN ใหม่ เลขใบเสร็จใหม่ และข้อความท้ายใบเสร็จ</p>
+                <p class="page-hero-text">ค่าที่บันทึกในหน้านี้จะถูกนำไปใช้กับชื่อคลินิกบนเอกสาร ตราหน้าใบเสร็จ เลข HN ใหม่ เลขใบเสร็จใหม่ และข้อความท้ายใบเสร็จ</p>
             </div>
             <div class="queue-empty-state text-start">
                 <div class="fw-semibold mb-2">ค่าที่ใช้จริงหลังบันทึก</div>
@@ -19,7 +19,7 @@
             <div class="card section-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h2 class="h5 mb-1">ข้อมูลพื้นฐานของคลินิก</h2>
-                    <div class="small text-muted">ใช้สำหรับชื่อบนเอกสาร ข้อมูลติดต่อ และข้อความท้ายใบเสร็จ</div>
+                    <div class="small text-muted">ใช้สำหรับชื่อบนเอกสาร ข้อมูลติดต่อ ตราหน้าใบเสร็จ และข้อความท้ายใบเสร็จ</div>
                 </div>
                 <div class="card-body px-4 pb-4">
                     <form method="post" action="<?= e(route_url('settings-store')) ?>">
@@ -38,16 +38,28 @@
                                         <input type="text" name="clinic_phone" class="form-control" value="<?= e($settings['clinic_phone'] ?? '') ?>" placeholder="เช่น 053-000000 หรือ 08x-xxx-xxxx">
                                     </div>
                                     <div class="col-md-6">
+                                        <label class="form-label">เลขประจำตัวผู้เสียภาษี / เลขทะเบียน</label>
+                                        <input type="text" name="clinic_tax_id" class="form-control" value="<?= e($settings['clinic_tax_id'] ?? '') ?>" placeholder="ถ้ามี">
+                                    </div>
+                                    <div class="col-md-6">
                                         <label class="form-label">แจ้งเตือนใกล้หมดอายุ (วัน)</label>
                                         <input type="number" name="expiry_alert_days" class="form-control" min="1" value="<?= e((string) ($settings['expiry_alert_days'] ?? 30)) ?>">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">ข้อความตราหน้าใบเสร็จ</label>
+                                        <input type="text" name="receipt_logo_text" class="form-control" maxlength="80" value="<?= e($settings['receipt_logo_text'] ?? '') ?>" placeholder="เช่น DM คลินิก หรือ เวชกรรม">
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label">ที่อยู่คลินิก</label>
                                         <textarea name="clinic_address" class="form-control" rows="3" placeholder="ใช้แสดงบนใบเสร็จและเอกสาร"><?= e($settings['clinic_address'] ?? '') ?></textarea>
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label">ข้อความท้ายใบเสร็จ / หมายเหตุคลินิก</label>
-                                        <textarea name="queue_note" class="form-control" rows="3" placeholder="เช่น ขอบคุณที่ใช้บริการ หรือ ห้องน้ำอยู่ด้านนอกอาคาร"><?= e($settings['queue_note'] ?? '') ?></textarea>
+                                        <label class="form-label">ข้อความท้ายใบเสร็จ</label>
+                                        <textarea name="receipt_footer" class="form-control" rows="3" placeholder="เช่น ขอบคุณที่ใช้บริการ"><?= e($settings['receipt_footer'] ?? '') ?></textarea>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">หมายเหตุคลินิก / ข้อความคิว</label>
+                                        <textarea name="queue_note" class="form-control" rows="2" placeholder="เช่น ห้องน้ำอยู่ด้านนอกอาคาร"><?= e($settings['queue_note'] ?? '') ?></textarea>
                                     </div>
                                 </div>
                             </div>

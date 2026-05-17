@@ -229,6 +229,14 @@ The primary workflow now assumes one nurse may operate the whole clinic flow alo
 - If the patient already has an active queue today, the system must reuse that queue and avoid duplicates.
 - Appointment check-in is not a full calendar module.
 
+### Appointment Agenda Behavior
+- Admin/Nurse can use `GET:appointments` as the central appointment agenda.
+- The agenda supports date range, status, and keyword filtering.
+- Manual appointment creation uses existing active patients.
+- Scheduled appointments can be rescheduled or cancelled without changing patient or visit history.
+- Agenda check-in reuses `POST:appointment-checkin` and must preserve duplicate active-queue protection.
+- Full calendar grid, recurrence, and reminder messaging are still future scope.
+
 ### Smart Exam Stock Safety Behavior
 - Smart Exam item ordering shows stock status before adding medicine or supplies.
 - Item status uses current batch balance, reorder level, and nearest expiry date.
@@ -253,3 +261,110 @@ The primary workflow now assumes one nurse may operate the whole clinic flow alo
 - Backup retention is file-based: keep the latest 30 `clinic_backup_*.sql` files and remove older matching files after successful backup creation.
 - Dashboard should show backup file count and retention limit so the operator understands the local cleanup policy.
 - This does not replace external/offsite backup policy; it is the local daily safety step for small clinic operation.
+
+### Receipt Branding Behavior
+- Settings can store printable receipt identity fields: `clinic_tax_id`, `receipt_logo_text`, and `receipt_footer`.
+- Receipt footer is separate from `queue_note`; `queue_note` remains a fallback for older databases.
+- Receipt branding must not change payment lifecycle, receipt numbering, stock movement, or queue completion behavior.
+- Existing databases may be patched by `SettingsController::ensureSettingsSchema()` until a formal migration system exists.
+
+### User Audit Behavior
+- User create/update/password reset actions write to `audit_logs`.
+- Login success, login failure, and logout actions write to `audit_logs`.
+- Users page shows the latest user-management audit rows for Admin review.
+- Audit logging must not expose password values or password hashes.
+- Audit coverage is intentionally partial for now; payment, stock, and settings audit expansion remains future scope.
+
+## Product Doctrine: Medical Workstation Software
+
+This project must be treated as a Medical Workstation, not an admin dashboard, CRUD back office, or SaaS template.
+
+### Core Philosophy
+- Speed over decoration.
+- Clarity over visual effects.
+- Workflow over isolated sections.
+- Real clinic operation over generic management screens.
+- Compact density over large dashboard whitespace.
+
+### Mindset Shift
+Old mindset to avoid:
+- dashboard hero blocks
+- many independent cards
+- CRUD-first module pages
+- large decorative sections
+- repeated explanatory paragraphs
+- UI that looks good but slows the nurse down
+
+New mindset to use:
+- medical workstation layout
+- operational-first UI
+- workflow-driven screens
+- sticky summary and finish actions
+- compact patient context
+- quick actions close to the current task
+- progressive disclosure for secondary details
+
+### Product Decision Rule
+Before changing any page, AI and developers must ask:
+1. Does the user see the next action within 3 seconds?
+2. Does this reduce scroll, clicks, or duplicate reading?
+3. Does this support the real nurse workflow?
+4. Does this keep patient risk, queue state, billing state, and finish state visible?
+5. Would this still work well on a 14-inch notebook?
+
+If the answer is no, redesign the interaction rather than adding more cards or explanations.
+
+### Medical Workstation Architecture
+Production workstation pages should be organized around:
+- Main Working Area: where the user performs the current clinical or operational task.
+- Sticky Summary Area: patient identity, risk, totals, readiness, and completion actions.
+- Quick Actions: common actions visible near the task, not hidden in menus.
+- Compact Side Panel: supporting intake/history/navigation, not a second dashboard.
+
+### Anti-Dashboard Rule
+Do not use dashboard layout patterns for clinical work pages. Queue, Smart Exam, Payments, and Visit Detail should not start with large marketing-style heroes or explanatory card walls. These pages should behave like task stations.
+
+### Smart Exam Product Doctrine
+Smart Exam is the clinical workstation core. It must feel like one continuous workflow:
+
+`preset -> auto fill -> add services -> add medicine/equipment -> auto summary -> finish case`
+
+Smart Exam must not become:
+- a long generic form
+- a multi-widget dashboard
+- a multi-page wizard
+- a patient history screen
+
+Patient history and secondary details should be compact, collapsible, and available only when needed.
+
+### Stabilized Smart Exam Workflow
+Smart Exam now prioritizes production speed:
+- presets merge clinical text safely instead of overwriting nurse-entered data
+- URI is a first-class quick preset for common respiratory cases
+- service and medicine order entry support compact search/filter
+- Smart Exam service/item add-remove actions support inline JSON updates with normal POST fallback
+- Smart Exam preset apply supports inline JSON updates with normal POST fallback
+- the summary rail updates counts, lines, totals, readiness, and payment preview after inline order changes
+- summary readiness includes clinical completeness, billing readiness, and selected-item stock state
+- keyboard shortcuts support repeated nurse workflow without turning the UI into a wizard
+- frontend suggestions are assistive only; backend validation remains authoritative for finish, payment, and stock
+
+### Summary Doctrine
+Summary is not an afterthought. It is part of the workstation control surface.
+- Keep summary sticky on desktop.
+- Keep totals and finish readiness visible.
+- Do not let long service/item lists push finish actions out of reach.
+- On smaller screens, convert summary actions into a clear bottom or near-bottom action area.
+
+### Commercial Software Direction
+To scale toward commercial clinic software, future work should standardize reusable workstation components:
+- command header
+- patient/risk strip
+- compact form grid
+- quick action group
+- order-entry panel
+- sticky summary rail
+- readiness checklist
+- finish/action bar
+
+Any new module should reuse these patterns before inventing a new page style.

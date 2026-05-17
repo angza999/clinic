@@ -11,6 +11,7 @@
 /storage/exports/*.zip
 /storage/backups/
 /storage/*.log
+/storage/*.html
 /storage/logs/
 /storage/cache/
 /storage/sessions/

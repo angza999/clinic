@@ -26,7 +26,7 @@ class QueueController extends Controller
         $activeVisit = $this->resolveActiveVisit($todayQueues);
 
         $this->render('queue/index', [
-            'pageTitle' => 'ระบบคิว',
+            'pageTitle' => 'เธฃเธฐเธเธเธเธดเธง',
             'todayQueues' => $todayQueues,
             'patients' => $patients,
             'todayAppointments' => $todayAppointments,
@@ -47,18 +47,18 @@ class QueueController extends Controller
 
         $visitId = (int) ($_GET['id'] ?? ($_GET['visit_id'] ?? 0));
         if ($visitId <= 0) {
-            flash('error', 'ไม่พบเคสที่ต้องการเปิดหน้าตรวจ');
+            flash('error', 'เนเธกเนเธเธเน€เธเธชเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเน€เธเธดเธ”เธซเธเนเธฒเธ•เธฃเธงเธ');
             redirect('queue');
         }
 
         $visit = $this->findWorkflowVisit($visitId);
         if (!$visit) {
-            flash('error', 'ไม่พบข้อมูลเคสที่ต้องการเปิดหน้าตรวจ');
+            flash('error', 'เนเธกเนเธเธเธเนเธญเธกเธนเธฅเน€เธเธชเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเน€เธเธดเธ”เธซเธเนเธฒเธ•เธฃเธงเธ');
             redirect('queue');
         }
 
         if (!in_array($visit['status'], ['WAITING', 'IN_SERVICE'], true)) {
-            flash('error', 'เคสนี้ไม่อยู่ในสถานะที่สามารถเปิด Smart Exam ได้');
+            flash('error', 'เน€เธเธชเธเธตเนเนเธกเนเธญเธขเธนเนเนเธเธชเธ–เธฒเธเธฐเธ—เธตเนเธชเธฒเธกเธฒเธฃเธ–เน€เธเธดเธ” Smart Exam เนเธ”เน');
             redirect('queue', ['visit_id' => $visitId]);
         }
 
@@ -146,7 +146,7 @@ class QueueController extends Controller
         $waitingList = array_slice($waitingList, 0, 6);
 
         $this->render('queue/display', [
-            'pageTitle' => 'หน้าจอเรียกคิว',
+            'pageTitle' => 'เธซเธเนเธฒเธเธญเน€เธฃเธตเธขเธเธเธดเธง',
             'todayQueues' => $todayQueues,
             'currentQueue' => $currentQueue,
             'nextWaiting' => $nextWaiting,
@@ -162,16 +162,16 @@ class QueueController extends Controller
         $chiefComplaint = trim((string) ($_POST['chief_complaint'] ?? ''));
 
         if ($patientId <= 0) {
-            flash('error', 'กรุณาเลือกคนไข้ก่อนรับเคส');
+            flash('error', 'เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเธเธเนเธเนเธเนเธญเธเธฃเธฑเธเน€เธเธช');
             redirect('queue');
         }
 
         try {
             $result = ClinicWorkflow::createVisitAndQueue($patientId, $chiefComplaint, (int) current_user()['id']);
-            flash('success', 'รับเคสใหม่เรียบร้อยแล้ว');
+            flash('success', 'เธฃเธฑเธเน€เธเธชเนเธซเธกเนเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง');
             redirect('queue', ['visit_id' => $result['visit_id']]);
         } catch (Throwable $throwable) {
-            flash('error', 'ไม่สามารถรับเคสใหม่ได้: ' . $throwable->getMessage());
+            flash('error', 'เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธฃเธฑเธเน€เธเธชเนเธซเธกเนเนเธ”เน: ' . $throwable->getMessage());
             redirect('queue');
         }
     }
@@ -329,19 +329,26 @@ class QueueController extends Controller
         $preset = $this->quickPresets()[$presetKey] ?? null;
 
         if ($visitId <= 0 || !$preset) {
-            flash('error', 'ไม่พบข้อมูล preset ที่ต้องการใช้งาน');
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'ok' => false,
+                    'message' => 'เนเธกเนเธเธเธเนเธญเธกเธนเธฅ preset เธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเนเธเนเธเธฒเธ',
+                ], 422);
+            }
+            flash('error', 'เนเธกเนเธเธเธเนเธญเธกเธนเธฅ preset เธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเนเธเนเธเธฒเธ');
             redirect('queue');
         }
 
         $visit = $this->findWorkflowVisit($visitId);
         if (!$visit) {
-            flash('error', 'ไม่พบเคสที่ต้องการใช้ preset');
+            flash('error', 'เนเธกเนเธเธเน€เธเธชเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเนเธเน preset');
             redirect('queue');
         }
 
         try {
             $pdo = db();
             $pdo->beginTransaction();
+            $alreadyApplied = $this->presetAlreadyApplied($pdo, $visitId, $presetKey);
 
             if ($visit['status'] === 'WAITING') {
                 $this->assertTransitionAllowed($visit, 'IN_SERVICE');
@@ -353,7 +360,7 @@ class QueueController extends Controller
                 $visit['status'] = 'IN_SERVICE';
             }
 
-            if (!$this->presetAlreadyApplied($pdo, $visitId, $presetKey)) {
+            if (!$alreadyApplied) {
                 foreach ($preset['services'] as $serviceCode) {
                     $this->insertPresetService($pdo, $visitId, $serviceCode, $presetKey);
                 }
@@ -370,15 +377,41 @@ class QueueController extends Controller
                 }
             }
 
-            $this->saveQuickClinical($pdo, $visitId, $visit, $preset);
+            $clinicalInput = [
+                'cc' => trim((string) ($_POST['cc'] ?? $visit['chief_complaint'] ?? '')),
+                'pi' => trim((string) ($_POST['pi'] ?? $visit['present_illness'] ?? '')),
+                'pe' => trim((string) ($_POST['pe'] ?? $visit['physical_exam'] ?? '')),
+                'dx' => trim((string) ($_POST['dx'] ?? $visit['diagnosis'] ?? '')),
+                'advice' => trim((string) ($_POST['advice'] ?? $visit['advice'] ?? '')),
+                'followup_date' => trim((string) ($_POST['followup_date'] ?? $visit['followup_date'] ?? '')),
+            ];
+
+            $this->saveQuickClinical($pdo, $visitId, $visit, $preset, $clinicalInput);
+            $clinicalSummary = $this->visitClinicalSummary($pdo, $visitId);
+            $orderSummary = $this->visitOrderSummary($pdo, $visitId);
 
             $pdo->commit();
-            flash('success', 'เพิ่ม preset ' . $preset['label'] . ' เรียบร้อยแล้ว');
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'ok' => true,
+                    'message' => $alreadyApplied
+                        ? 'Preset เธเธตเนเน€เธเธขเน€เธเธดเนเธกเธฃเธฒเธขเธเธฒเธฃเนเธฅเนเธง เธฃเธฐเธเธเธญเธฑเธเน€เธ”เธ•เธเนเธญเธกเธนเธฅเธ•เธฃเธงเธเนเธซเน'
+                        : 'เน€เธเธดเนเธก preset ' . $preset['label'] . ' เน€เธฃเธตเธขเธเธฃเนเธญเธข',
+                    'preset' => [
+                        'key' => $presetKey,
+                        'label' => (string) $preset['label'],
+                        'alreadyApplied' => $alreadyApplied,
+                    ],
+                    'clinical' => $clinicalSummary,
+                    'summary' => $orderSummary,
+                ]);
+            }
+            flash('success', 'เน€เธเธดเนเธก preset ' . $preset['label'] . ' เน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง');
         } catch (Throwable $throwable) {
             if (db()->inTransaction()) {
                 db()->rollBack();
             }
-            flash('error', 'ไม่สามารถเพิ่ม preset ได้: ' . $throwable->getMessage());
+            flash('error', 'เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เน€เธเธดเนเธก preset เนเธ”เน: ' . $throwable->getMessage());
         }
 
         redirect('queue-exam', ['id' => $visitId, 'preset' => $presetKey]);
@@ -394,7 +427,7 @@ class QueueController extends Controller
         $visit = $this->findWorkflowVisit($visitId);
 
         if (!$visit) {
-            flash('error', 'ไม่พบเคสที่ต้องการบันทึก');
+            flash('error', 'เนเธกเนเธเธเน€เธเธชเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธเธฑเธเธ—เธถเธ');
             redirect('queue');
         }
 
@@ -418,7 +451,7 @@ class QueueController extends Controller
         $shouldWaitPayment = in_array($finishMode, ['payment', 'waiting_payment'], true);
 
         if ($input['cc'] === '' || $input['dx'] === '') {
-            flash('error', 'กรุณากรอก CC และ Dx ก่อนบันทึกและจบเคส');
+            flash('error', 'เธเธฃเธธเธ“เธฒเธเธฃเธญเธ CC เนเธฅเธฐ Dx เธเนเธญเธเธเธฑเธเธ—เธถเธเนเธฅเธฐเธเธเน€เธเธช');
             redirect('queue-exam', ['id' => $visitId]);
         }
 
@@ -478,7 +511,7 @@ class QueueController extends Controller
             $this->assertTransitionAllowed($visit, $targetStatus);
 
             if (($shouldReceivePayment || $shouldWaitPayment) && !$this->visitHasBillableItems($visitId)) {
-                throw new RuntimeException('ยังไม่มีรายการคิดเงิน กรุณาเพิ่มบริการหรืออุปกรณ์ก่อนส่งชำระเงิน');
+                throw new RuntimeException('เธขเธฑเธเนเธกเนเธกเธตเธฃเธฒเธขเธเธฒเธฃเธเธดเธ”เน€เธเธดเธ เธเธฃเธธเธ“เธฒเน€เธเธดเนเธกเธเธฃเธดเธเธฒเธฃเธซเธฃเธทเธญเธญเธธเธเธเธฃเธ“เนเธเนเธญเธเธชเนเธเธเธณเธฃเธฐเน€เธเธดเธ');
             }
 
             $paymentResult = null;
@@ -501,7 +534,7 @@ class QueueController extends Controller
             $pdo->commit();
 
             if ($shouldReceivePayment) {
-                flash('success', 'รับเงินและปิดเคสเรียบร้อยแล้ว เลขที่ใบเสร็จ ' . ($paymentResult['receipt_no'] ?? '-'));
+                flash('success', 'เธฃเธฑเธเน€เธเธดเธเนเธฅเธฐเธเธดเธ”เน€เธเธชเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง เน€เธฅเธเธ—เธตเนเนเธเน€เธชเธฃเนเธ ' . ($paymentResult['receipt_no'] ?? '-'));
                 redirect('receipt', [
                     'id' => (int) ($paymentResult['payment_id'] ?? 0),
                     'source' => 'smart_exam',
@@ -509,7 +542,7 @@ class QueueController extends Controller
             }
 
             if ($targetStatus === 'WAITING_PAYMENT') {
-                flash('success', 'บันทึกเคสเรียบร้อย และส่งต่อไปชำระเงินแล้ว');
+                flash('success', 'เธเธฑเธเธ—เธถเธเน€เธเธชเน€เธฃเธตเธขเธเธฃเนเธญเธข เนเธฅเธฐเธชเนเธเธ•เนเธญเนเธเธเธณเธฃเธฐเน€เธเธดเธเนเธฅเนเธง');
                 if (has_role(['ADMIN', 'CASHIER'])) {
                     redirect('payments');
                 }
@@ -517,13 +550,13 @@ class QueueController extends Controller
                 redirect('queue');
             }
 
-            flash('success', 'บันทึกเคสและปิดแบบไม่มีค่าใช้จ่ายเรียบร้อยแล้ว');
+            flash('success', 'เธเธฑเธเธ—เธถเธเน€เธเธชเนเธฅเธฐเธเธดเธ”เนเธเธเนเธกเนเธกเธตเธเนเธฒเนเธเนเธเนเธฒเธขเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง');
             redirect('queue');
         } catch (Throwable $throwable) {
             if (db()->inTransaction()) {
                 db()->rollBack();
             }
-            flash('error', 'ไม่สามารถบันทึกและจบเคสได้: ' . $throwable->getMessage());
+            flash('error', 'เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธเธฑเธเธ—เธถเธเนเธฅเธฐเธเธเน€เธเธชเนเธ”เน: ' . $throwable->getMessage());
             redirect('queue-exam', ['id' => $visitId]);
         }
     }
@@ -534,7 +567,7 @@ class QueueController extends Controller
 
         $visitId = (int) ($_POST['visit_id'] ?? 0);
         if ($visitId <= 0) {
-            flash('error', 'ไม่พบเคสที่ต้องการปิด');
+            flash('error', 'เนเธกเนเธเธเน€เธเธชเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธเธดเธ”');
             redirect('queue');
         }
 
@@ -553,7 +586,7 @@ class QueueController extends Controller
         try {
             $queue = $this->findQueue($queueId);
             if (!$queue) {
-                throw new RuntimeException('ไม่พบคิวที่ต้องการอัปเดต');
+                throw new RuntimeException('เนเธกเนเธเธเธเธดเธงเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธญเธฑเธเน€เธ”เธ•');
             }
 
             $this->assertTransitionAllowed($queue, $targetStatus);
@@ -572,13 +605,13 @@ class QueueController extends Controller
                 'id' => $queueId,
             ]);
 
-            flash('success', 'อัปเดตสถานะคิวเรียบร้อยแล้ว');
+            flash('success', 'เธญเธฑเธเน€เธ”เธ•เธชเธ–เธฒเธเธฐเธเธดเธงเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง');
 
             if ($redirectToVisit && $targetStatus === 'IN_SERVICE') {
                 redirect('queue-exam', ['id' => $queue['visit_id']]);
             }
         } catch (Throwable $throwable) {
-            flash('error', 'ไม่สามารถอัปเดตสถานะคิวได้: ' . $throwable->getMessage());
+            flash('error', 'เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธญเธฑเธเน€เธ”เธ•เธชเธ–เธฒเธเธฐเธเธดเธงเนเธ”เน: ' . $throwable->getMessage());
         }
 
         redirect('queue');
@@ -897,59 +930,72 @@ class QueueController extends Controller
         }
 
         return [
+            'uri' => [
+                'label' => 'เนเธเนเธซเธงเธฑเธ” / URI',
+                'description' => 'เน€เธ•เธดเธก CC / PI / PE / Dx เธชเธณเธซเธฃเธฑเธเนเธเนเธซเธงเธฑเธ”เนเธฅเธฐเธญเธฒเธเธฒเธฃเธ—เธฒเธเน€เธ”เธดเธเธซเธฒเธขเนเธเธชเนเธงเธเธเธ',
+                'theme' => 'preset-uri',
+                'services' => ['SRV001'],
+                'items' => [],
+                'cc' => 'เนเธเน เนเธญ เธกเธตเธเนเธณเธกเธนเธ',
+                'pi' => 'เธกเธตเนเธเน เนเธญ เธกเธตเธเนเธณเธกเธนเธ เน€เธเนเธเธเธญเน€เธฅเนเธเธเนเธญเธข เนเธกเนเธกเธตเธซเธญเธเน€เธซเธเธทเนเธญเธข',
+                'pe' => 'Throat mildly injected, chest clear',
+                'dx' => 'URI',
+                'advice' => 'เธเธฑเธเธเนเธญเธเนเธซเนเน€เธเธตเธขเธเธเธญ เธ”เธทเนเธกเธเนเธณเธกเธฒเธเธเธถเนเธ เธชเธฑเธเน€เธเธ•เธญเธฒเธเธฒเธฃเธซเธญเธเน€เธซเธเธทเนเธญเธขเธซเธฃเธทเธญเนเธเนเธชเธนเธ เธซเธฒเธเธญเธฒเธเธฒเธฃเนเธกเนเธ”เธตเธเธถเนเธเนเธซเนเธเธฅเธฑเธเธกเธฒเธเธเน€เธเนเธฒเธซเธเนเธฒเธ—เธตเน',
+                'followup_days' => null,
+            ],
             'wound_dressing' => [
-                'label' => 'ทำแผล',
-                'description' => 'เพิ่มค่าทำแผล พร้อมน้ำเกลือ ผ้าก๊อซ และคำแนะนำดูแลแผล',
+                'label' => 'เธ—เธณเนเธเธฅ',
+                'description' => 'เน€เธเธดเนเธกเธเนเธฒเธ—เธณเนเธเธฅ เธเธฃเนเธญเธกเธเนเธณเน€เธเธฅเธทเธญ เธเนเธฒเธเนเธญเธ เนเธฅเธฐเธเธณเนเธเธฐเธเธณเธ”เธนเนเธฅเนเธเธฅ',
                 'theme' => 'preset-wound',
                 'services' => ['SRV002'],
                 'items' => [
                     ['code' => 'MED002', 'qty' => 1],
                     ['code' => 'MED003', 'qty' => 2],
                 ],
-                'cc' => 'มีแผล',
-                'pi' => 'มีแผลจากอุบัติเหตุ ไม่มีเลือดออกมาก',
+                'cc' => 'เธกเธตเนเธเธฅ',
+                'pi' => 'เธกเธตเนเธเธฅเธเธฒเธเธญเธธเธเธฑเธ•เธดเน€เธซเธ•เธธ เนเธกเนเธกเธตเน€เธฅเธทเธญเธ”เธญเธญเธเธกเธฒเธ',
                 'pe' => 'Wound clean, no active bleeding',
                 'dx' => 'Wound',
-                'advice' => 'ดูแลแผลให้แห้ง ทำความสะอาดตามคำแนะนำ และกลับมาพบเจ้าหน้าที่หากปวดบวมแดงมากขึ้น',
+                'advice' => 'เธ”เธนเนเธฅเนเธเธฅเนเธซเนเนเธซเนเธ เธ—เธณเธเธงเธฒเธกเธชเธฐเธญเธฒเธ”เธ•เธฒเธกเธเธณเนเธเธฐเธเธณ เนเธฅเธฐเธเธฅเธฑเธเธกเธฒเธเธเน€เธเนเธฒเธซเธเนเธฒเธ—เธตเนเธซเธฒเธเธเธงเธ”เธเธงเธกเนเธ”เธเธกเธฒเธเธเธถเนเธ',
                 'followup_days' => 2,
             ],
             'injection' => [
-                'label' => 'ฉีดยา',
-                'description' => 'เพิ่มค่าฉีดยา พร้อมบันทึกคำแนะนำหลังฉีดเพื่อสรุปเคสได้เร็วขึ้น',
+                'label' => 'เธเธตเธ”เธขเธฒ',
+                'description' => 'เน€เธเธดเนเธกเธเนเธฒเธเธตเธ”เธขเธฒ เธเธฃเนเธญเธกเธเธฑเธเธ—เธถเธเธเธณเนเธเธฐเธเธณเธซเธฅเธฑเธเธเธตเธ”เน€เธเธทเนเธญเธชเธฃเธธเธเน€เธเธชเนเธ”เนเน€เธฃเนเธงเธเธถเนเธ',
                 'theme' => 'preset-injection',
                 'services' => ['SRV003'],
                 'items' => [],
-                'cc' => 'รับบริการฉีดยา',
-                'pi' => 'มารับบริการฉีดยาตามแผนการรักษา ไม่มีอาการผิดปกติระหว่างรอรับบริการ',
+                'cc' => 'เธฃเธฑเธเธเธฃเธดเธเธฒเธฃเธเธตเธ”เธขเธฒ',
+                'pi' => 'เธกเธฒเธฃเธฑเธเธเธฃเธดเธเธฒเธฃเธเธตเธ”เธขเธฒเธ•เธฒเธกเนเธเธเธเธฒเธฃเธฃเธฑเธเธฉเธฒ เนเธกเนเธกเธตเธญเธฒเธเธฒเธฃเธเธดเธ”เธเธเธ•เธดเธฃเธฐเธซเธงเนเธฒเธเธฃเธญเธฃเธฑเธเธเธฃเธดเธเธฒเธฃ',
                 'pe' => 'General appearance good, no acute distress',
                 'dx' => 'Injection service',
-                'advice' => 'สังเกตอาการปวด บวม แดง หรือผื่นหลังฉีด หากมีอาการผิดปกติให้กลับมาพบเจ้าหน้าที่ทันที',
+                'advice' => 'เธชเธฑเธเน€เธเธ•เธญเธฒเธเธฒเธฃเธเธงเธ” เธเธงเธก เนเธ”เธ เธซเธฃเธทเธญเธเธทเนเธเธซเธฅเธฑเธเธเธตเธ” เธซเธฒเธเธกเธตเธญเธฒเธเธฒเธฃเธเธดเธ”เธเธเธ•เธดเนเธซเนเธเธฅเธฑเธเธกเธฒเธเธเน€เธเนเธฒเธซเธเนเธฒเธ—เธตเนเธ—เธฑเธเธ—เธต',
                 'followup_days' => null,
             ],
             'vital_signs' => [
-                'label' => 'วัดสัญญาณชีพ',
-                'description' => 'เพิ่มค่าบริการวัดสัญญาณชีพและช่วยเตรียมแบบฟอร์มสำหรับบันทึก vital signs',
+                'label' => 'เธงเธฑเธ”เธชเธฑเธเธเธฒเธ“เธเธตเธ',
+                'description' => 'เน€เธเธดเนเธกเธเนเธฒเธเธฃเธดเธเธฒเธฃเธงเธฑเธ”เธชเธฑเธเธเธฒเธ“เธเธตเธเนเธฅเธฐเธเนเธงเธขเน€เธ•เธฃเธตเธขเธกเนเธเธเธเธญเธฃเนเธกเธชเธณเธซเธฃเธฑเธเธเธฑเธเธ—เธถเธ vital signs',
                 'theme' => 'preset-vitals',
                 'services' => ['SRV004'],
                 'items' => [],
-                'cc' => 'ติดตามอาการ',
-                'pi' => 'มาประเมินอาการและตรวจวัดสัญญาณชีพเบื้องต้น',
+                'cc' => 'เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃ',
+                'pi' => 'เธกเธฒเธเธฃเธฐเน€เธกเธดเธเธญเธฒเธเธฒเธฃเนเธฅเธฐเธ•เธฃเธงเธเธงเธฑเธ”เธชเธฑเธเธเธฒเธ“เธเธตเธเน€เธเธทเนเธญเธเธ•เนเธ',
                 'pe' => 'General appearance fair',
                 'dx' => 'Observation',
-                'advice' => 'ติดตามอาการต่อเนื่องตามนัด และบันทึกสัญญาณชีพหากมีอาการเปลี่ยนแปลง',
+                'advice' => 'เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃเธ•เนเธญเน€เธเธทเนเธญเธเธ•เธฒเธกเธเธฑเธ” เนเธฅเธฐเธเธฑเธเธ—เธถเธเธชเธฑเธเธเธฒเธ“เธเธตเธเธซเธฒเธเธกเธตเธญเธฒเธเธฒเธฃเน€เธเธฅเธตเนเธขเธเนเธเธฅเธ',
                 'followup_days' => null,
             ],
             'followup' => [
-                'label' => 'ติดตามอาการ',
-                'description' => 'เพิ่มค่าตรวจทั่วไป พร้อมข้อความตัวอย่างสำหรับเคสนัดติดตามอาการ',
+                'label' => 'เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃ',
+                'description' => 'เน€เธเธดเนเธกเธเนเธฒเธ•เธฃเธงเธเธ—เธฑเนเธงเนเธ เธเธฃเนเธญเธกเธเนเธญเธเธงเธฒเธกเธ•เธฑเธงเธญเธขเนเธฒเธเธชเธณเธซเธฃเธฑเธเน€เธเธชเธเธฑเธ”เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃ',
                 'theme' => 'preset-followup',
                 'services' => ['SRV001'],
                 'items' => [],
-                'cc' => 'ติดตามอาการ',
-                'pi' => 'มาติดตามอาการหลังรับบริการครั้งก่อน อาการโดยรวมคงที่',
+                'cc' => 'เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃ',
+                'pi' => 'เธกเธฒเธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃเธซเธฅเธฑเธเธฃเธฑเธเธเธฃเธดเธเธฒเธฃเธเธฃเธฑเนเธเธเนเธญเธ เธญเธฒเธเธฒเธฃเนเธ”เธขเธฃเธงเธกเธเธเธ—เธตเน',
                 'pe' => 'General appearance stable',
                 'dx' => 'Follow up',
-                'advice' => 'รับประทานยาหรือปฏิบัติตามคำแนะนำเดิมต่อเนื่อง และกลับมาตามนัดครั้งถัดไป',
+                'advice' => 'เธฃเธฑเธเธเธฃเธฐเธ—เธฒเธเธขเธฒเธซเธฃเธทเธญเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธกเธเธณเนเธเธฐเธเธณเน€เธ”เธดเธกเธ•เนเธญเน€เธเธทเนเธญเธ เนเธฅเธฐเธเธฅเธฑเธเธกเธฒเธ•เธฒเธกเธเธฑเธ”เธเธฃเธฑเนเธเธ–เธฑเธ”เนเธ',
                 'followup_days' => 7,
             ],
         ];
@@ -1044,23 +1090,20 @@ class QueueController extends Controller
 
     private function seedDefaultSmartPresets(): void
     {
-        $count = (int) db()->query('SELECT COUNT(*) FROM smart_exam_presets')->fetchColumn();
-        if ($count > 0) {
-            return;
-        }
-
         $defaults = [
-            ['wound_dressing', 'ทำแผล', 'เพิ่มค่าทำแผล พร้อมน้ำเกลือ ผ้าก๊อซ และคำแนะนำดูแลแผล', 'preset-wound', 'SRV002', '[{"code":"MED002","qty":1},{"code":"MED003","qty":2}]', 'มีแผล', 'มีแผลจากอุบัติเหตุ ไม่มีเลือดออกมาก', 'Wound clean, no active bleeding', 'Wound', 'ดูแลแผลให้แห้ง ทำความสะอาดตามคำแนะนำ และกลับมาพบเจ้าหน้าที่หากปวดบวมแดงมากขึ้น', 2, 10],
-            ['injection', 'ฉีดยา', 'เพิ่มค่าฉีดยา พร้อมบันทึกคำแนะนำหลังฉีดเพื่อสรุปเคสได้เร็วขึ้น', 'preset-injection', 'SRV003', '[]', 'รับบริการฉีดยา', 'มารับบริการฉีดยาตามแผนการรักษา ไม่มีอาการผิดปกติระหว่างรอรับบริการ', 'General appearance good, no acute distress', 'Injection service', 'สังเกตอาการปวด บวม แดง หรือผื่นหลังฉีด หากมีอาการผิดปกติให้กลับมาพบเจ้าหน้าที่ทันที', null, 20],
-            ['vital_signs', 'วัดสัญญาณชีพ', 'เพิ่มค่าบริการวัดสัญญาณชีพและช่วยเตรียมแบบฟอร์มสำหรับบันทึก vital signs', 'preset-vitals', 'SRV004', '[]', 'ติดตามอาการ', 'มาประเมินอาการและตรวจวัดสัญญาณชีพเบื้องต้น', 'General appearance fair', 'Observation', 'ติดตามอาการต่อเนื่องตามนัด และบันทึกสัญญาณชีพหากมีอาการเปลี่ยนแปลง', null, 30],
-            ['followup', 'ติดตามอาการ', 'เพิ่มค่าตรวจทั่วไป พร้อมข้อความตัวอย่างสำหรับเคสนัดติดตามอาการ', 'preset-followup', 'SRV001', '[]', 'ติดตามอาการ', 'มาติดตามอาการหลังรับบริการครั้งก่อน อาการโดยรวมคงที่', 'General appearance stable', 'Follow up', 'รับประทานยาหรือปฏิบัติตามคำแนะนำเดิมต่อเนื่อง และกลับมาตามนัดครั้งถัดไป', 7, 40],
+            ['uri', 'เนเธเนเธซเธงเธฑเธ” / URI', 'เน€เธ•เธดเธก CC / PI / PE / Dx เธชเธณเธซเธฃเธฑเธเนเธเนเธซเธงเธฑเธ”เนเธฅเธฐเธญเธฒเธเธฒเธฃเธ—เธฒเธเน€เธ”เธดเธเธซเธฒเธขเนเธเธชเนเธงเธเธเธ', 'preset-uri', 'SRV001', '[]', 'เนเธเน เนเธญ เธกเธตเธเนเธณเธกเธนเธ', 'เธกเธตเนเธเน เนเธญ เธกเธตเธเนเธณเธกเธนเธ เน€เธเนเธเธเธญเน€เธฅเนเธเธเนเธญเธข เนเธกเนเธกเธตเธซเธญเธเน€เธซเธเธทเนเธญเธข', 'Throat mildly injected, chest clear', 'URI', 'เธเธฑเธเธเนเธญเธเนเธซเนเน€เธเธตเธขเธเธเธญ เธ”เธทเนเธกเธเนเธณเธกเธฒเธเธเธถเนเธ เธชเธฑเธเน€เธเธ•เธญเธฒเธเธฒเธฃเธซเธญเธเน€เธซเธเธทเนเธญเธขเธซเธฃเธทเธญเนเธเนเธชเธนเธ เธซเธฒเธเธญเธฒเธเธฒเธฃเนเธกเนเธ”เธตเธเธถเนเธเนเธซเนเธเธฅเธฑเธเธกเธฒเธเธเน€เธเนเธฒเธซเธเนเธฒเธ—เธตเน', null, 5],
+            ['wound_dressing', 'เธ—เธณเนเธเธฅ', 'เน€เธเธดเนเธกเธเนเธฒเธ—เธณเนเธเธฅ เธเธฃเนเธญเธกเธเนเธณเน€เธเธฅเธทเธญ เธเนเธฒเธเนเธญเธ เนเธฅเธฐเธเธณเนเธเธฐเธเธณเธ”เธนเนเธฅเนเธเธฅ', 'preset-wound', 'SRV002', '[{"code":"MED002","qty":1},{"code":"MED003","qty":2}]', 'เธกเธตเนเธเธฅ', 'เธกเธตเนเธเธฅเธเธฒเธเธญเธธเธเธฑเธ•เธดเน€เธซเธ•เธธ เนเธกเนเธกเธตเน€เธฅเธทเธญเธ”เธญเธญเธเธกเธฒเธ', 'Wound clean, no active bleeding', 'Wound', 'เธ”เธนเนเธฅเนเธเธฅเนเธซเนเนเธซเนเธ เธ—เธณเธเธงเธฒเธกเธชเธฐเธญเธฒเธ”เธ•เธฒเธกเธเธณเนเธเธฐเธเธณ เนเธฅเธฐเธเธฅเธฑเธเธกเธฒเธเธเน€เธเนเธฒเธซเธเนเธฒเธ—เธตเนเธซเธฒเธเธเธงเธ”เธเธงเธกเนเธ”เธเธกเธฒเธเธเธถเนเธ', 2, 10],
+            ['injection', 'เธเธตเธ”เธขเธฒ', 'เน€เธเธดเนเธกเธเนเธฒเธเธตเธ”เธขเธฒ เธเธฃเนเธญเธกเธเธฑเธเธ—เธถเธเธเธณเนเธเธฐเธเธณเธซเธฅเธฑเธเธเธตเธ”เน€เธเธทเนเธญเธชเธฃเธธเธเน€เธเธชเนเธ”เนเน€เธฃเนเธงเธเธถเนเธ', 'preset-injection', 'SRV003', '[]', 'เธฃเธฑเธเธเธฃเธดเธเธฒเธฃเธเธตเธ”เธขเธฒ', 'เธกเธฒเธฃเธฑเธเธเธฃเธดเธเธฒเธฃเธเธตเธ”เธขเธฒเธ•เธฒเธกเนเธเธเธเธฒเธฃเธฃเธฑเธเธฉเธฒ เนเธกเนเธกเธตเธญเธฒเธเธฒเธฃเธเธดเธ”เธเธเธ•เธดเธฃเธฐเธซเธงเนเธฒเธเธฃเธญเธฃเธฑเธเธเธฃเธดเธเธฒเธฃ', 'General appearance good, no acute distress', 'Injection service', 'เธชเธฑเธเน€เธเธ•เธญเธฒเธเธฒเธฃเธเธงเธ” เธเธงเธก เนเธ”เธ เธซเธฃเธทเธญเธเธทเนเธเธซเธฅเธฑเธเธเธตเธ” เธซเธฒเธเธกเธตเธญเธฒเธเธฒเธฃเธเธดเธ”เธเธเธ•เธดเนเธซเนเธเธฅเธฑเธเธกเธฒเธเธเน€เธเนเธฒเธซเธเนเธฒเธ—เธตเนเธ—เธฑเธเธ—เธต', null, 20],
+            ['vital_signs', 'เธงเธฑเธ”เธชเธฑเธเธเธฒเธ“เธเธตเธ', 'เน€เธเธดเนเธกเธเนเธฒเธเธฃเธดเธเธฒเธฃเธงเธฑเธ”เธชเธฑเธเธเธฒเธ“เธเธตเธเนเธฅเธฐเธเนเธงเธขเน€เธ•เธฃเธตเธขเธกเนเธเธเธเธญเธฃเนเธกเธชเธณเธซเธฃเธฑเธเธเธฑเธเธ—เธถเธ vital signs', 'preset-vitals', 'SRV004', '[]', 'เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃ', 'เธกเธฒเธเธฃเธฐเน€เธกเธดเธเธญเธฒเธเธฒเธฃเนเธฅเธฐเธ•เธฃเธงเธเธงเธฑเธ”เธชเธฑเธเธเธฒเธ“เธเธตเธเน€เธเธทเนเธญเธเธ•เนเธ', 'General appearance fair', 'Observation', 'เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃเธ•เนเธญเน€เธเธทเนเธญเธเธ•เธฒเธกเธเธฑเธ” เนเธฅเธฐเธเธฑเธเธ—เธถเธเธชเธฑเธเธเธฒเธ“เธเธตเธเธซเธฒเธเธกเธตเธญเธฒเธเธฒเธฃเน€เธเธฅเธตเนเธขเธเนเธเธฅเธ', null, 30],
+            ['followup', 'เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃ', 'เน€เธเธดเนเธกเธเนเธฒเธ•เธฃเธงเธเธ—เธฑเนเธงเนเธ เธเธฃเนเธญเธกเธเนเธญเธเธงเธฒเธกเธ•เธฑเธงเธญเธขเนเธฒเธเธชเธณเธซเธฃเธฑเธเน€เธเธชเธเธฑเธ”เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃ', 'preset-followup', 'SRV001', '[]', 'เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃ', 'เธกเธฒเธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃเธซเธฅเธฑเธเธฃเธฑเธเธเธฃเธดเธเธฒเธฃเธเธฃเธฑเนเธเธเนเธญเธ เธญเธฒเธเธฒเธฃเนเธ”เธขเธฃเธงเธกเธเธเธ—เธตเน', 'General appearance stable', 'Follow up', 'เธฃเธฑเธเธเธฃเธฐเธ—เธฒเธเธขเธฒเธซเธฃเธทเธญเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธกเธเธณเนเธเธฐเธเธณเน€เธ”เธดเธกเธ•เนเธญเน€เธเธทเนเธญเธ เนเธฅเธฐเธเธฅเธฑเธเธกเธฒเธ•เธฒเธกเธเธฑเธ”เธเธฃเธฑเนเธเธ–เธฑเธ”เนเธ', 7, 40],
         ];
 
         $stmt = db()->prepare(
             'INSERT INTO smart_exam_presets (
                 preset_key, label, description, theme, service_codes, item_codes_json, cc, pi, pe, dx,
                 advice, followup_days, sort_order, is_active, created_at, updated_at
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())'
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE preset_key = preset_key'
         );
 
         foreach ($defaults as $preset) {
@@ -1137,21 +1180,11 @@ class QueueController extends Controller
         }
 
         if ($preset !== []) {
-            if (!empty($preset['cc']) && !str_contains($chiefComplaint, $preset['cc'])) {
-                $chiefComplaint = $chiefComplaint === '' ? $preset['cc'] : $chiefComplaint . ', ' . $preset['cc'];
-            }
-            if ($presentIllness === '' && !empty($preset['pi'])) {
-                $presentIllness = $preset['pi'];
-            }
-            if ($physicalExam === '' && !empty($preset['pe'])) {
-                $physicalExam = $preset['pe'];
-            }
-            if ($diagnosis === '' && !empty($preset['dx'])) {
-                $diagnosis = $preset['dx'];
-            }
-            if (!empty($preset['advice']) && !str_contains($advice, $preset['advice'])) {
-                $advice = $advice === '' ? $preset['advice'] : $advice . PHP_EOL . $preset['advice'];
-            }
+            $chiefComplaint = $this->mergeClinicalText($chiefComplaint, (string) ($preset['cc'] ?? ''), ', ');
+            $presentIllness = $this->mergeClinicalText($presentIllness, (string) ($preset['pi'] ?? ''), PHP_EOL);
+            $physicalExam = $this->mergeClinicalText($physicalExam, (string) ($preset['pe'] ?? ''), PHP_EOL);
+            $diagnosis = $this->mergeClinicalText($diagnosis, (string) ($preset['dx'] ?? ''), ' / ');
+            $advice = $this->mergeClinicalText($advice, (string) ($preset['advice'] ?? ''), PHP_EOL);
             if (!$followupDate && !empty($preset['followup_days'])) {
                 $followupDate = date('Y-m-d', strtotime('+' . (int) $preset['followup_days'] . ' day'));
             }
@@ -1180,6 +1213,26 @@ class QueueController extends Controller
             'followup_date' => $followupDate ?: null,
             'visit_id' => $visitId,
         ]);
+    }
+
+    private function mergeClinicalText(string $current, string $incoming, string $separator): string
+    {
+        $current = trim($current);
+        $incoming = trim($incoming);
+
+        if ($incoming === '') {
+            return $current;
+        }
+
+        if ($current === '') {
+            return $incoming;
+        }
+
+        if (str_contains($current, $incoming)) {
+            return $current;
+        }
+
+        return $current . $separator . $incoming;
     }
 
     private function syncFollowupAppointment(PDO $pdo, int $visitId): void
@@ -1221,7 +1274,7 @@ class QueueController extends Controller
             'patient_id' => $visit['patient_id'],
             'visit_id' => $visitId,
             'appointment_date' => $visit['followup_date'],
-            'purpose' => 'นัดติดตามอาการ',
+            'purpose' => 'เธเธฑเธ”เธ•เธดเธ”เธ•เธฒเธกเธญเธฒเธเธฒเธฃ',
             'note' => !empty($visit['advice']) ? $visit['advice'] : null,
         ];
 
@@ -1266,7 +1319,7 @@ class QueueController extends Controller
         $service = $serviceStmt->fetch();
 
         if (!$service) {
-            throw new RuntimeException('ไม่พบบริการที่กำหนดไว้สำหรับ preset');
+            throw new RuntimeException('เนเธกเนเธเธเธเธฃเธดเธเธฒเธฃเธ—เธตเนเธเธณเธซเธเธ”เนเธงเนเธชเธณเธซเธฃเธฑเธ preset');
         }
 
         $pdo->prepare(
@@ -1288,7 +1341,7 @@ class QueueController extends Controller
         $item = $itemStmt->fetch();
 
         if (!$item) {
-            throw new RuntimeException('ไม่พบรายการอุปกรณ์หรือเวชภัณฑ์สำหรับ preset');
+            throw new RuntimeException('เนเธกเนเธเธเธฃเธฒเธขเธเธฒเธฃเธญเธธเธเธเธฃเธ“เนเธซเธฃเธทเธญเน€เธงเธเธ เธฑเธ“เธ‘เนเธชเธณเธซเธฃเธฑเธ preset');
         }
 
         $batchStmt = $pdo->prepare(
@@ -1305,7 +1358,7 @@ class QueueController extends Controller
         $batch = $batchStmt->fetch();
 
         if (!$batch) {
-            throw new RuntimeException('อุปกรณ์หรือเวชภัณฑ์คงเหลือไม่พอสำหรับ preset ' . $presetLabel);
+            throw new RuntimeException('เธญเธธเธเธเธฃเธ“เนเธซเธฃเธทเธญเน€เธงเธเธ เธฑเธ“เธ‘เนเธเธเน€เธซเธฅเธทเธญเนเธกเนเธเธญเธชเธณเธซเธฃเธฑเธ preset ' . $presetLabel);
         }
 
         $pdo->prepare(
@@ -1331,16 +1384,18 @@ class QueueController extends Controller
             'usage_note' => 'QUICK_PRESET:' . $presetKey . ':' . $presetLabel,
         ]);
 
+        $usageId = (int) $pdo->lastInsertId();
+
         $pdo->prepare(
             'INSERT INTO stock_movements (batch_id, item_id, movement_type, qty, unit_cost, reference_type, reference_id, note, movement_datetime, created_by, created_at, updated_at)
-             VALUES (:batch_id, :item_id, "OUT", :qty, :unit_cost, "VISIT", :reference_id, :note, NOW(), :created_by, NOW(), NOW())'
+             VALUES (:batch_id, :item_id, "OUT", :qty, :unit_cost, "VISIT_USAGE", :reference_id, :note, NOW(), :created_by, NOW(), NOW())'
         )->execute([
             'batch_id' => $batch['id'],
             'item_id' => $item['id'],
             'qty' => $qty,
             'unit_cost' => $batch['cost_per_unit'] ?? $item['default_cost'],
-            'reference_id' => $visitId,
-            'note' => 'ตัดสต็อกจาก preset ' . $presetLabel,
+            'reference_id' => $usageId,
+            'note' => 'เธ•เธฑเธ”เธชเธ•เนเธญเธเธเธฒเธ preset ' . $presetLabel,
             'created_by' => (int) current_user()['id'],
         ]);
     }
@@ -1362,11 +1417,103 @@ class QueueController extends Controller
         ];
     }
 
+    private function visitClinicalSummary(PDO $pdo, int $visitId): array
+    {
+        $stmt = $pdo->prepare(
+            'SELECT chief_complaint, present_illness, physical_exam, diagnosis, advice, followup_date
+             FROM visits
+             WHERE id = :visit_id
+             LIMIT 1'
+        );
+        $stmt->execute(['visit_id' => $visitId]);
+        $visit = $stmt->fetch() ?: [];
+
+        return [
+            'cc' => (string) ($visit['chief_complaint'] ?? ''),
+            'pi' => (string) ($visit['present_illness'] ?? ''),
+            'pe' => (string) ($visit['physical_exam'] ?? ''),
+            'dx' => (string) ($visit['diagnosis'] ?? ''),
+            'advice' => (string) ($visit['advice'] ?? ''),
+            'followup_date' => (string) ($visit['followup_date'] ?? ''),
+        ];
+    }
+
+    private function visitOrderSummary(PDO $pdo, int $visitId): array
+    {
+        $serviceStmt = $pdo->prepare(
+            'SELECT visit_services.id, services.service_name, visit_services.qty, visit_services.line_total
+             FROM visit_services
+             INNER JOIN services ON services.id = visit_services.service_id
+             WHERE visit_services.visit_id = :visit_id
+             ORDER BY visit_services.id DESC'
+        );
+        $serviceStmt->execute(['visit_id' => $visitId]);
+        $serviceLines = $serviceStmt->fetchAll();
+
+        $itemStmt = $pdo->prepare(
+            'SELECT visit_item_usages.id, inventory_items.item_name, inventory_items.unit_name, visit_item_usages.qty, visit_item_usages.line_total
+             FROM visit_item_usages
+             INNER JOIN inventory_items ON inventory_items.id = visit_item_usages.item_id
+             WHERE visit_item_usages.visit_id = :visit_id
+             ORDER BY visit_item_usages.id DESC'
+        );
+        $itemStmt->execute(['visit_id' => $visitId]);
+        $itemLines = $itemStmt->fetchAll();
+
+        $serviceTotal = array_sum(array_map(static fn(array $row): float => (float) $row['line_total'], $serviceLines));
+        $itemTotal = array_sum(array_map(static fn(array $row): float => (float) $row['line_total'], $itemLines));
+
+        return [
+            'visitId' => $visitId,
+            'serviceCount' => count($serviceLines),
+            'itemCount' => count($itemLines),
+            'serviceTotal' => $serviceTotal,
+            'itemTotal' => $itemTotal,
+            'grandTotal' => $serviceTotal + $itemTotal,
+            'serviceTotalText' => format_money($serviceTotal),
+            'itemTotalText' => format_money($itemTotal),
+            'grandTotalText' => format_money($serviceTotal + $itemTotal),
+            'services' => array_map(static fn(array $line): array => [
+                'id' => (int) $line['id'],
+                'name' => (string) $line['service_name'],
+                'qty' => (string) $line['qty'],
+                'qtyText' => (string) $line['qty'],
+                'lineTotal' => (float) $line['line_total'],
+                'lineTotalText' => format_money($line['line_total']),
+            ], $serviceLines),
+            'items' => array_map(static fn(array $line): array => [
+                'id' => (int) $line['id'],
+                'name' => (string) $line['item_name'],
+                'unitName' => (string) ($line['unit_name'] ?? ''),
+                'qty' => (string) $line['qty'],
+                'qtyText' => format_money($line['qty']),
+                'lineTotal' => (float) $line['line_total'],
+                'lineTotalText' => format_money($line['line_total']),
+            ], $itemLines),
+        ];
+    }
+
+    private function isAjaxRequest(): bool
+    {
+        $accept = (string) ($_SERVER['HTTP_ACCEPT'] ?? '');
+        $requestedWith = (string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '');
+
+        return strcasecmp($requestedWith, 'XMLHttpRequest') === 0 || str_contains($accept, 'application/json');
+    }
+
+    private function jsonResponse(array $payload, int $statusCode = 200): never
+    {
+        http_response_code($statusCode);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
     private function recordSmartPayment(PDO $pdo, int $visitId, array $billingTotals): array
     {
         $grandTotal = (float) ($billingTotals['grand_total'] ?? 0);
         if ($grandTotal <= 0) {
-            throw new RuntimeException('ยังไม่มีรายการคิดเงิน กรุณาเพิ่มบริการหรือยาก่อนรับเงิน');
+            throw new RuntimeException('เธขเธฑเธเนเธกเนเธกเธตเธฃเธฒเธขเธเธฒเธฃเธเธดเธ”เน€เธเธดเธ เธเธฃเธธเธ“เธฒเน€เธเธดเนเธกเธเธฃเธดเธเธฒเธฃเธซเธฃเธทเธญเธขเธฒเธเนเธญเธเธฃเธฑเธเน€เธเธดเธ');
         }
 
         $discountAmount = max(0, (float) ($_POST['discount_amount'] ?? 0));
@@ -1380,11 +1527,11 @@ class QueueController extends Controller
         }
 
         if ($paidAmount < $totalAmount) {
-            throw new RuntimeException('ยอดรับชำระน้อยกว่ายอดสุทธิ กรุณาตรวจสอบอีกครั้ง');
+            throw new RuntimeException('เธขเธญเธ”เธฃเธฑเธเธเธณเธฃเธฐเธเนเธญเธขเธเธงเนเธฒเธขเธญเธ”เธชเธธเธ—เธเธด เธเธฃเธธเธ“เธฒเธ•เธฃเธงเธเธชเธญเธเธญเธตเธเธเธฃเธฑเนเธ');
         }
 
         if ($this->visitHasPayment($visitId)) {
-            throw new RuntimeException('เคสนี้มีรายการชำระเงินแล้ว');
+            throw new RuntimeException('เน€เธเธชเธเธตเนเธกเธตเธฃเธฒเธขเธเธฒเธฃเธเธณเธฃเธฐเน€เธเธดเธเนเธฅเนเธง');
         }
 
         $receiptNo = NumberGenerator::nextReceiptNo();
@@ -1419,7 +1566,7 @@ class QueueController extends Controller
     {
         $fromStatus = (string) ($queue['status'] ?? 'WAITING');
         if (!can_transition_queue_status($fromStatus, $targetStatus)) {
-            throw new RuntimeException('ไม่สามารถเปลี่ยนสถานะจาก ' . $fromStatus . ' ไปเป็น ' . $targetStatus . ' ได้');
+            throw new RuntimeException('เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เน€เธเธฅเธตเนเธขเธเธชเธ–เธฒเธเธฐเธเธฒเธ ' . $fromStatus . ' เนเธเน€เธเนเธ ' . $targetStatus . ' เนเธ”เน');
         }
     }
 

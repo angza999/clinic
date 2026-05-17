@@ -58,6 +58,51 @@ $patientOptions = array_map(static function (array $patient): array {
 ?>
 
 <div class="queue-workspace smart-exam-shell">
+    <section class="card queue-command-bar">
+        <div class="queue-command-main">
+            <div class="queue-command-kicker">Queue Station</div>
+            <div class="queue-command-title">คิววันนี้</div>
+            <div class="queue-command-metrics" aria-label="Queue status">
+                <span class="waiting">รอ <?= (int) ($counts['WAITING'] ?? 0) ?></span>
+                <span class="in-service">ตรวจ <?= (int) ($counts['IN_SERVICE'] ?? 0) ?></span>
+                <span class="payment">ชำระ <?= (int) ($counts['WAITING_PAYMENT'] ?? 0) ?></span>
+                <span class="completed">เสร็จ <?= (int) ($counts['COMPLETED'] ?? 0) ?></span>
+            </div>
+        </div>
+
+        <div class="queue-command-focus">
+            <?php if ($nextWaiting): ?>
+                <span>คิวถัดไป</span>
+                <strong>คิว <?= e((string) $nextWaiting['queue_no']) ?> · <?= e($nextWaiting['patient_name']) ?></strong>
+            <?php elseif ($hasActiveVisit): ?>
+                <span>กำลังทำงาน</span>
+                <strong>คิว <?= e((string) ($activeVisit['queue_no'] ?? '')) ?> · <?= e(($activeVisit['first_name'] ?? '') . ' ' . ($activeVisit['last_name'] ?? '')) ?></strong>
+            <?php else: ?>
+                <span>สถานะ</span>
+                <strong>พร้อมรับเคส</strong>
+            <?php endif; ?>
+        </div>
+
+        <div class="queue-command-actions">
+            <?php if ($nextWaiting && $canManageQueue): ?>
+                <form method="post" action="<?= e(route_url('queue-status')) ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="queue_id" value="<?= (int) $nextWaiting['id'] ?>">
+                    <input type="hidden" name="status" value="IN_SERVICE">
+                    <input type="hidden" name="redirect_to_visit" value="1">
+                    <button class="btn btn-primary btn-sm" id="queueCommandNextCase">
+                        <i class="bi bi-heart-pulse-fill me-1"></i>เรียกตรวจ
+                    </button>
+                </form>
+            <?php elseif ($hasActiveVisit): ?>
+                <a href="<?= e(route_url('queue-exam', ['id' => (int) $activeVisit['id']])) ?>" class="btn btn-primary btn-sm">
+                    <i class="bi bi-heart-pulse-fill me-1"></i>เปิด Smart Exam
+                </a>
+            <?php endif; ?>
+            <a href="<?= e(route_url('patients')) ?>" class="btn btn-outline-primary btn-sm">เพิ่มผู้รับบริการ</a>
+        </div>
+    </section>
+
     <section class="card smart-exam-hero">
         <div>
             <div class="eyebrow">ภาพรวมการทำงานวันนี้</div>

@@ -17,14 +17,14 @@
 - รองรับ protocol ตามประเภทหัตถการ
 
 ### 3. Receipt / Document Branding
-- logo clinic
-- printer-friendly layout options
-- receipt/footer templates
+- richer image logo upload remains future scope
+- printer-friendly layout options remain future scope
+- receipt/footer templates beyond a single footer remain future scope
 
 ### 4. Better User Management
 - force password reset
 - role edit rules ชัดขึ้น
-- disable / reactivate with audit trail
+- broader audit trail beyond user-management actions
 
 ## Priority B: Clinical Efficiency
 
@@ -75,7 +75,7 @@
 
 ### 14. Audit Logging Expansion
 - log critical mutations
-- log login/password change/admin actions
+- expand beyond login/password/user admin actions
 
 ### 15. Background Export / Backup Jobs
 - scheduled backup

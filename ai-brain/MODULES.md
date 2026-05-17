@@ -8,6 +8,7 @@ Purpose:
 - login/logout
 - session management
 - role-based access
+- audit login success, login failure, and logout actions
 
 Key Files:
 - `app/Core/Auth.php`
@@ -138,6 +139,7 @@ Key Functions:
 - calculate total
 - print receipt
 - show printable after-care instructions when visit advice or follow-up date exists
+- show configurable receipt branding from Settings
 - send case back to nurse
 
 Routes:
@@ -190,6 +192,7 @@ Purpose:
 
 Key Functions:
 - clinic identity
+- receipt branding fields
 - receipt prefix
 - HN prefix
 - expiry alert window
@@ -226,6 +229,8 @@ Key Functions:
 - create/update user
 - activate/deactivate
 - change password
+- audit user create/update/password actions
+- show recent user-management audit history
 
 Routes:
 - `GET:users`
@@ -323,6 +328,37 @@ Routes:
 Notes:
 - This is an intake workflow, not a calendar module.
 - Appointment check-in belongs to Admin/Nurse roles.
+
+## 18. Appointments
+Purpose:
+- manage scheduled follow-ups and manual appointments outside the daily queue panel
+
+Key Functions:
+- agenda list with date/status/keyword filters
+- create appointment for an existing active patient
+- reschedule/edit date, time, purpose, and note for scheduled appointments
+- cancel scheduled appointments
+- check in scheduled appointments using the existing queue intake flow
+- open an existing active queue if the same patient is already queued today
+
+Key Files:
+- `app/Controllers/AppointmentController.php`
+- `app/Views/appointments/index.php`
+- `public/assets/css/appointments.css`
+- `public/index.php`
+- `app/Views/layouts/app.php`
+
+Routes:
+- `GET:appointments`
+- `POST:appointments-store`
+- `POST:appointments-update`
+- `POST:appointments-cancel`
+- `POST:appointment-checkin`
+
+Notes:
+- Uses the existing `appointments` table; no schema change.
+- Admin/Nurse only.
+- This is an agenda module, not a full calendar/reminder system.
 
 ## Module Priority By Business Importance
 1. Queue

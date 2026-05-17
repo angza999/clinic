@@ -1,6 +1,14 @@
 ﻿<?php
 $isEditing = is_array($editingUser ?? null);
 $currentUser = current_user();
+$auditActionLabels = [
+    'USER_CREATED' => 'เพิ่มผู้ใช้',
+    'USER_UPDATED' => 'แก้ไขผู้ใช้',
+    'USER_PASSWORD_CHANGED' => 'เปลี่ยนรหัสผ่าน',
+    'LOGIN_SUCCESS' => 'เข้าสู่ระบบสำเร็จ',
+    'LOGIN_FAILED' => 'เข้าสู่ระบบไม่สำเร็จ',
+    'LOGOUT' => 'ออกจากระบบ',
+];
 ?>
 
 <div class="d-grid gap-4">
@@ -196,6 +204,47 @@ $currentUser = current_user();
                             <div class="queue-empty-state">ยังไม่มีผู้ใช้ในระบบ</div>
                         <?php endif; ?>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="card section-card">
+                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                    <div>
+                        <h2 class="h5 mb-1">ประวัติการจัดการผู้ใช้ล่าสุด</h2>
+                        <div class="small text-muted">แสดงการเข้าออกระบบ การเพิ่มผู้ใช้ แก้ไขสิทธิ์/สถานะ และเปลี่ยนรหัสผ่าน</div>
+                    </div>
+                    <span class="soft-badge"><?= e((string) count($userAuditLogs ?? [])) ?> รายการ</span>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <?php if (!empty($userAuditLogs)): ?>
+                        <div class="user-audit-list">
+                            <?php foreach ($userAuditLogs as $auditLog): ?>
+                                <?php
+                                $detail = json_decode((string) ($auditLog['detail_json'] ?? '{}'), true);
+                                $targetName = $detail['after']['full_name'] ?? $detail['full_name'] ?? $detail['before']['full_name'] ?? $detail['username'] ?? 'ผู้ใช้ #' . $auditLog['record_id'];
+                                $actorName = $auditLog['actor_name'] ?: ($auditLog['actor_username'] ?: '-');
+                                if ((string) $auditLog['action'] === 'LOGIN_FAILED') {
+                                    $actorName = '-';
+                                }
+                                ?>
+                                <div class="user-audit-item">
+                                    <div>
+                                        <strong><?= e($auditActionLabels[$auditLog['action']] ?? $auditLog['action']) ?></strong>
+                                        <span><?= e((string) $targetName) ?></span>
+                                    </div>
+                                    <div class="text-muted small">
+                                        โดย <?= e((string) $actorName) ?> / <?= e(thai_date($auditLog['created_at'])) ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="queue-empty-state">ยังไม่มีประวัติการจัดการผู้ใช้</div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

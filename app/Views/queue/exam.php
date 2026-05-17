@@ -25,6 +25,8 @@ $hasDrugAllergy = $drugAllergyText !== '' && $drugAllergyText !== '-';
 $serviceTotal = (float) ($visit['service_total'] ?? 0);
 $itemTotal = (float) ($visit['item_total'] ?? 0);
 $grandTotal = $serviceTotal + $itemTotal;
+$queueStatusMeta = queue_status_meta((string) ($visit['status'] ?? 'IN_SERVICE'));
+$queueStatusLabel = (string) ($queueStatusMeta['label'] ?? '');
 $stockMeta = static function (array $item) use ($expiryAlertDays): array {
     $qtyBalance = (float) ($item['qty_balance'] ?? 0);
     $reorderLevel = (float) ($item['reorder_level'] ?? 0);
@@ -52,6 +54,33 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
 ?>
 
 <div class="smart-exam-page-shell">
+    <section class="card smart-encounter-header">
+        <div class="smart-encounter-patient">
+            <div class="smart-encounter-kicker">Smart Exam</div>
+            <div class="smart-encounter-name"><?= e($fullName) ?></div>
+            <div class="smart-active-chips">
+                <span class="smart-meta-chip">คิว <?= e((string) ($visit['queue_no'] ?? '')) ?></span>
+                <span class="smart-meta-chip">HN <?= e((string) ($visit['hn'] ?? '')) ?></span>
+                <span class="smart-meta-chip">VN <?= e((string) ($visit['visit_no'] ?? '')) ?></span>
+                <span class="smart-meta-chip"><?= e($queueStatusLabel) ?></span>
+                <?php if ($hasDrugAllergy): ?>
+                    <span class="smart-meta-chip smart-meta-chip-alert">แพ้ยา <?= e($drugAllergyText) ?></span>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="smart-encounter-flow" aria-label="Smart Exam workflow">
+            <div class="smart-flow-step active" id="smartExamStepPresetCompact"><strong>1</strong><span>Preset</span></div>
+            <div class="smart-flow-step" id="smartExamStepClinicalCompact"><strong>2</strong><span>ตรวจ</span></div>
+            <div class="smart-flow-step" id="smartExamStepFinishCompact"><strong>3</strong><span>จบเคส</span></div>
+        </div>
+
+        <div class="smart-encounter-actions">
+            <a href="<?= e(route_url('queue', ['visit_id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-secondary btn-sm">กลับคิว</a>
+            <a href="<?= e(route_url('visit-edit', ['id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-dark btn-sm">ขั้นสูง</a>
+        </div>
+    </section>
+
     <section class="card smart-exam-page-hero">
         <div class="smart-exam-page-copy">
             <div class="eyebrow">หน้าตรวจ</div>
@@ -117,6 +146,12 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                         </div>
                     </div>
 
+                    <details class="smart-snapshot-detail">
+                        <summary>
+                            <span>ข้อมูลเสริมก่อนตรวจ</span>
+                            <strong>Vital ล่าสุด / นัด / ประวัติรักษา</strong>
+                        </summary>
+
                     <div class="smart-snapshot-body">
                         <div class="smart-snapshot-panel">
                             <div class="smart-snapshot-title">Vital ล่าสุด</div>
@@ -173,6 +208,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                             <div class="smart-summary-empty">ยังไม่มีประวัติรักษาย้อนหลัง</div>
                         <?php endif; ?>
                     </div>
+                    </details>
                 </section>
 
                 <form method="post" action="<?= e(route_url('queue-smart-finish')) ?>" class="smart-exam-form" id="smartExamForm">
@@ -185,6 +221,8 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                         data-service-count="<?= e((string) $serviceCount) ?>"
                         data-item-count="<?= e((string) $itemCount) ?>"
                         data-grand-total="<?= e((string) $grandTotal) ?>"
+                        data-remove-service-url="<?= e(route_url('visit-remove-service')) ?>"
+                        data-remove-item-url="<?= e(route_url('visit-remove-item')) ?>"
                     ></div>
 
                     <div class="smart-service-presets">
@@ -339,6 +377,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                     <div class="smart-inline-actions">
                         <button type="button" class="btn btn-clear" id="smartExamClear">ล้างข้อมูล</button>
                         <button type="button" class="btn btn-undo" id="smartExamUndo">ย้อนกลับ</button>
+                        <span class="smart-shortcut-hint">Ctrl+K preset/search · F2 service/medicine · F9 finish · Esc close</span>
                     </div>
                 </form>
 
@@ -349,13 +388,18 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                                 <div class="smart-section-label">บริการ</div>
                                 <h4>เพิ่มบริการที่ทำในเคสนี้</h4>
                             </div>
-                            <span><?= e((string) ($visit['service_count'] ?? 0)) ?> รายการ</span>
+                            <span id="smartServiceCountLabel"><?= e((string) ($visit['service_count'] ?? 0)) ?> รายการ</span>
+                        </div>
+
+                        <div class="smart-order-search">
+                            <label for="smartServiceSearch">ค้นหาบริการ</label>
+                            <input type="search" id="smartServiceSearch" placeholder="พิมพ์ชื่อบริการ">
                         </div>
 
                         <?php if ($frequentServices): ?>
                             <div class="smart-shortcut-grid">
                                 <?php foreach ($frequentServices as $service): ?>
-                                    <form method="post" action="<?= e(route_url('visit-add-service')) ?>">
+                                    <form method="post" action="<?= e(route_url('visit-add-service')) ?>" data-smart-filter-text="<?= e(strtolower((string) $service['service_name'])) ?>">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="return_to" value="queue-exam">
                                         <input type="hidden" name="visit_id" value="<?= e((string) ($visit['id'] ?? 0)) ?>">
@@ -377,14 +421,14 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                             <select name="service_id" id="smartServiceSelect" required>
                                 <option value="">เลือกบริการ</option>
                                 <?php foreach ($services as $service): ?>
-                                    <option value="<?= e((string) $service['id']) ?>"><?= e($service['service_name']) ?> (<?= format_money($service['price']) ?>)</option>
+                                    <option value="<?= e((string) $service['id']) ?>" data-filter-text="<?= e(strtolower((string) $service['service_name'])) ?>"><?= e($service['service_name']) ?> (<?= format_money($service['price']) ?>)</option>
                                 <?php endforeach; ?>
                             </select>
                             <input type="number" name="qty" id="smartServiceQtyInput" value="1" min="1" aria-label="จำนวนบริการ">
                             <button type="submit" class="btn btn-outline-primary">เพิ่มบริการ</button>
                         </form>
 
-                        <div class="smart-line-list">
+                        <div class="smart-line-list" id="smartServiceLineList">
                             <?php foreach ($serviceLines as $line): ?>
                                 <div class="smart-line-item">
                                     <div>
@@ -416,14 +460,19 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                                 <div class="smart-section-label">ยา / เวชภัณฑ์</div>
                                 <h4>สั่งยาและตัดสต็อก</h4>
                             </div>
-                            <span><?= e((string) ($visit['item_count'] ?? 0)) ?> รายการ</span>
+                            <span id="smartItemCountLabel"><?= e((string) ($visit['item_count'] ?? 0)) ?> รายการ</span>
+                        </div>
+
+                        <div class="smart-order-search">
+                            <label for="smartItemSearch">ค้นหายา/เวชภัณฑ์</label>
+                            <input type="search" id="smartItemSearch" placeholder="พิมพ์ชื่อยา หรืออุปกรณ์">
                         </div>
 
                         <?php if ($frequentItems): ?>
                             <div class="smart-shortcut-grid">
                                 <?php foreach ($frequentItems as $item): ?>
                                     <?php $itemStock = $stockMeta($item); ?>
-                                    <form method="post" action="<?= e(route_url('visit-add-item')) ?>">
+                                    <form method="post" action="<?= e(route_url('visit-add-item')) ?>" data-smart-filter-text="<?= e(strtolower((string) $item['item_name'])) ?>" data-stock-balance="<?= e((string) ($item['qty_balance'] ?? 0)) ?>">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="return_to" value="queue-exam">
                                         <input type="hidden" name="visit_id" value="<?= e((string) ($visit['id'] ?? 0)) ?>">
@@ -451,7 +500,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                                 <option value="">เลือกยา / เวชภัณฑ์ / อุปกรณ์</option>
                                 <?php foreach ($items as $item): ?>
                                     <?php $itemStock = $stockMeta($item); ?>
-                                    <option value="<?= e((string) $item['id']) ?>" <?= $itemStock['is_out'] ? 'disabled' : '' ?>>
+                                    <option value="<?= e((string) $item['id']) ?>" data-filter-text="<?= e(strtolower((string) $item['item_name'])) ?>" data-stock-balance="<?= e((string) ($item['qty_balance'] ?? 0)) ?>" <?= $itemStock['is_out'] ? 'disabled' : '' ?>>
                                         <?= e($item['item_name']) ?> (<?= format_money($item['default_price']) ?> / คงเหลือ <?= format_money($item['qty_balance'] ?? 0) ?> / <?= e($itemStock['label']) ?><?= $itemStock['nearest_expiry'] !== '' ? ' / EXP ' . thai_date_only($itemStock['nearest_expiry']) : '' ?>)
                                     </option>
                                 <?php endforeach; ?>
@@ -461,7 +510,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                             <button type="submit" class="btn btn-outline-success">เพิ่มยา</button>
                         </form>
 
-                        <div class="smart-line-list">
+                        <div class="smart-line-list" id="smartItemLineList">
                             <?php foreach ($itemLines as $line): ?>
                                 <div class="smart-line-item">
                                     <div>
@@ -510,17 +559,17 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                 <div class="smart-summary-meta-grid">
                     <div class="smart-summary-metric">
                         <span>บริการ</span>
-                        <strong><?= e((string) $serviceCount) ?></strong>
+                        <strong id="smartSummaryServiceCount"><?= e((string) $serviceCount) ?></strong>
                     </div>
                     <div class="smart-summary-metric">
                         <span>ยา/อุปกรณ์</span>
-                        <strong><?= e((string) $itemCount) ?></strong>
+                        <strong id="smartSummaryItemCount"><?= e((string) $itemCount) ?></strong>
                     </div>
                 </div>
 
                 <div class="smart-summary-section">
                     <div class="smart-summary-title">บริการ</div>
-                    <div class="smart-summary-lines">
+                    <div class="smart-summary-lines" id="smartSummaryServiceLines">
                         <?php foreach ($serviceLines as $line): ?>
                             <div class="smart-summary-line">
                                 <span><?= e($line['service_name']) ?> x<?= e((string) $line['qty']) ?></span>
@@ -535,7 +584,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
 
                 <div class="smart-summary-section">
                     <div class="smart-summary-title">อุปกรณ์ที่ใช้</div>
-                    <div class="smart-summary-lines">
+                    <div class="smart-summary-lines" id="smartSummaryItemLines">
                         <?php foreach ($itemLines as $line): ?>
                             <div class="smart-summary-line">
                                 <span><?= e($line['item_name']) ?> x<?= format_money($line['qty']) ?></span>
@@ -549,9 +598,9 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                 </div>
 
                 <div class="smart-summary-total">
-                    <div class="smart-summary-line"><span>ค่าบริการ</span><strong><?= format_money($visit['service_total'] ?? 0) ?></strong></div>
-                    <div class="smart-summary-line"><span>ค่ายา/อุปกรณ์</span><strong><?= format_money($visit['item_total'] ?? 0) ?></strong></div>
-                    <div class="smart-summary-line grand"><span>รวมสุทธิ</span><strong><?= format_money(($visit['service_total'] ?? 0) + ($visit['item_total'] ?? 0)) ?></strong></div>
+                    <div class="smart-summary-line"><span>ค่าบริการ</span><strong id="smartSummaryServiceTotal"><?= format_money($visit['service_total'] ?? 0) ?></strong></div>
+                    <div class="smart-summary-line"><span>ค่ายา/อุปกรณ์</span><strong id="smartSummaryItemTotal"><?= format_money($visit['item_total'] ?? 0) ?></strong></div>
+                    <div class="smart-summary-line grand"><span>รวมสุทธิ</span><strong id="smartSummaryGrandTotal"><?= format_money(($visit['service_total'] ?? 0) + ($visit['item_total'] ?? 0)) ?></strong></div>
                 </div>
 
                 <div class="smart-inline-payment" data-base-total="<?= e((string) $grandTotal) ?>">
@@ -601,6 +650,10 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                         <div class="smart-readiness-item" id="smartReadinessBilling">
                             <span>รายการคิดเงิน</span>
                             <strong><?= ($serviceCount + $itemCount) > 0 ? 'พร้อม' : 'ยังไม่มี' ?></strong>
+                        </div>
+                        <div class="smart-readiness-item" id="smartReadinessStock">
+                            <span>Stock</span>
+                            <strong>พร้อม</strong>
                         </div>
                     </div>
                     <div class="smart-readiness-note" id="smartFinishNote">กรอก CC และ Dx ให้ครบก่อน จากนั้นตรวจรายการคิดเงินแล้วค่อยจบเคส</div>

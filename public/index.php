@@ -3,6 +3,7 @@
 require_once dirname(__DIR__) . '/app/bootstrap.php';
 
 use App\Controllers\AuthController;
+use App\Controllers\AppointmentController;
 use App\Controllers\BackupController;
 use App\Controllers\DashboardController;
 use App\Controllers\InventoryController;
@@ -42,6 +43,11 @@ $routes = [
     'POST:queue-apply-preset' => [QueueController::class, 'applyPreset'],
     'POST:queue-smart-finish' => [QueueController::class, 'smartFinish'],
     'POST:queue-quick-complete' => [QueueController::class, 'quickComplete'],
+
+    'GET:appointments' => [AppointmentController::class, 'index'],
+    'POST:appointments-store' => [AppointmentController::class, 'store'],
+    'POST:appointments-update' => [AppointmentController::class, 'update'],
+    'POST:appointments-cancel' => [AppointmentController::class, 'cancel'],
 
     'GET:visit-edit' => [VisitController::class, 'edit'],
     'POST:visit-save-clinical' => [VisitController::class, 'saveClinical'],

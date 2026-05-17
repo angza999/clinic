@@ -322,6 +322,13 @@ class VisitController extends Controller
         $service = $serviceStmt->fetch();
 
         if (!$service || $visitId <= 0) {
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'ok' => false,
+                    'message' => 'ไม่พบบริการที่เลือก',
+                ], 422);
+            }
+
             flash('error', 'ไม่พบบริการที่เลือก');
             redirect('queue');
         }
@@ -339,6 +346,14 @@ class VisitController extends Controller
             'line_total' => $lineTotal,
         ]);
 
+        if ($this->isAjaxRequest()) {
+            $this->jsonResponse([
+                'ok' => true,
+                'message' => 'เพิ่มบริการเรียบร้อย',
+                'summary' => $this->visitOrderSummary($visitId),
+            ]);
+        }
+
         flash('success', 'เพิ่มบริการเรียบร้อยแล้ว');
         $this->redirectAfterVisitAction($visitId);
     }
@@ -352,6 +367,15 @@ class VisitController extends Controller
         $this->assertVisitEditable($visitId);
 
         db()->prepare('DELETE FROM visit_services WHERE id = :id')->execute(['id' => $serviceLineId]);
+
+        if ($this->isAjaxRequest()) {
+            $this->jsonResponse([
+                'ok' => true,
+                'message' => 'ลบบริการเรียบร้อย',
+                'summary' => $this->visitOrderSummary($visitId),
+            ]);
+        }
+
         flash('success', 'ลบบริการเรียบร้อยแล้ว');
         $this->redirectAfterVisitAction($visitId);
     }
@@ -368,6 +392,13 @@ class VisitController extends Controller
         $usageNote = trim((string) ($_POST['usage_note'] ?? ''));
 
         if ($visitId <= 0 || $itemId <= 0 || $qty <= 0) {
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'ok' => false,
+                    'message' => 'กรุณาเลือกรายการยา/เวชภัณฑ์/อุปกรณ์และจำนวนให้ถูกต้อง',
+                ], 422);
+            }
+
             flash('error', 'กรุณาเลือกรายการยา/เวชภัณฑ์/อุปกรณ์และจำนวนให้ถูกต้อง');
             $this->redirectAfterVisitAction($visitId);
         }
@@ -451,11 +482,26 @@ class VisitController extends Controller
             }
 
             $pdo->commit();
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'ok' => true,
+                    'message' => 'เพิ่มยา/เวชภัณฑ์เรียบร้อย',
+                    'summary' => $this->visitOrderSummary($visitId),
+                ]);
+            }
+
             flash('success', 'เพิ่มรายการยา/เวชภัณฑ์/อุปกรณ์เรียบร้อยแล้ว');
         } catch (Throwable $throwable) {
             if (db()->inTransaction()) {
                 db()->rollBack();
             }
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'ok' => false,
+                    'message' => 'ไม่สามารถเพิ่มยา/เวชภัณฑ์ได้: ' . $throwable->getMessage(),
+                ], 422);
+            }
+
             flash('error', 'ไม่สามารถเพิ่มรายการยา/เวชภัณฑ์/อุปกรณ์ได้: ' . $throwable->getMessage());
         }
 
@@ -503,11 +549,26 @@ class VisitController extends Controller
             $pdo->prepare('DELETE FROM visit_item_usages WHERE id = :id')->execute(['id' => $usageId]);
 
             $pdo->commit();
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'ok' => true,
+                    'message' => 'ลบยา/เวชภัณฑ์เรียบร้อย',
+                    'summary' => $this->visitOrderSummary($visitId),
+                ]);
+            }
+
             flash('success', 'ลบรายการยา/เวชภัณฑ์/อุปกรณ์เรียบร้อยแล้ว');
         } catch (Throwable $throwable) {
             if (db()->inTransaction()) {
                 db()->rollBack();
             }
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'ok' => false,
+                    'message' => 'ไม่สามารถลบยา/เวชภัณฑ์ได้: ' . $throwable->getMessage(),
+                ], 422);
+            }
+
             flash('error', 'ไม่สามารถลบรายการได้: ' . $throwable->getMessage());
         }
 
@@ -610,6 +671,77 @@ class VisitController extends Controller
         $result = $stmt->fetch() ?: ['service_count' => 0, 'item_count' => 0];
 
         return ((int) $result['service_count'] + (int) $result['item_count']) > 0;
+    }
+
+    private function visitOrderSummary(int $visitId): array
+    {
+        $serviceStmt = db()->prepare(
+            'SELECT visit_services.id, services.service_name, visit_services.qty, visit_services.line_total
+             FROM visit_services
+             INNER JOIN services ON services.id = visit_services.service_id
+             WHERE visit_services.visit_id = :visit_id
+             ORDER BY visit_services.id DESC'
+        );
+        $serviceStmt->execute(['visit_id' => $visitId]);
+        $serviceLines = $serviceStmt->fetchAll();
+
+        $itemStmt = db()->prepare(
+            'SELECT visit_item_usages.id, inventory_items.item_name, inventory_items.unit_name, visit_item_usages.qty, visit_item_usages.line_total
+             FROM visit_item_usages
+             INNER JOIN inventory_items ON inventory_items.id = visit_item_usages.item_id
+             WHERE visit_item_usages.visit_id = :visit_id
+             ORDER BY visit_item_usages.id DESC'
+        );
+        $itemStmt->execute(['visit_id' => $visitId]);
+        $itemLines = $itemStmt->fetchAll();
+
+        $serviceTotal = array_sum(array_map(static fn(array $row): float => (float) $row['line_total'], $serviceLines));
+        $itemTotal = array_sum(array_map(static fn(array $row): float => (float) $row['line_total'], $itemLines));
+
+        return [
+            'visitId' => $visitId,
+            'serviceCount' => count($serviceLines),
+            'itemCount' => count($itemLines),
+            'serviceTotal' => $serviceTotal,
+            'itemTotal' => $itemTotal,
+            'grandTotal' => $serviceTotal + $itemTotal,
+            'serviceTotalText' => format_money($serviceTotal),
+            'itemTotalText' => format_money($itemTotal),
+            'grandTotalText' => format_money($serviceTotal + $itemTotal),
+            'services' => array_map(static fn(array $line): array => [
+                'id' => (int) $line['id'],
+                'name' => (string) $line['service_name'],
+                'qty' => (string) $line['qty'],
+                'qtyText' => (string) $line['qty'],
+                'lineTotal' => (float) $line['line_total'],
+                'lineTotalText' => format_money($line['line_total']),
+            ], $serviceLines),
+            'items' => array_map(static fn(array $line): array => [
+                'id' => (int) $line['id'],
+                'name' => (string) $line['item_name'],
+                'unitName' => (string) ($line['unit_name'] ?? ''),
+                'qty' => (string) $line['qty'],
+                'qtyText' => format_money($line['qty']),
+                'lineTotal' => (float) $line['line_total'],
+                'lineTotalText' => format_money($line['line_total']),
+            ], $itemLines),
+        ];
+    }
+
+    private function isAjaxRequest(): bool
+    {
+        $accept = (string) ($_SERVER['HTTP_ACCEPT'] ?? '');
+        $requestedWith = (string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '');
+
+        return strcasecmp($requestedWith, 'XMLHttpRequest') === 0 || str_contains($accept, 'application/json');
+    }
+
+    private function jsonResponse(array $payload, int $statusCode = 200): never
+    {
+        http_response_code($statusCode);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
     }
 
     private function assertVisitEditable(int $visitId): void

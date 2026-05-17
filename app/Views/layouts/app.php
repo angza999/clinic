@@ -3,8 +3,11 @@ $user = current_user();
 $clinicName = (string) system_setting('clinic_name', config('app.name'));
 $currentPage = current_page();
 $pageTitleText = (string) ($pageTitle ?? $clinicName);
-$pageTopbarMode = (string) ($pageTopbarMode ?? 'default');
+$workflowCompactPages = ['appointments', 'queue', 'queue-exam', 'payments'];
+$defaultTopbarMode = in_array($currentPage, $workflowCompactPages, true) ? 'compact' : 'default';
+$pageTopbarMode = (string) ($pageTopbarMode ?? $defaultTopbarMode);
 $pageDescriptions = [
+    'appointments' => 'จัดการนัดหมาย ติดตามคนไข้ตามวัน และรับเข้าคิวได้ทันที',
     'queue' => 'จัดการคิว เปิด Smart Exam และดูสรุปเคสจากหน้าจอเดียว',
     'queue-exam' => 'บันทึกประวัติ ตรวจร่างกาย และจบเคสในหน้า Smart Exam',
     'queue-display' => 'หน้าจอแสดงคิวสำหรับหน้าห้องตรวจและจุดรอรับบริการ',
@@ -21,6 +24,7 @@ $pageDescriptions = [
 $pageDescription = $pageDescriptions[$currentPage] ?? 'ระบบบริหารจัดการคลินิกพยาบาล';
 
 $navItems = [
+    ['page' => 'appointments', 'label' => 'นัดหมาย', 'icon' => 'bi-calendar2-check-fill', 'url' => route_url('appointments'), 'visible' => has_role(['ADMIN', 'NURSE']), 'active' => $currentPage === 'appointments'],
     ['page' => 'queue', 'label' => 'คิววันนี้', 'icon' => 'bi-grid-1x2-fill', 'url' => route_url('queue'), 'visible' => true, 'active' => $currentPage === 'queue'],
     ['page' => 'patients', 'label' => 'ผู้รับบริการ', 'icon' => 'bi-person-vcard-fill', 'url' => route_url('patients'), 'visible' => true, 'active' => in_array($currentPage, ['patients', 'patient-show'], true)],
     ['page' => 'payments', 'label' => 'การเงิน', 'icon' => 'bi-cash-stack', 'url' => route_url('payments'), 'visible' => has_role(['ADMIN', 'CASHIER']), 'active' => $currentPage === 'payments'],

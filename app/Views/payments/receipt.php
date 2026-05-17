@@ -2,7 +2,9 @@
 $clinicName = (string) system_setting('clinic_name', config('app.name'));
 $clinicAddress = (string) system_setting('clinic_address', '');
 $clinicPhone = (string) system_setting('clinic_phone', '');
-$receiptFooter = (string) system_setting('queue_note', config('app.receipt_footer'));
+$clinicTaxId = (string) system_setting('clinic_tax_id', '');
+$receiptLogoText = (string) system_setting('receipt_logo_text', '');
+$receiptFooter = (string) system_setting('receipt_footer', system_setting('queue_note', config('app.receipt_footer')));
 $source = (string) ($source ?? 'payments');
 $isSmartExamReceipt = $source === 'smart_exam';
 $canOpenPayments = has_role(['ADMIN', 'CASHIER']);
@@ -15,16 +17,24 @@ $hasCareInstructions = $adviceText !== '' || $followupDate !== '';
     <div class="col-xl-9">
         <div class="card border-0 shadow-sm receipt-sheet">
             <div class="card-body p-4 p-lg-5">
-                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
-                    <div>
-                        <div class="small text-uppercase text-muted">ใบเสร็จรับเงิน / ใบรับบริการ</div>
-                        <h1 class="h3 mb-2"><?= e($clinicName) ?></h1>
-                        <?php if ($clinicAddress !== ''): ?>
-                            <div class="text-muted"><?= nl2br(e($clinicAddress)) ?></div>
+                <div class="receipt-brand-row mb-4">
+                    <div class="receipt-brand-main">
+                        <?php if ($receiptLogoText !== ''): ?>
+                            <div class="receipt-logo-mark"><?= e($receiptLogoText) ?></div>
                         <?php endif; ?>
-                        <?php if ($clinicPhone !== ''): ?>
-                            <div class="text-muted">โทร <?= e($clinicPhone) ?></div>
-                        <?php endif; ?>
+                        <div>
+                            <div class="small text-uppercase text-muted">ใบเสร็จรับเงิน / ใบรับบริการ</div>
+                            <h1 class="h3 mb-2"><?= e($clinicName) ?></h1>
+                            <?php if ($clinicAddress !== ''): ?>
+                                <div class="text-muted"><?= nl2br(e($clinicAddress)) ?></div>
+                            <?php endif; ?>
+                            <?php if ($clinicPhone !== ''): ?>
+                                <div class="text-muted">โทร <?= e($clinicPhone) ?></div>
+                            <?php endif; ?>
+                            <?php if ($clinicTaxId !== ''): ?>
+                                <div class="text-muted">เลขผู้เสียภาษี/ทะเบียน <?= e($clinicTaxId) ?></div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div class="text-lg-end">
                         <div class="small text-uppercase text-muted">เลขที่ใบเสร็จ</div>

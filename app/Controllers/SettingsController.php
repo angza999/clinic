@@ -12,6 +12,7 @@ class SettingsController extends Controller
     public function index(): void
     {
         require_roles(['ADMIN']);
+        $this->ensureSettingsSchema();
         $this->ensureSmartPresetSchema();
         $this->seedDefaultSmartPresets();
 
@@ -23,6 +24,9 @@ class SettingsController extends Controller
                 'clinic_name' => config('app.name'),
                 'clinic_address' => '',
                 'clinic_phone' => '',
+                'clinic_tax_id' => '',
+                'receipt_logo_text' => '',
+                'receipt_footer' => config('app.receipt_footer'),
                 'receipt_prefix' => 'RC',
                 'hn_prefix' => 'HN',
                 'expiry_alert_days' => 30,
@@ -40,11 +44,15 @@ class SettingsController extends Controller
     public function store(): void
     {
         require_roles(['ADMIN']);
+        $this->ensureSettingsSchema();
 
         $settingsId = (int) ($_POST['settings_id'] ?? 0);
         $clinicName = trim((string) ($_POST['clinic_name'] ?? ''));
         $clinicAddress = trim((string) ($_POST['clinic_address'] ?? ''));
         $clinicPhone = trim((string) ($_POST['clinic_phone'] ?? ''));
+        $clinicTaxId = trim((string) ($_POST['clinic_tax_id'] ?? ''));
+        $receiptLogoText = trim((string) ($_POST['receipt_logo_text'] ?? ''));
+        $receiptFooter = trim((string) ($_POST['receipt_footer'] ?? ''));
         $receiptPrefix = strtoupper(trim((string) ($_POST['receipt_prefix'] ?? 'RC')));
         $hnPrefix = strtoupper(trim((string) ($_POST['hn_prefix'] ?? 'HN')));
         $expiryAlertDays = max(1, (int) ($_POST['expiry_alert_days'] ?? 30));
@@ -62,6 +70,9 @@ class SettingsController extends Controller
                      SET clinic_name = :clinic_name,
                          clinic_address = :clinic_address,
                          clinic_phone = :clinic_phone,
+                         clinic_tax_id = :clinic_tax_id,
+                         receipt_logo_text = :receipt_logo_text,
+                         receipt_footer = :receipt_footer,
                          receipt_prefix = :receipt_prefix,
                          hn_prefix = :hn_prefix,
                          expiry_alert_days = :expiry_alert_days,
@@ -72,6 +83,9 @@ class SettingsController extends Controller
                     'clinic_name' => $clinicName,
                     'clinic_address' => $clinicAddress ?: null,
                     'clinic_phone' => $clinicPhone ?: null,
+                    'clinic_tax_id' => $clinicTaxId ?: null,
+                    'receipt_logo_text' => $receiptLogoText ?: null,
+                    'receipt_footer' => $receiptFooter ?: null,
                     'receipt_prefix' => $receiptPrefix ?: 'RC',
                     'hn_prefix' => $hnPrefix ?: 'HN',
                     'expiry_alert_days' => $expiryAlertDays,
@@ -81,14 +95,19 @@ class SettingsController extends Controller
             } else {
                 db()->prepare(
                     'INSERT INTO system_settings (
-                        clinic_name, clinic_address, clinic_phone, receipt_prefix, hn_prefix, expiry_alert_days, queue_note, created_at, updated_at
+                        clinic_name, clinic_address, clinic_phone, clinic_tax_id, receipt_logo_text, receipt_footer,
+                        receipt_prefix, hn_prefix, expiry_alert_days, queue_note, created_at, updated_at
                      ) VALUES (
-                        :clinic_name, :clinic_address, :clinic_phone, :receipt_prefix, :hn_prefix, :expiry_alert_days, :queue_note, NOW(), NOW()
+                        :clinic_name, :clinic_address, :clinic_phone, :clinic_tax_id, :receipt_logo_text, :receipt_footer,
+                        :receipt_prefix, :hn_prefix, :expiry_alert_days, :queue_note, NOW(), NOW()
                      )'
                 )->execute([
                     'clinic_name' => $clinicName,
                     'clinic_address' => $clinicAddress ?: null,
                     'clinic_phone' => $clinicPhone ?: null,
+                    'clinic_tax_id' => $clinicTaxId ?: null,
+                    'receipt_logo_text' => $receiptLogoText ?: null,
+                    'receipt_footer' => $receiptFooter ?: null,
                     'receipt_prefix' => $receiptPrefix ?: 'RC',
                     'hn_prefix' => $hnPrefix ?: 'HN',
                     'expiry_alert_days' => $expiryAlertDays,
@@ -102,6 +121,34 @@ class SettingsController extends Controller
         }
 
         redirect('settings');
+    }
+
+    private function ensureSettingsSchema(): void
+    {
+        $columns = $this->tableColumns('system_settings');
+        $alterStatements = [];
+
+        if (!in_array('clinic_tax_id', $columns, true)) {
+            $alterStatements[] = 'ADD COLUMN clinic_tax_id VARCHAR(50) NULL AFTER clinic_phone';
+        }
+
+        if (!in_array('receipt_logo_text', $columns, true)) {
+            $alterStatements[] = 'ADD COLUMN receipt_logo_text VARCHAR(80) NULL AFTER clinic_tax_id';
+        }
+
+        if (!in_array('receipt_footer', $columns, true)) {
+            $alterStatements[] = 'ADD COLUMN receipt_footer TEXT NULL AFTER receipt_logo_text';
+        }
+
+        if ($alterStatements) {
+            db()->exec('ALTER TABLE system_settings ' . implode(', ', $alterStatements));
+        }
+    }
+
+    private function tableColumns(string $tableName): array
+    {
+        $stmt = db()->query('SHOW COLUMNS FROM `' . str_replace('`', '``', $tableName) . '`');
+        return array_column($stmt->fetchAll(), 'Field');
     }
 
     public function storePreset(): void

@@ -341,10 +341,77 @@ Rules:
 - Do not hide stock risk only inside the inventory module.
 - Warnings should be compact and operational; they should not block use unless stock is zero.
 
+## Phase 13 Stabilized Smart Exam Workflow
+Smart Exam now treats preset, suggestion, order entry, readiness, and finish as one continuous workstation flow.
+
+Behavior:
+- URI preset is available as a first-class common case preset.
+- Default presets are inserted when missing without overwriting existing database preset edits.
+- Applying a preset merges CC, PI, PE, Dx, advice, and follow-up safely:
+  - empty fields are filled
+  - existing text is preserved
+  - duplicate preset text is not appended again
+- Preset item stock movement uses `VISIT_USAGE` reference with the usage row id so stock restoration follows the same trace model as manual item usage.
+- Smart suggestions remain frontend-only:
+  - Temp >= 37.5 shows fever suggestion
+  - fever + cough + rhinorrhea suggests URI
+  - abdominal pain suggests Gastritis
+  - wound text suggests Wound
+- Service and medicine order entry include compact search/filter fields.
+- Medicine quantity is checked against visible stock before submit as a frontend guard, while server stock validation remains authoritative.
+- Summary readiness includes CC, Dx, billing item presence, and selected-item stock state.
+- Keyboard shortcuts:
+  - Ctrl/Cmd+K focuses order search
+  - F2 focuses service/medicine order entry
+  - F9 focuses the first enabled finish action
+  - Esc clears suggestion/alert focus state
+
+Rules:
+- Suggestions must never force diagnosis.
+- JS stock validation is only a fast UI guard; backend stock checks remain the source of truth.
+- Finish warnings should appear in the summary rail instead of popup-heavy interaction.
+
+## Phase 14 Inline Order Entry
+Smart Exam order entry now uses progressive-enhancement AJAX for services and medicines.
+
+Behavior:
+- Existing `visit-add-service`, `visit-remove-service`, `visit-add-item`, and `visit-remove-item` endpoints still support normal POST + redirect fallback.
+- When Smart Exam sends `Accept: application/json` / `X-Requested-With: XMLHttpRequest`, the endpoint returns an order summary JSON payload instead of redirecting.
+- The frontend updates:
+  - main service list
+  - main medicine/item list
+  - summary rail service/item counts
+  - summary rail line items
+  - service, item, and grand totals
+  - readiness state and payment preview
+- Server-side stock validation remains authoritative; frontend stock validation is only a speed guard.
+
+Rules:
+- Do not replace the server-rendered fallback. Smart Exam must remain usable if JavaScript fails.
+- Inline order entry must not create a separate modal/cart flow.
+- Summary rail is the control surface and must stay synchronized after every add/remove.
+
+## Phase 15 Inline Preset Apply
+Smart Exam preset application now follows the same progressive-enhancement pattern.
+
+Behavior:
+- Existing `queue-apply-preset` still supports normal POST + redirect fallback.
+- When Smart Exam sends a JSON request, applying a preset returns:
+  - merged clinical fields
+  - applied preset metadata
+  - recalculated service/item summary
+- The frontend updates CC, PI, PE, Dx, advice, follow-up date, active preset state, main order lists, totals, readiness, and payment preview without a full page reload.
+- Presets still use safe merge rules and do not duplicate services/items if the same preset was already applied.
+
+Rules:
+- Preset apply must feel like an accelerator, not page navigation.
+- Backend merge and duplicate-preset checks remain authoritative.
+- If inline preset fails, the summary rail alert should explain the issue without opening a popup.
+
 ## Service Addition Logic
 - Add service via `visit-add-service`
 - When the request comes from Smart Exam, send `return_to=queue-exam`
-- After add or remove, redirect back to the same Smart Exam visit
+- After add or remove, redirect back to the same Smart Exam visit unless the request is JSON, then return summary JSON
 
 ## Item Addition Logic
 - Add item usage via `visit-add-item`
