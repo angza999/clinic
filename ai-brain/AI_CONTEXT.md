@@ -368,3 +368,10 @@ To scale toward commercial clinic software, future work should standardize reusa
 - finish/action bar
 
 Any new module should reuse these patterns before inventing a new page style.
+## 2026-05-17 - Import Excel Phase 1
+
+- เพิ่มแนวคิด Data Onboarding สำหรับ Medical Workstation: ห้าม upload แล้วเขียนฐานข้อมูลทันที ต้องผ่าน preview, mapping, validate และ confirm ก่อนเสมอ
+- Phase 1 รองรับ 3 ประเภท: ผู้รับบริการ, ยา/เวชภัณฑ์, รับ stock ตั้งต้น
+- สิทธิ์: ADMIN ใช้ได้ครบ, NURSE ใช้ได้เฉพาะ import ผู้รับบริการ, CASHIER ไม่เห็นเมนู
+- การรับ stock ตั้งต้นต้องสร้าง `inventory_batches` และ `stock_movements` พร้อม `reference_type = EXCEL_IMPORT`
+- ใช้ `PhpSpreadsheet` ผ่าน Composer (`phpoffice/phpspreadsheet`) สำหรับอ่าน/สร้าง Excel; หากยังไม่ได้ติดตั้ง หน้า import จะแจ้ง dependency ชัดเจนและรองรับ `.csv` เป็น fallback ชั่วคราว

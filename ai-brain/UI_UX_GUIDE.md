@@ -394,6 +394,22 @@ Rules:
 - Due appointments and quick registration belong in compact intake surfaces.
 - Queue boards are situational awareness, not the primary work area.
 
+### Queue Workstation Reference Layout
+Queue Workstation should visually follow a professional clinical operations board:
+
+`Queue Status Cards + Current Working Case -> Intake/Search -> Active Patient Workspace -> Sticky Control Rail -> Compact Queue Board -> Shortcut Bar`
+
+Rules:
+- Keep the top command area compact, with status counts as small cards and the current/next case as the strongest working signal.
+- Use three balanced surfaces on desktop: left intake, center clinical workspace, right control rail.
+- Queue board columns should show dense rows, not oversized dashboard cards.
+- Empty queue states should be quiet and compact.
+- The right rail should feel like an operational control surface, with patient, billing, readiness, and payment state always reachable.
+- Avoid giving the same case/action equal visual weight in top bar, center workspace, and right rail. Each surface must have a distinct job.
+- If Smart Exam appears in more than one place, only one should be the primary call to action; other placements must be compact quick access.
+- Use muted medical status colors; avoid candy pastel or decorative gradients.
+- Add shortcut hints as a small bottom utility bar, not instructional content inside the main workflow.
+
 ### Enterprise Consistency
 Reusable workstation components should be preferred:
 - `command-header`

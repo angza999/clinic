@@ -27,6 +27,9 @@ $itemTotal = (float) ($visit['item_total'] ?? 0);
 $grandTotal = $serviceTotal + $itemTotal;
 $queueStatusMeta = queue_status_meta((string) ($visit['status'] ?? 'IN_SERVICE'));
 $queueStatusLabel = (string) ($queueStatusMeta['label'] ?? '');
+$patientPhotoUrl = !empty($visit['photo_path'])
+    ? route_url('patient-photo', ['id' => (int) ($visit['patient_id'] ?? 0), 'v' => strtotime((string) ($visit['updated_at'] ?? 'now'))])
+    : '';
 $stockMeta = static function (array $item) use ($expiryAlertDays): array {
     $qtyBalance = (float) ($item['qty_balance'] ?? 0);
     $reorderLevel = (float) ($item['reorder_level'] ?? 0);
@@ -55,6 +58,13 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
 
 <div class="smart-exam-page-shell">
     <section class="card smart-encounter-header">
+        <div class="smart-patient-photo">
+            <?php if ($patientPhotoUrl !== ''): ?>
+                <img src="<?= e($patientPhotoUrl) ?>" alt="รูปผู้รับบริการ">
+            <?php else: ?>
+                <i class="bi bi-person-badge"></i>
+            <?php endif; ?>
+        </div>
         <div class="smart-encounter-patient">
             <div class="smart-encounter-kicker">Smart Exam</div>
             <div class="smart-encounter-name"><?= e($fullName) ?></div>

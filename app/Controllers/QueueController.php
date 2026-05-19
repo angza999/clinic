@@ -621,7 +621,7 @@ class QueueController extends Controller
     {
         return db()->query(
             'SELECT queue_entries.*, visits.id AS visit_id, visits.patient_id, visits.visit_no, visits.chief_complaint,
-                    patients.hn, patients.first_name, patients.last_name, patients.phone
+                    patients.hn, patients.first_name, patients.last_name, patients.phone, patients.drug_allergy
              FROM queue_entries
              INNER JOIN visits ON visits.id = queue_entries.visit_id
              INNER JOIN patients ON patients.id = visits.patient_id
@@ -735,7 +735,7 @@ class QueueController extends Controller
     {
         $stmt = db()->prepare(
             'SELECT visits.*, queue_entries.id AS queue_id, queue_entries.queue_no, queue_entries.status, queue_entries.called_at, queue_entries.finished_at,
-                    patients.hn, patients.first_name, patients.last_name, patients.phone, patients.gender, patients.drug_allergy,
+                    patients.hn, patients.first_name, patients.last_name, patients.phone, patients.gender, patients.drug_allergy, patients.photo_path,
                     visit_vitals.bp_systolic, visit_vitals.bp_diastolic, visit_vitals.temp_c, visit_vitals.pulse_rate, visit_vitals.resp_rate, visit_vitals.spo2, visit_vitals.weight_kg,
                     COALESCE(service_totals.total_service, 0) AS service_total,
                     COALESCE(item_totals.total_item, 0) AS item_total,
@@ -1618,6 +1618,7 @@ class QueueController extends Controller
             ['table' => 'visits', 'column' => 'physical_exam', 'definition' => 'TEXT NULL'],
             ['table' => 'visits', 'column' => 'diagnosis', 'definition' => 'VARCHAR(255) NULL'],
             ['table' => 'visit_vitals', 'column' => 'resp_rate', 'definition' => 'INT NULL'],
+            ['table' => 'patients', 'column' => 'photo_path', 'definition' => 'VARCHAR(255) NULL'],
         ];
 
         foreach ($checks as $check) {

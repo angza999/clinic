@@ -179,6 +179,53 @@ body {
     white-space: nowrap;
 }
 
+/* Professional workstation shell tone */
+.app-sidebar.sidebar {
+    background: #132233;
+    border-right-color: rgba(203, 213, 225, 0.16);
+}
+
+.app-sidebar .sidebar-brand h4 {
+    font-size: 1.18rem;
+    font-weight: 850;
+}
+
+.app-sidebar .sidebar-kicker {
+    color: rgba(226, 232, 240, 0.62);
+}
+
+.app-sidebar .sidebar-subtitle {
+    color: rgba(226, 232, 240, 0.72);
+    font-size: 0.82rem;
+}
+
+.app-sidebar .sidebar-nav {
+    gap: 0.18rem;
+}
+
+.app-sidebar.sidebar .nav-link {
+    min-height: 42px;
+    border-radius: 8px;
+    color: rgba(226, 232, 240, 0.76);
+    padding: 0.66rem 0.78rem;
+    font-weight: 760;
+}
+
+.app-sidebar.sidebar .nav-link-icon {
+    width: 22px;
+    color: rgba(203, 213, 225, 0.72);
+}
+
+.app-sidebar.sidebar .nav-link.active,
+.app-sidebar.sidebar .nav-link:hover {
+    color: #f8fafc;
+    background: rgba(20, 184, 166, 0.14);
+}
+
+.app-sidebar.sidebar .nav-link.active {
+    box-shadow: inset 3px 0 0 #2dd4bf;
+}
+
 .professional-card,
 .professional-panel {
     border: 1px solid #e2e8f0;

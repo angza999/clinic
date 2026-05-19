@@ -4,11 +4,17 @@
 
 /vendor/
 /node_modules/
+/composer.phar
+/composer-setup.php
 
 /storage/exports/*.sql
 /storage/exports/*.csv
 /storage/exports/*.xlsx
 /storage/exports/*.zip
+/storage/imports/*
+!/storage/imports/.gitkeep
+/storage/patient-photos/*
+!/storage/patient-photos/.gitkeep
 /storage/backups/
 /storage/*.log
 /storage/*.html
@@ -17,3 +23,7 @@
 /storage/sessions/
 
 /database/backups/
+
+/tools/*
+!/tools/smart-card-bridge/
+!/tools/smart-card-bridge/**

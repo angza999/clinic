@@ -1457,3 +1457,35 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
 
 ### Database Impact
 - no schema change
+## 2026-05-17
+
+- Added Import Excel Phase 1 architecture and implementation.
+- Added `ImportController`, Import Wizard view, CSS/JS, routes, sidebar entry, Composer dependency metadata, import storage folder, and database import log schema.
+- Supported Phase 1 import types: patients, inventory items, and initial inventory batches.
+- Added strict preview -> mapping -> validate -> confirm workflow with duplicate detection and transaction-based confirm import.
+
+## 2026-05-18 - Smart Card Patient Photo Storage
+
+- Added patient card photo storage using `patients.photo_path`.
+- Decoded smart-card base64 image payloads and saved image files under `storage/patient-photos/`.
+- Added protected `patient-photo` route for serving patient photos without exposing direct storage paths.
+- Registration now stores card photo for new patients, and smart-card reads update the photo for existing patients when a fresh card image is available.
+- Patient profile and Smart Exam header now show the stored card photo with a professional placeholder fallback.
+
+## 2026-05-18 - Queue Workstation Reference UI Pass
+
+- Refined Queue Workstation toward a professional Medical Clinic Software reference layout.
+- Changed queue status from simple pills into compact status cards in the top command surface.
+- Strengthened the current/next working case area with HN/VN context and clearer hierarchy.
+- Tightened the left intake surface, center active-case workspace, compact 4-column queue board, and sticky right control rail.
+- Added left intake shortcuts for smart-card patient lookup and Excel import.
+- Added a low-noise shortcut/tip bar for fast queue operation.
+- No database or queue lifecycle logic changes.
+
+## 2026-05-18 - Queue Workstation Duplication Reduction
+
+- Reduced duplicate visual emphasis between the top command bar and the center Smart Exam launcher.
+- Kept the center workspace as the primary Smart Exam action and changed the top Smart Exam link into a lighter quick access.
+- Simplified the smart-card intake shortcut label to reduce overlap with the patient registration page.
+- Added a right-rail readiness checklist for registration, Smart Exam progress, billable lines, and payment readiness.
+- No database or queue lifecycle logic changes.

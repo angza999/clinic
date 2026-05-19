@@ -428,3 +428,20 @@ Rules:
 - Presets are configurable from Settings.
 - Smart Exam reads active presets from this table first.
 - Hardcoded fallback remains for safety if table creation/query fails.
+## Patient Card Photo
+
+- `patients.photo_path`: stores a relative path to the saved smart-card photo file.
+- Patient photos are stored as files under `storage/patient-photos/`, not as database BLOB data.
+- The app serves photos through the protected `patient-photo` route after checking the patient record and safe storage path.
+
+## Import Logs
+
+เพิ่มตารางสำหรับ audit การนำเข้าข้อมูล:
+
+- `import_logs`: เก็บ import batch, ประเภทข้อมูล, ชื่อไฟล์, จำนวนแถว, จำนวนผ่าน/ผิด/ซ้ำ, status, created_by
+- `import_log_rows`: เก็บข้อมูลรายแถวเป็น JSON, mapped data, status และ error message
+
+Stock batch import ต้องเขียน:
+
+- `inventory_batches`
+- `stock_movements` โดยใช้ `movement_type = IN`, `reference_type = EXCEL_IMPORT`, `reference_id = import_logs.id`

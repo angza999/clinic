@@ -10,6 +10,8 @@ USE `dongmahawan_clinic`;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS `audit_logs`;
+DROP TABLE IF EXISTS `import_log_rows`;
+DROP TABLE IF EXISTS `import_logs`;
 DROP TABLE IF EXISTS `smart_exam_presets`;
 DROP TABLE IF EXISTS `system_settings`;
 DROP TABLE IF EXISTS `appointments`;
@@ -57,6 +59,40 @@ CREATE TABLE `users` (
   CONSTRAINT `fk_users_role_id` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `import_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `import_type` varchar(50) NOT NULL,
+  `file_name` varchar(255) NOT NULL,
+  `stored_file_path` varchar(255) DEFAULT NULL,
+  `total_rows` int unsigned NOT NULL DEFAULT 0,
+  `success_rows` int unsigned NOT NULL DEFAULT 0,
+  `error_rows` int unsigned NOT NULL DEFAULT 0,
+  `duplicate_rows` int unsigned NOT NULL DEFAULT 0,
+  `status` enum('UPLOADED','VALIDATED','CONFIRMED','FAILED','CANCELLED') NOT NULL DEFAULT 'UPLOADED',
+  `options_json` longtext DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_import_logs_type_status` (`import_type`,`status`),
+  KEY `idx_import_logs_created_by` (`created_by`),
+  CONSTRAINT `fk_import_logs_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `import_log_rows` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `import_log_id` bigint unsigned NOT NULL,
+  `row_number` int unsigned NOT NULL,
+  `row_data_json` longtext NOT NULL,
+  `mapped_data_json` longtext DEFAULT NULL,
+  `status` enum('PENDING','VALID','ERROR','DUPLICATE','IMPORTED','SKIPPED') NOT NULL DEFAULT 'PENDING',
+  `error_message` text DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_import_log_rows_log_status` (`import_log_id`,`status`),
+  CONSTRAINT `fk_import_log_rows_log_id` FOREIGN KEY (`import_log_id`) REFERENCES `import_logs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `patients` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `hn` varchar(30) NOT NULL,
@@ -73,6 +109,7 @@ CREATE TABLE `patients` (
   `underlying_disease` text DEFAULT NULL,
   `drug_allergy` text DEFAULT NULL,
   `note` text DEFAULT NULL,
+  `photo_path` varchar(255) DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

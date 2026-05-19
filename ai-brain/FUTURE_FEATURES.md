@@ -118,3 +118,10 @@
 1. เลือกสิ่งที่ลด click / ลดเวลาในหน้างานก่อน
 2. เลือกสิ่งที่ทำให้ stock/payment/queue traceable ก่อน
 3. อย่าทำ feature advanced ที่ทำให้ core workflow ช้าลง
+## Import Excel Phase 2
+
+- รองรับ import `services`
+- เพิ่ม background cleanup สำหรับไฟล์ใน `storage/imports`
+- เพิ่ม export result report หลัง import
+- เพิ่ม mode update existing records พร้อม diff preview
+- เพิ่ม template `.xlsx` พร้อม sample row และ data validation dropdown

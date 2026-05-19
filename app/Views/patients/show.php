@@ -8,6 +8,16 @@
                 <div class="small text-muted">ใช้ดูข้อมูลหลักก่อนเปิดประวัติการรักษาย้อนหลัง</div>
             </div>
             <div class="card-body px-4">
+                <div class="patient-profile-photo mb-3">
+                    <?php if (!empty($patient['photo_path'])): ?>
+                        <img src="<?= e(route_url('patient-photo', ['id' => (int) $patient['id'], 'v' => strtotime((string) ($patient['updated_at'] ?? 'now'))])) ?>" alt="รูปผู้รับบริการ">
+                    <?php else: ?>
+                        <div class="patient-profile-photo-placeholder">
+                            <i class="bi bi-person-badge"></i>
+                            <span>ยังไม่มีรูปจากบัตร</span>
+                        </div>
+                    <?php endif; ?>
+                </div>
                 <div class="patient-result-title mb-2"><?= e($fullName) ?></div>
                 <div class="patient-meta-row mb-3">
                     <div><span>HN</span><strong><?= e($patient['hn']) ?></strong></div>

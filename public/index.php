@@ -7,6 +7,7 @@ use App\Controllers\AppointmentController;
 use App\Controllers\BackupController;
 use App\Controllers\DashboardController;
 use App\Controllers\InventoryController;
+use App\Controllers\ImportController;
 use App\Controllers\PatientController;
 use App\Controllers\PaymentController;
 use App\Controllers\QueueController;
@@ -30,6 +31,8 @@ $routes = [
 
     'GET:patients' => [PatientController::class, 'index'],
     'GET:patient-show' => [PatientController::class, 'show'],
+    'GET:patient-photo' => [PatientController::class, 'photo'],
+    'GET:smart-card-read' => [PatientController::class, 'smartCardRead'],
     'POST:patients-store' => [PatientController::class, 'store'],
     'POST:patient-start-treatment' => [PatientController::class, 'startTreatment'],
 
@@ -64,6 +67,12 @@ $routes = [
     'POST:inventory-item-store' => [InventoryController::class, 'storeItem'],
     'POST:inventory-batch-store' => [InventoryController::class, 'storeBatch'],
     'POST:inventory-adjust' => [InventoryController::class, 'adjustStock'],
+
+    'GET:import' => [ImportController::class, 'index'],
+    'GET:import-template' => [ImportController::class, 'template'],
+    'POST:import-upload' => [ImportController::class, 'upload'],
+    'POST:import-validate' => [ImportController::class, 'validate'],
+    'POST:import-confirm' => [ImportController::class, 'confirm'],
 
     'GET:payments' => [PaymentController::class, 'index'],
     'POST:payments-store' => [PaymentController::class, 'store'],

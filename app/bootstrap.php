@@ -16,6 +16,11 @@ date_default_timezone_set('Asia/Bangkok');
 
 require_once BASE_PATH . '/app/helpers.php';
 
+$composerAutoload = BASE_PATH . '/vendor/autoload.php';
+if (is_file($composerAutoload)) {
+    require_once $composerAutoload;
+}
+
 spl_autoload_register(static function (string $class): void {
     $prefix = 'App\\';
     $baseDir = BASE_PATH . '/app/';

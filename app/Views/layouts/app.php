@@ -3,7 +3,7 @@ $user = current_user();
 $clinicName = (string) system_setting('clinic_name', config('app.name'));
 $currentPage = current_page();
 $pageTitleText = (string) ($pageTitle ?? $clinicName);
-$workflowCompactPages = ['appointments', 'queue', 'queue-exam', 'payments'];
+$workflowCompactPages = ['appointments', 'queue', 'queue-exam', 'payments', 'import'];
 $defaultTopbarMode = in_array($currentPage, $workflowCompactPages, true) ? 'compact' : 'default';
 $pageTopbarMode = (string) ($pageTopbarMode ?? $defaultTopbarMode);
 $pageDescriptions = [
@@ -16,6 +16,7 @@ $pageDescriptions = [
     'payments' => 'ตรวจยอด รับชำระ และออกใบเสร็จอย่างชัดเจน',
     'inventory' => 'ติดตามสต๊อก เวชภัณฑ์ และวันหมดอายุในมุมมองเดียว',
     'services' => 'ดูแลรายการบริการและราคาให้เป็นมาตรฐานเดียวกัน',
+    'import' => 'นำเข้าข้อมูลตั้งต้นแบบมี preview, mapping, validate และ confirm ก่อนบันทึกเข้าระบบ',
     'users' => 'กำหนดผู้ใช้งาน สิทธิ์ และความพร้อมของทีมงาน',
     'reports' => 'สรุปรายงานประจำวัน ประจำเดือน และไฟล์สำรองข้อมูล',
     'settings' => 'กำหนดข้อมูลคลินิก รูปแบบเอกสาร และการแจ้งเตือน',
@@ -30,6 +31,7 @@ $navItems = [
     ['page' => 'payments', 'label' => 'การเงิน', 'icon' => 'bi-cash-stack', 'url' => route_url('payments'), 'visible' => has_role(['ADMIN', 'CASHIER']), 'active' => $currentPage === 'payments'],
     ['page' => 'inventory', 'label' => 'คลังยา/เวชภัณฑ์', 'icon' => 'bi-capsule-pill', 'url' => route_url('inventory'), 'visible' => has_role(['ADMIN', 'NURSE']), 'active' => $currentPage === 'inventory'],
     ['page' => 'services', 'label' => 'บริการและราคา', 'icon' => 'bi-clipboard2-pulse-fill', 'url' => route_url('services'), 'visible' => has_role(['ADMIN', 'NURSE']), 'active' => $currentPage === 'services'],
+    ['page' => 'import', 'label' => 'นำเข้าข้อมูล Excel', 'icon' => 'bi-file-earmark-spreadsheet-fill', 'url' => route_url('import'), 'visible' => has_role(['ADMIN', 'NURSE']), 'active' => $currentPage === 'import'],
     ['page' => 'users', 'label' => 'จัดการผู้ใช้', 'icon' => 'bi-people-fill', 'url' => route_url('users'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'users'],
     ['page' => 'reports', 'label' => 'รายงานและ Backup', 'icon' => 'bi-bar-chart-fill', 'url' => route_url('reports'), 'visible' => has_role('ADMIN'), 'active' => in_array($currentPage, ['reports', 'report-print'], true)],
     ['page' => 'settings', 'label' => 'ตั้งค่าคลินิก', 'icon' => 'bi-sliders2', 'url' => route_url('settings'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'settings'],

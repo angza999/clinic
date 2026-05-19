@@ -496,3 +496,17 @@ Smart Exam should complete a common case without leaving the page:
 - With JavaScript available, preset buttons send JSON requests to `queue-apply-preset`.
 - The server merges clinical fields, applies preset service/item lines if not already applied, and returns clinical + order summary payloads.
 - The page updates clinical fields and the summary rail without leaving the workstation.
+## Import Excel Flow
+
+Import Excel เป็น workflow แบบปลอดภัย:
+
+1. เลือกประเภทข้อมูล
+2. Upload ไฟล์ Excel
+3. Preview 10-20 แถวแรก
+4. Mapping column จาก Excel เข้ากับ field ระบบ
+5. Validate ทุกแถว
+6. แสดงจำนวนผ่าน, ผิด, ซ้ำ
+7. Confirm import
+8. เขียนฐานข้อมูลด้วย transaction และบันทึก import log
+
+ระบบไม่อนุญาตให้บันทึกทันทีหลัง upload เพื่อป้องกันข้อมูลผิดเข้าฐานข้อมูลจริง

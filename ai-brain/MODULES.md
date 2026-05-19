@@ -376,3 +376,23 @@ Notes:
 - ถ้าแก้ workflow หลัก ให้เริ่มจาก Queue/Smart Exam/Payments ก่อน
 - ถ้าแก้ master data ให้ดูผลกระทบต่อ Visit และ Reports
 - ถ้าเพิ่ม module ใหม่ ต้องอัปเดตไฟล์นี้เสมอ
+## Smart Card Patient Photo
+
+- Smart-card photo payloads are decoded and saved under `storage/patient-photos/`.
+- `patients.photo_path` stores the relative file path.
+- `PatientController::photo()` serves photos through the protected `patient-photo` route.
+- Registration stores photos for new patients; smart-card read updates existing patient photos when a fresh image is available.
+- Patient profile and Smart Exam show the stored photo with a placeholder fallback.
+
+## Import Excel
+
+- Controller: `app/Controllers/ImportController.php`
+- View: `app/Views/import/index.php`
+- Assets: `public/assets/css/import.css`, `public/assets/js/import.js`
+- Routes: `import`, `import-template`, `import-upload`, `import-validate`, `import-confirm`
+- Flow: เลือกประเภท -> upload -> preview -> mapping -> validate -> confirm import -> result summary
+- Phase 1 types:
+  - `patients`
+  - `inventory_items`
+  - `inventory_batches`
+- Services import ถูกเก็บเป็น Phase 2 เพื่อลด risk ต่อ workflow หลัก

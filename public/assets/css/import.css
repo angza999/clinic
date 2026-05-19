@@ -1,0 +1,367 @@
+.import-workstation {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 16px;
+    align-items: start;
+}
+
+.import-main {
+    display: grid;
+    gap: 16px;
+}
+
+.import-panel,
+.summary-card {
+    background: #fff;
+    border: 1px solid #d8e3ef;
+    border-radius: 14px;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+    padding: 16px;
+}
+
+.import-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+}
+
+.import-kicker,
+.section-kicker {
+    color: #00796b;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.import-hero h2,
+.panel-header h3,
+.summary-card h3 {
+    color: #172033;
+    font-weight: 800;
+    margin: 2px 0 0;
+}
+
+.import-hero h2 {
+    font-size: 28px;
+}
+
+.panel-header h3,
+.summary-card h3 {
+    font-size: 19px;
+}
+
+.import-hero p,
+.form-hint {
+    color: #66758a;
+    margin: 4px 0 0;
+    font-size: 14px;
+}
+
+.import-template-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.import-alert {
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: grid;
+    gap: 4px;
+    border: 1px solid;
+    font-size: 14px;
+}
+
+.import-alert.is-warning {
+    background: #fff7e6;
+    border-color: #ffd58a;
+    color: #824b00;
+}
+
+.import-alert.is-success {
+    background: #e9fbe9;
+    border-color: #bde7bd;
+    color: #116b30;
+}
+
+.import-steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.import-step {
+    min-height: 48px;
+    border: 1px solid #dce6f2;
+    border-radius: 12px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6b7b90;
+    background: #f8fbff;
+}
+
+.import-step span {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e7eef8;
+    color: #35516f;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.import-step.active {
+    background: #eafaf7;
+    border-color: #56d1c2;
+    color: #00796b;
+}
+
+.import-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    gap: 16px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.type-selector {
+    display: grid;
+    gap: 8px;
+}
+
+.type-tile {
+    border: 1px solid #d8e3ef;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    color: #26364d;
+    background: #fbfdff;
+}
+
+.type-tile.active {
+    border-color: #0f8d82;
+    background: #eafaf7;
+    color: #00796b;
+}
+
+.mapping-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.mapping-grid label span {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    color: #334155;
+    margin-bottom: 4px;
+}
+
+.log-chip,
+.summary-pills span,
+.row-status {
+    border-radius: 999px;
+    background: #edf4fb;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 5px 9px;
+}
+
+.summary-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.summary-pills .ok {
+    background: #e6f8ef;
+    color: #087443;
+}
+
+.summary-pills .warn {
+    background: #fff5df;
+    color: #9a5b00;
+}
+
+.summary-pills .bad {
+    background: #ffecec;
+    color: #a42323;
+}
+
+.preview-table-wrap {
+    overflow: auto;
+    max-height: 460px;
+    border: 1px solid #e1e8f2;
+    border-radius: 12px;
+}
+
+.import-table {
+    min-width: 900px;
+    margin: 0;
+    font-size: 13px;
+}
+
+.import-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f5f8fc;
+    z-index: 1;
+    color: #334155;
+    font-size: 12px;
+}
+
+.import-table tr.is-valid td {
+    background: #f3fff7;
+}
+
+.import-table tr.is-error td {
+    background: #fff3f3;
+}
+
+.import-table tr.is-warning td {
+    background: #fff9eb;
+}
+
+.import-summary {
+    position: sticky;
+    top: 16px;
+    display: grid;
+    gap: 16px;
+}
+
+.result-stack {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0;
+}
+
+.result-stack div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid #edf2f7;
+    padding-bottom: 8px;
+}
+
+.result-stack span {
+    color: #66758a;
+    font-size: 13px;
+}
+
+.result-stack strong {
+    text-align: right;
+    color: #172033;
+}
+
+.readiness-list {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0;
+}
+
+.readiness-list div {
+    border: 1px solid #e1e8f2;
+    background: #f8fbff;
+    border-radius: 10px;
+    padding: 9px 10px;
+    color: #66758a;
+    font-size: 13px;
+}
+
+.readiness-list .ready {
+    border-color: #a7e4c7;
+    background: #effcf5;
+    color: #087443;
+}
+
+.readiness-list .blocked {
+    border-color: #ffd2a8;
+    background: #fff7eb;
+    color: #9a5b00;
+}
+
+.skip-toggle {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 13px;
+    color: #334155;
+    margin-bottom: 10px;
+}
+
+.recent-log-list {
+    display: grid;
+    gap: 8px;
+}
+
+.recent-log-list a {
+    border: 1px solid #e1e8f2;
+    border-radius: 10px;
+    padding: 10px;
+    text-decoration: none;
+    display: grid;
+    color: #172033;
+}
+
+.recent-log-list span {
+    color: #66758a;
+    font-size: 12px;
+}
+
+.empty-state {
+    border: 1px dashed #c9d7e8;
+    border-radius: 12px;
+    padding: 24px;
+    color: #66758a;
+    text-align: center;
+    background: #f8fbff;
+}
+
+.empty-state.compact {
+    padding: 14px;
+}
+
+@media (max-width: 1200px) {
+    .import-workstation {
+        grid-template-columns: 1fr;
+    }
+
+    .import-summary {
+        position: static;
+    }
+}
+
+@media (max-width: 860px) {
+    .import-hero,
+    .panel-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .import-grid,
+    .import-steps,
+    .mapping-grid {
+        grid-template-columns: 1fr;
+    }
+}
