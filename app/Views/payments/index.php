@@ -1,257 +1,362 @@
 <?php
-$waitingRows = array_values(array_filter($rows, static fn(array $row): bool => $row['status'] === 'WAITING_PAYMENT'));
-$completedRows = array_values(array_filter($rows, static fn(array $row): bool => $row['status'] === 'COMPLETED'));
-$waitingTotal = array_sum(array_map(static fn(array $row): float => (float) $row['grand_total'], $waitingRows));
-$completedTotal = array_sum(array_map(static fn(array $row): float => (float) ($row['payment_total'] ?? $row['grand_total']), $completedRows));
-$latestCompleted = $completedRows[0] ?? null;
+$waitingRows = $waitingRows ?? [];
+$receiptRows = $receiptRows ?? [];
+$todaySummary = $todaySummary ?? [];
+$methodSummary = $methodSummary ?? [];
+$latestReceipt = $latestReceipt ?? null;
+$waitingTotal = (float) ($waitingTotal ?? 0);
+$paidToday = (float) ($todaySummary['paid_total'] ?? 0);
+$paidCount = (int) ($todaySummary['paid_count'] ?? 0);
+$voidCount = (int) ($todaySummary['void_count'] ?? 0);
+$discountToday = (float) ($todaySummary['discount_total'] ?? 0);
+$methodLabels = [
+    'CASH' => 'เงินสด',
+    'TRANSFER' => 'โอน',
+    'QR' => 'QR',
+];
+$methodIcon = [
+    'CASH' => 'bi-cash-stack',
+    'TRANSFER' => 'bi-bank',
+    'QR' => 'bi-qr-code',
+];
+$receiptUrl = static fn(?array $row): string => $row && !empty($row['payment_id'])
+    ? route_url('receipt', ['id' => $row['payment_id'], 'source' => 'payments'])
+    : '#';
 ?>
 
-<div class="workspace-stack payment-workspace">
-    <section class="section-card formal-hero-card workspace-intro-card payment-hero-card">
-        <div class="payment-hero-layout">
-            <div class="payment-hero-copy">
-                <span class="eyebrow">การเงินและรับชำระ</span>
-                <h2>รับชำระให้ชัด เห็นยอดทันที และปิดเคสได้ในจุดเดียว</h2>
-                <p>ด้านซ้ายคือเคสที่พร้อมชำระเงิน ด้านขวาเป็นภาพรวมการเงินวันนี้และแนวทางทำงานสั้น ๆ สำหรับเจ้าหน้าที่การเงินหรือพยาบาลที่รับเงินหน้าเคาน์เตอร์</p>
-            </div>
-            <div class="payment-status-strip">
-                <div class="queue-stat queue-stat-payment payment-stat-card">
-                    <div class="queue-stat-label">รอชำระเงิน</div>
-                    <div class="queue-stat-value"><?= count($waitingRows) ?></div>
-                </div>
-                <div class="queue-stat queue-stat-complete payment-stat-card">
-                    <div class="queue-stat-label">ชำระเสร็จแล้ว</div>
-                    <div class="queue-stat-value"><?= count($completedRows) ?></div>
-                </div>
-                <div class="queue-stat queue-stat-service payment-stat-card">
-                    <div class="queue-stat-label">ยอดรอรับชำระ</div>
-                    <div class="queue-stat-value"><?= format_money($waitingTotal) ?></div>
-                </div>
-                <div class="queue-stat queue-stat-waiting payment-stat-card">
-                    <div class="queue-stat-label">ยอดรับชำระวันนี้</div>
-                    <div class="queue-stat-value"><?= format_money($completedTotal) ?></div>
-                </div>
+<div class="cashier-workstation">
+    <section class="cashier-command-surface">
+        <div class="cashier-title-block">
+            <span class="eyebrow">Cashier Workstation</span>
+            <h2>รับชำระ ปิดเคส และเปิดใบเสร็จ</h2>
+            <p>โฟกัสคิวรอชำระก่อน ตรวจยอดให้ชัด แล้วออกใบเสร็จได้ทันที</p>
+        </div>
+
+        <div class="cashier-kpi-grid">
+            <button type="button" class="cashier-kpi-card is-payment" data-payment-focus="#paymentQueue">
+                <span>รอชำระ</span>
+                <strong><?= count($waitingRows) ?></strong>
+                <small><?= format_money($waitingTotal) ?> บาท</small>
+            </button>
+            <button type="button" class="cashier-kpi-card is-paid" data-payment-focus="#receiptHistory">
+                <span>ชำระแล้ววันนี้</span>
+                <strong><?= $paidCount ?></strong>
+                <small><?= format_money($paidToday) ?> บาท</small>
+            </button>
+            <button type="button" class="cashier-kpi-card is-cash" data-payment-method-shortcut="CASH">
+                <span>เงินสดวันนี้</span>
+                <strong><?= (int) ($methodSummary['CASH']['method_count'] ?? 0) ?></strong>
+                <small><?= format_money((float) ($methodSummary['CASH']['method_total'] ?? 0)) ?> บาท</small>
+            </button>
+            <button type="button" class="cashier-kpi-card is-transfer" data-payment-method-shortcut="TRANSFER">
+                <span>โอน/QR วันนี้</span>
+                <strong><?= (int) ($methodSummary['TRANSFER']['method_count'] ?? 0) + (int) ($methodSummary['QR']['method_count'] ?? 0) ?></strong>
+                <small><?= format_money((float) ($methodSummary['TRANSFER']['method_total'] ?? 0) + (float) ($methodSummary['QR']['method_total'] ?? 0)) ?> บาท</small>
+            </button>
+            <div class="cashier-kpi-card is-muted">
+                <span>ยกเลิก</span>
+                <strong><?= $voidCount ?></strong>
+                <small>ต้องใช้สิทธิ์ Admin</small>
             </div>
         </div>
     </section>
 
-    <div class="payment-shell-grid">
-        <section class="section-card payment-panel-card">
-            <div class="panel-heading mb-4">
-                <div>
-                    <h2 class="h4 mb-1">คิวที่ต้องรับชำระตอนนี้</h2>
-                    <p class="text-muted mb-0">แสดงเฉพาะเคสที่ห้องตรวจส่งมาครบแล้ว ตรวจยอด รับชำระ และส่งกลับห้องตรวจได้จากรายการนี้โดยตรง</p>
-                </div>
-                <span class="soft-badge"><?= count($waitingRows) ?> รายการ</span>
-            </div>
+    <section class="cashier-control-bar">
+        <div class="cashier-search">
+            <i class="bi bi-search"></i>
+            <input type="search" id="paymentSearch" placeholder="ค้นหา VN / HN / ชื่อ / เลขใบเสร็จ">
+        </div>
+        <input type="date" id="paymentDateFilter" class="cashier-control-input" value="<?= e(date('Y-m-d')) ?>" aria-label="กรองวันที่">
+        <select id="paymentMethodFilter" class="cashier-control-input" aria-label="กรองวิธีชำระ">
+            <option value="">ทุกวิธีชำระ</option>
+            <option value="CASH">เงินสด</option>
+            <option value="TRANSFER">โอน</option>
+            <option value="QR">QR</option>
+        </select>
+        <a class="btn btn-outline-secondary cashier-control-btn" href="<?= e($receiptUrl($latestReceipt)) ?>" <?= $latestReceipt ? 'target="_blank"' : 'aria-disabled="true"' ?>>
+            <i class="bi bi-printer"></i> พิมพ์ล่าสุด
+        </a>
+        <a class="btn btn-outline-secondary cashier-control-btn" href="<?= e(route_url('reports')) ?>">
+            <i class="bi bi-file-earmark-bar-graph"></i> รายงาน
+        </a>
+    </section>
 
-            <?php if ($waitingRows): ?>
-                <div class="payment-case-list">
-                    <?php foreach ($waitingRows as $row): ?>
-                        <article class="payment-case-card payment-case-card-pro">
-                            <div class="payment-case-head">
-                                <div>
-                                    <div class="patient-result-title">คิว <?= e((string) $row['queue_no']) ?> - <?= e($row['first_name'] . ' ' . $row['last_name']) ?></div>
-                                    <div class="payment-case-meta"><?= e($row['hn']) ?> / <?= e($row['visit_no']) ?> - มารับบริการ <?= e(thai_date($row['visit_datetime'])) ?></div>
-                                </div>
-                                <span class="queue-inline-chip waiting">รอชำระเงิน</span>
-                            </div>
-
-                            <div class="payment-case-metrics">
-                                <div>
-                                    <span>ค่าบริการ</span>
-                                    <strong><?= format_money($row['total_service']) ?></strong>
-                                </div>
-                                <div>
-                                    <span>ค่าเวชภัณฑ์/อุปกรณ์</span>
-                                    <strong><?= format_money($row['total_item']) ?></strong>
-                                </div>
-                                <div>
-                                    <span>ยอดก่อนส่วนลด</span>
-                                    <strong><?= format_money($row['grand_total']) ?></strong>
-                                </div>
-                            </div>
-
-                            <form method="post" action="<?= e(route_url('payments-store')) ?>" class="payment-form" data-base-total="<?= e((string) $row['grand_total']) ?>">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="visit_id" value="<?= e((string) $row['visit_id']) ?>">
-
-                                <div class="payment-field-grid">
-                                    <div>
-                                        <label class="form-label">ส่วนลด</label>
-                                        <input type="number" step="0.01" min="0" name="discount_amount" class="form-control payment-discount" value="0">
-                                    </div>
-                                    <div>
-                                        <label class="form-label">ยอดรับชำระ</label>
-                                        <input type="number" step="0.01" min="0" name="paid_amount" class="form-control payment-paid" value="<?= e((string) $row['grand_total']) ?>" required>
-                                    </div>
-                                    <div>
-                                        <label class="form-label">วิธีชำระ</label>
-                                        <select name="payment_method" class="form-select">
-                                            <option value="CASH">เงินสด</option>
-                                            <option value="TRANSFER">โอนเงิน</option>
-                                            <option value="QR">QR Code</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="payment-preview payment-preview-pro mt-3">
-                                    <div>
-                                        <span>ยอดสุทธิ</span>
-                                        <strong class="payment-net-total"><?= format_money($row['grand_total']) ?></strong>
-                                    </div>
-                                    <div>
-                                        <span>เงินทอน</span>
-                                        <strong class="payment-change-total">0.00</strong>
-                                    </div>
-                                </div>
-
-                                <div class="alert alert-warning d-none payment-warning mt-3 mb-0">ยอดรับชำระน้อยกว่ายอดสุทธิ กรุณาตรวจสอบอีกครั้ง</div>
-
-                                <div class="payment-action-row mt-3">
-                                    <button type="submit" class="btn btn-primary payment-submit"><i class="bi bi-check-circle-fill me-1"></i>ยืนยันรับชำระเงิน</button>
-                                    <button type="submit" class="btn btn-outline-secondary" formaction="<?= e(route_url('payments-send-back')) ?>" formnovalidate>ส่งกลับห้องตรวจ</button>
-                                </div>
-                            </form>
-                        </article>
-                    <?php endforeach; ?>
-                </div>
-            <?php else: ?>
-                <div class="queue-empty-state payment-empty-state">
-                    <h3 class="h5 mb-2">ไม่มีคิวรอรับชำระในขณะนี้</h3>
-                    <p class="mb-0">เมื่อห้องตรวจสรุปรายการและส่งการเงิน เคสจะปรากฏในส่วนนี้ทันที</p>
-                </div>
-            <?php endif; ?>
-        </section>
-
-        <aside class="payment-sticky-panel">
-            <section class="section-card payment-side-card">
-                <div class="section-header compact align-start mb-3">
+    <div class="cashier-layout">
+        <main class="cashier-main">
+            <section class="cashier-panel" id="paymentQueue">
+                <div class="cashier-panel-header">
                     <div>
-                        <h2 class="h5 mb-1">ภาพรวมการเงินวันนี้</h2>
-                        <p class="mb-0">สรุปยอดและแนวทางทำงานสั้น ๆ สำหรับใช้หน้าเคาน์เตอร์</p>
+                        <span class="panel-kicker">Payment Queue</span>
+                        <h3>คิวรอรับชำระ</h3>
+                    </div>
+                    <span class="cashier-count-badge"><?= count($waitingRows) ?> คิว</span>
+                </div>
+
+                <?php if ($waitingRows): ?>
+                    <div class="payment-queue-list">
+                        <?php foreach ($waitingRows as $row): ?>
+                            <?php
+                            $patientName = trim((string) $row['first_name'] . ' ' . (string) $row['last_name']);
+                            $grandTotal = (float) $row['grand_total'];
+                            $lineCount = (int) $row['service_count'] + (int) $row['item_count'];
+                            $searchText = strtolower($patientName . ' ' . $row['hn'] . ' ' . $row['visit_no'] . ' Q' . $row['queue_no']);
+                            ?>
+                            <article
+                                class="payment-queue-card"
+                                data-payment-card
+                                data-search="<?= e($searchText) ?>"
+                                data-method=""
+                                data-date="<?= e(substr((string) $row['visit_datetime'], 0, 10)) ?>"
+                            >
+                                <div class="queue-card-summary">
+                                    <div class="queue-token">Q<?= e((string) $row['queue_no']) ?></div>
+                                    <div class="queue-patient">
+                                        <div class="queue-patient-line">
+                                            <strong><?= e($patientName) ?></strong>
+                                            <span class="status-badge status-payment">รอชำระ</span>
+                                        </div>
+                                        <div class="queue-meta">
+                                            HN <?= e($row['hn']) ?> · VN <?= e($row['visit_no']) ?> · ส่งมา <?= e(thai_date($row['sent_to_payment_at'] ?? $row['visit_datetime'])) ?>
+                                        </div>
+                                    </div>
+                                    <div class="queue-total">
+                                        <span>ยอดรวม</span>
+                                        <strong><?= format_money($grandTotal) ?></strong>
+                                    </div>
+                                    <div class="queue-total is-subtle">
+                                        <span>รายการ</span>
+                                        <strong><?= $lineCount ?></strong>
+                                    </div>
+                                </div>
+
+                                <form method="post" action="<?= e(route_url('payments-store')) ?>" class="cashier-payment-form" data-base-total="<?= e((string) $grandTotal) ?>">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="visit_id" value="<?= e((string) $row['visit_id']) ?>">
+
+                                    <div class="cashier-payment-grid">
+                                        <label>
+                                            <span>วิธีชำระ</span>
+                                            <select name="payment_method" class="form-select payment-method">
+                                                <option value="CASH">เงินสด</option>
+                                                <option value="TRANSFER">โอน</option>
+                                                <option value="QR">QR</option>
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>ส่วนลด</span>
+                                            <input type="number" step="0.01" min="0" name="discount_amount" class="form-control payment-discount" value="0">
+                                        </label>
+                                        <label>
+                                            <span>รับเงิน</span>
+                                            <input type="number" step="0.01" min="0" name="paid_amount" class="form-control payment-paid" value="<?= e((string) $grandTotal) ?>" required>
+                                        </label>
+                                        <div class="payment-live-total">
+                                            <span>ยอดสุทธิ</span>
+                                            <strong class="payment-net-total"><?= format_money($grandTotal) ?></strong>
+                                        </div>
+                                        <div class="payment-live-total">
+                                            <span>เงินทอน</span>
+                                            <strong class="payment-change-total">0.00</strong>
+                                        </div>
+                                    </div>
+
+                                    <div class="payment-warning d-none">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        <span>ตรวจยอดอีกครั้ง: เงินสดต้องรับเงินไม่น้อยกว่ายอดสุทธิ และส่วนลดต้องไม่เกินยอดรวม</span>
+                                    </div>
+
+                                    <div class="cashier-payment-actions">
+                                        <button type="submit" class="btn btn-primary payment-submit">
+                                            <i class="bi bi-check-circle-fill"></i> ยืนยันรับชำระ
+                                        </button>
+                                        <button type="submit" class="btn btn-outline-secondary" formaction="<?= e(route_url('payments-send-back')) ?>" formnovalidate data-skip-payment-confirm>
+                                            ส่งกลับห้องตรวจ
+                                        </button>
+                                        <a class="btn btn-link" href="<?= e(route_url('visit-edit', ['id' => $row['visit_id']])) ?>">
+                                            ตรวจรายละเอียด
+                                        </a>
+                                    </div>
+                                </form>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="cashier-empty-state">
+                        <div class="empty-icon"><i class="bi bi-check2-circle"></i></div>
+                        <h3>ไม่มีคิวรอชำระตอนนี้</h3>
+                        <p>ใช้ช่องค้นหาเพื่อเปิดใบเสร็จย้อนหลัง หรือกลับไปหน้าคิวเพื่อตรวจสถานะเคส</p>
+                        <div class="empty-actions">
+                            <button type="button" class="btn btn-outline-secondary" data-payment-focus="#receiptHistory">
+                                <i class="bi bi-receipt"></i> ดูประวัติล่าสุด
+                            </button>
+                            <a class="btn btn-primary" href="<?= e(route_url('queue')) ?>">
+                                <i class="bi bi-grid-1x2-fill"></i> ไปหน้าคิววันนี้
+                            </a>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <section class="cashier-panel" id="receiptHistory">
+                <div class="cashier-panel-header">
+                    <div>
+                        <span class="panel-kicker">Receipt History</span>
+                        <h3>ประวัติรับชำระล่าสุด</h3>
+                    </div>
+                    <span class="cashier-count-badge"><?= count($receiptRows) ?> รายการ</span>
+                </div>
+
+                <div class="cashier-table-wrap">
+                    <table class="cashier-table">
+                        <thead>
+                        <tr>
+                            <th>VN / คิว</th>
+                            <th>ผู้รับบริการ</th>
+                            <th>วิธีชำระ</th>
+                            <th class="text-end">ยอดสุทธิ</th>
+                            <th>ใบเสร็จ</th>
+                            <th>เวลา</th>
+                            <th class="text-end">ดำเนินการ</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($receiptRows as $row): ?>
+                            <?php
+                            $patientName = trim((string) $row['first_name'] . ' ' . (string) $row['last_name']);
+                            $method = (string) ($row['payment_method'] ?? 'CASH');
+                            $status = (string) ($row['payment_status'] ?? 'PAID');
+                            $searchText = strtolower($patientName . ' ' . $row['hn'] . ' ' . $row['visit_no'] . ' ' . $row['receipt_no'] . ' Q' . $row['queue_no']);
+                            ?>
+                            <tr
+                                data-payment-row
+                                data-search="<?= e($searchText) ?>"
+                                data-method="<?= e($method) ?>"
+                                data-date="<?= e(substr((string) $row['paid_at'], 0, 10)) ?>"
+                            >
+                                <td>
+                                    <strong><?= e($row['visit_no']) ?></strong>
+                                    <small>Q<?= e((string) ($row['queue_no'] ?? '-')) ?></small>
+                                </td>
+                                <td>
+                                    <strong><?= e($patientName) ?></strong>
+                                    <small>HN <?= e($row['hn']) ?></small>
+                                </td>
+                                <td>
+                                    <span class="method-badge">
+                                        <i class="bi <?= e($methodIcon[$method] ?? 'bi-credit-card') ?>"></i>
+                                        <?= e($methodLabels[$method] ?? $method) ?>
+                                    </span>
+                                </td>
+                                <td class="text-end fw-semibold"><?= format_money($row['total_amount']) ?></td>
+                                <td>
+                                    <strong><?= e($row['receipt_no']) ?></strong>
+                                    <?php if ($status === 'VOID'): ?>
+                                        <span class="status-badge status-void">ยกเลิก</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?= e(thai_date($row['paid_at'])) ?>
+                                    <small><?= e($row['cashier_name'] ?: '-') ?></small>
+                                </td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-secondary" href="<?= e($receiptUrl($row)) ?>" target="_blank">
+                                        เปิดใบเสร็จ
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if (!$receiptRows): ?>
+                            <tr>
+                                <td colspan="7" class="table-empty">ยังไม่มีประวัติรับชำระ</td>
+                            </tr>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <aside class="cashier-rail">
+            <section class="cashier-rail-card">
+                <div class="rail-header">
+                    <span>Financial Action Rail</span>
+                    <strong>วันนี้</strong>
+                </div>
+
+                <div class="rail-total">
+                    <span>ยอดรับชำระวันนี้</span>
+                    <strong><?= format_money($paidToday) ?></strong>
+                </div>
+
+                <div class="rail-metrics">
+                    <div>
+                        <span>ใบเสร็จ</span>
+                        <strong><?= $paidCount ?></strong>
+                    </div>
+                    <div>
+                        <span>ส่วนลด</span>
+                        <strong><?= format_money($discountToday) ?></strong>
                     </div>
                 </div>
 
-                <div class="summary-total-card payment-overview-card mb-3">
-                    <div class="summary-total-row">
-                        <span>รอรับชำระ</span>
-                        <strong><?= format_money($waitingTotal) ?></strong>
-                    </div>
-                    <div class="summary-total-row grand">
-                        <span>รับชำระแล้ววันนี้</span>
-                        <strong><?= format_money($completedTotal) ?></strong>
-                    </div>
-                </div>
+                <div class="rail-divider"></div>
 
-                <div class="template-panel mb-3">
-                    <div class="section-step-title mb-2">ขั้นตอนการทำงาน</div>
-                    <div class="workflow-list payment-workflow-list">
-                        <div class="workflow-list-item"><strong>1.</strong><span>เลือกเคสที่อยู่ในสถานะรอชำระเงิน</span></div>
-                        <div class="workflow-list-item"><strong>2.</strong><span>ตรวจยอด ส่วนลด และวิธีชำระให้ถูกต้อง</span></div>
-                        <div class="workflow-list-item"><strong>3.</strong><span>กดยืนยันรับชำระเงิน หรือส่งกลับห้องตรวจเมื่อข้อมูลยังไม่ครบ</span></div>
-                    </div>
-                </div>
-
-                <div class="payment-side-block mb-3">
-                    <div class="section-step-title mb-2">สถานะล่าสุด</div>
-                    <?php if ($latestCompleted): ?>
-                        <div class="payment-latest-card">
-                            <div class="patient-result-title mb-1"><?= e($latestCompleted['first_name'] . ' ' . $latestCompleted['last_name']) ?></div>
-                            <div class="payment-case-meta mb-2">ใบเสร็จ <?= e($latestCompleted['receipt_no'] ?: '-') ?></div>
-                            <div class="summary-total-row grand pt-0 mt-0 border-0">
-                                <span>ยอดรับชำระล่าสุด</span>
-                                <strong><?= format_money($latestCompleted['payment_total'] ?? $latestCompleted['grand_total']) ?></strong>
-                            </div>
-                            <?php if ($latestCompleted['payment_id']): ?>
-                                <a href="<?= e(route_url('receipt', ['id' => $latestCompleted['payment_id']])) ?>" target="_blank" class="btn btn-outline-secondary w-100 mt-2">เปิดใบเสร็จล่าสุด</a>
-                            <?php endif; ?>
+                <div class="rail-section">
+                    <h4>ใบเสร็จล่าสุด</h4>
+                    <?php if ($latestReceipt): ?>
+                        <div class="latest-receipt">
+                            <strong><?= e($latestReceipt['first_name'] . ' ' . $latestReceipt['last_name']) ?></strong>
+                            <span><?= e($latestReceipt['receipt_no']) ?> · <?= format_money($latestReceipt['total_amount']) ?></span>
+                            <a class="btn btn-outline-secondary w-100" href="<?= e($receiptUrl($latestReceipt)) ?>" target="_blank">
+                                <i class="bi bi-printer"></i> เปิด/พิมพ์ซ้ำ
+                            </a>
                         </div>
                     <?php else: ?>
-                        <div class="queue-empty-state queue-empty-state-compact">ยังไม่มีรายการชำระเงินในวันนี้</div>
+                        <div class="rail-empty">ยังไม่มีใบเสร็จวันนี้</div>
                     <?php endif; ?>
+                </div>
+
+                <div class="rail-section">
+                    <h4>Quick Actions</h4>
+                    <button type="button" class="rail-action" data-payment-focus="#paymentSearch">
+                        <i class="bi bi-search"></i> ค้นหาใบเสร็จ
+                    </button>
+                    <a class="rail-action" href="<?= e(route_url('reports')) ?>">
+                        <i class="bi bi-download"></i> Export/รายงาน
+                    </a>
+                    <?php if (has_role('ADMIN')): ?>
+                        <button type="button" class="rail-action is-disabled" disabled title="เตรียมสำหรับ Phase ถัดไป">
+                            <i class="bi bi-arrow-counterclockwise"></i> Refund / ยกเลิก
+                        </button>
+                    <?php endif; ?>
+                </div>
+
+                <div class="rail-section">
+                    <h4>Alerts</h4>
+                    <?php if ($waitingRows): ?>
+                        <div class="rail-alert is-warning">
+                            <i class="bi bi-clock-history"></i>
+                            มี <?= count($waitingRows) ?> คิวรอชำระ ยอดรวม <?= format_money($waitingTotal) ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="rail-alert is-ok">
+                            <i class="bi bi-check-circle"></i>
+                            ไม่มีคิวค้างชำระ
+                        </div>
+                    <?php endif; ?>
+                    <div class="rail-alert is-info">
+                        <i class="bi bi-info-circle"></i>
+                        วิธีชำระที่รองรับตอนนี้: เงินสด, โอน, QR
+                    </div>
                 </div>
             </section>
         </aside>
     </div>
 
-    <section class="section-card payment-history-card">
-        <div class="panel-heading mb-4">
-            <div>
-                <h2 class="h4 mb-1">ประวัติรับชำระล่าสุด</h2>
-                <p class="text-muted mb-0">ใช้ตรวจสอบยอดที่ชำระแล้วและเปิดใบเสร็จย้อนหลังได้ทันที</p>
-            </div>
-            <span class="soft-badge">ล่าสุด <?= count($completedRows) ?> รายการ</span>
-        </div>
-
-        <div class="table-responsive">
-            <table class="table align-middle payment-history-table mb-0">
-                <thead>
-                <tr>
-                    <th>คิว/VN</th>
-                    <th>ผู้รับบริการ</th>
-                    <th class="text-end">ยอดชำระ</th>
-                    <th>เลขที่ใบเสร็จ</th>
-                    <th class="text-end">ดำเนินการ</th>
-                </tr>
-                </thead>
-                <tbody>
-                <?php foreach ($completedRows as $row): ?>
-                    <tr>
-                        <td>
-                            <div class="fw-semibold">คิว <?= e((string) $row['queue_no']) ?></div>
-                            <div class="small text-muted"><?= e($row['visit_no']) ?></div>
-                        </td>
-                        <td><?= e($row['hn']) ?> - <?= e($row['first_name'] . ' ' . $row['last_name']) ?></td>
-                        <td class="text-end fw-semibold"><?= format_money($row['payment_total'] ?? $row['grand_total']) ?></td>
-                        <td><?= e($row['receipt_no'] ?: '-') ?></td>
-                        <td class="text-end">
-                            <?php if ($row['payment_id']): ?>
-                                <a href="<?= e(route_url('receipt', ['id' => $row['payment_id']])) ?>" target="_blank" class="btn btn-sm btn-outline-secondary">เปิดใบเสร็จ</a>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                <?php if (!$completedRows): ?>
-                    <tr><td colspan="5" class="text-center text-muted py-4">ยังไม่มีรายการที่ชำระเสร็จแล้ว</td></tr>
-                <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+    <section class="cashier-shortcut-bar">
+        <span><i class="bi bi-lightning-charge-fill"></i> Shortcut</span>
+        <kbd>F1</kbd> ค้นหา
+        <kbd>F9</kbd> ไปคิวรอชำระ
+        <kbd>Esc</kbd> ล้างตัวกรอง
     </section>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const forms = document.querySelectorAll('.payment-form');
-
-    forms.forEach((form) => {
-        const baseTotal = parseFloat(form.dataset.baseTotal || '0');
-        const discountInput = form.querySelector('.payment-discount');
-        const paidInput = form.querySelector('.payment-paid');
-        const netTotalEl = form.querySelector('.payment-net-total');
-        const changeTotalEl = form.querySelector('.payment-change-total');
-        const warningEl = form.querySelector('.payment-warning');
-        const submitBtn = form.querySelector('.payment-submit');
-
-        const formatMoney = (value) => Number(value).toFixed(2);
-
-        const updatePreview = () => {
-            const discount = Math.max(0, parseFloat(discountInput.value || '0'));
-            const paid = Math.max(0, parseFloat(paidInput.value || '0'));
-            const netTotal = Math.max(0, baseTotal - discount);
-            const change = Math.max(0, paid - netTotal);
-            const isInvalid = paid < netTotal;
-
-            netTotalEl.textContent = formatMoney(netTotal);
-            changeTotalEl.textContent = formatMoney(change);
-            warningEl.classList.toggle('d-none', !isInvalid);
-            submitBtn.disabled = isInvalid;
-        };
-
-        discountInput.addEventListener('input', updatePreview);
-        paidInput.addEventListener('input', updatePreview);
-        updatePreview();
-    });
-});
-</script>

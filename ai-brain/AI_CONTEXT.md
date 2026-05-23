@@ -368,6 +368,51 @@ To scale toward commercial clinic software, future work should standardize reusa
 - finish/action bar
 
 Any new module should reuse these patterns before inventing a new page style.
+
+## 2026-05-19 - Medical Supply Workstation
+
+- Inventory is now treated as a Medical Supply Workstation, not a form-based admin page.
+- The inventory screen should surface stock risk first: low stock, near-expiry lots, expired lots, received quantity today, and estimated stock value.
+- Add/receive/adjust workflows should be focused one action at a time through an action panel, not three forms visible at once.
+- Stock adjustment must require a reason and must never allow negative batch balance.
+- `stock_movements` remains the audit trail for receive, visit usage, import, and manual adjustment.
+- Movement history should be visible from the inventory workstation so stock changes are traceable without opening the database.
+
+## 2026-05-19 - Service Management Workstation
+
+- Services are now treated as clinic price-standard management, not a CRUD form.
+- The services page should prioritize searchable table management with a secondary detail/edit panel.
+- Admin can add, edit by service code, duplicate, and enable/disable services; delete remains avoided because historical `visit_services` must stay traceable.
+- Smart Exam and billing depend on active services only for new order entry, while old visit lines keep their captured `unit_price`.
+- Price changes must not mutate historical billing rows.
+
+## 2026-05-20 - Medical Cashier Workstation
+
+- Payments is now treated as a cashier workstation, not a payment dashboard.
+- The payments page separates active work into waiting payment queue, receipt history, and a sticky financial action rail.
+- Cashier workflow prioritizes: find pending case -> verify total/discount -> choose method -> confirm payment -> open receipt.
+- Supported payment methods remain the existing schema enum: `CASH`, `TRANSFER`, `QR`.
+- Transfer and QR payments auto-fill paid amount to net total; cash payments validate received amount and change.
+- No database schema change was made in this phase; refund/card/free payment methods require a future migration.
+
+## 2026-05-23 - Service Workstation Phase 1
+
+- Services are now managed as a Smart Service Builder workflow instead of a plain CRUD screen.
+- KPI cards are actionable: show all, filter active, filter inactive, group/sort category, and sort high price.
+- The service table is the primary surface with sticky headers, realtime search/filter, selected rows, sortable columns, usage count, revenue, and quick row actions.
+- The right panel provides add/edit/duplicate/detail states, live preview, category-prefix code generation, frontend duplicate-code hint, price validation, and smart category suggestions.
+- Service usage analytics are read from existing `visit_services`; historical bills keep captured `unit_price` and are not changed by service price edits.
+- Admin can export services through `GET:services-export`; no schema change was made.
+- Price history, audit log, category management, and bundle/package services remain future scope.
+
+## 2026-05-23 - Service Workstation Phase 2
+
+- Service price changes now write to `service_price_history`.
+- Service add/edit, enable/disable, and export actions write service audit rows to existing `audit_logs`.
+- Services page right rail shows selected service usage insight, price history, and recent service audit activity.
+- Historical visit billing remains protected: `visit_services.unit_price` is still the source for old receipts and old visit totals.
+- Runtime schema guard creates `service_price_history` on existing installs until a formal migration system exists.
+- Bundle/package services and managed category table remain future scope; they should not be faked without workflow and schema review.
 ## 2026-05-17 - Import Excel Phase 1
 
 - เพิ่มแนวคิด Data Onboarding สำหรับ Medical Workstation: ห้าม upload แล้วเขียนฐานข้อมูลทันที ต้องผ่าน preview, mapping, validate และ confirm ก่อนเสมอ

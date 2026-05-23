@@ -461,3 +461,51 @@ The next production tightening pass must keep these five rules:
 - Preset feedback belongs in the existing alert/summary flow, not in a new modal.
 - After preset apply, keep the nurse near the clinical fields and update the summary rail immediately.
 - Active preset state should be visible, but not dominate the workstation.
+
+### Medical Supply Workstation UX
+- Inventory pages should behave like supply operation surfaces, not long CRUD forms.
+- Keep KPI risk cards at the top: total items, low stock, near expiry, expired, stock value, and received today.
+- Use a command bar for search, barcode-ready lookup, filters, and primary stock actions.
+- Show only one inventory action form at a time: add item, receive stock, or adjust stock.
+- Put alerts in a right control rail so low-stock and expiring-lot risk is visible while the table is scanned.
+- Inventory table rows should include quick actions for receive, adjust, and history.
+- Receive and adjust forms should preview old stock, change quantity, and new stock before submit.
+- Adjustment warnings should be inline and operational; avoid popups for expected stock validation.
+
+### Service Management Workstation UX
+- Service management pages should make the table the primary surface and the form a secondary side panel.
+- Keep KPI cards compact: all services, active, inactive, categories, and average price.
+- Use realtime search and filters for category/status so nurses/admins can find services in 1-2 seconds.
+- Service rows should expose quick actions for detail, edit, duplicate, and enable/disable.
+- Use muted category/status badges; price 0 should show "ไม่มีค่าใช้จ่าย".
+- Editing price should communicate that historical visit bills keep their captured unit price.
+- Avoid hard delete in service management unless a dedicated audit/impact check exists.
+
+### Medical Cashier Workstation UX
+- Payments should behave like a cashier workbench, not a finance dashboard.
+- The top area should be compact KPI + search/filter controls, not a large hero.
+- The main surface must prioritize waiting payment queue and make "ยืนยันรับชำระ" the strongest action.
+- Receipt history should be searchable by VN, HN, patient name, or receipt number.
+- The right rail should show today's totals, last receipt, quick actions, and alerts.
+- Payment forms should preview net total and change immediately.
+- Expected validation belongs inline near the payment form; avoid modal-heavy cashier workflows.
+- Keep methods aligned with current schema until a migration adds card/free/refund workflows.
+
+### Service Workstation Phase 1 UX
+- Services should feel like clinic price-standard management, not a CRUD form.
+- The service table is the main working surface; builder/detail panel is secondary.
+- KPI cards must be clickable operational controls, not static metrics.
+- Search, category filter, and status filter should find a service within 1-2 seconds.
+- Service row actions should stay compact: detail, edit, duplicate, enable/disable, and future price history.
+- Builder panel should make state obvious: Add Service, Edit Service, Duplicate Service, or Readonly Detail.
+- Live preview should show code, name, category, active state, and price before save.
+- Smart suggestions are assistive only: category suggestion from service name and price warnings must not block unless price is invalid.
+- Use muted category/status badges; price 0 should show "ไม่มีค่าใช้จ่าย".
+- Do not add price history or bundle UI as fake controls until schema and audit behavior are designed.
+
+### Service Workstation Phase 2 UX
+- Price history is now a real detail surface and should stay in the right rail, not become a modal.
+- Audit activity should be compact and low-noise; it supports trust, not daily editing.
+- Keep row actions short even as governance features grow.
+- Category management and bundle/package workflows must be designed as focused workflows before adding full UI.
+- Historical billing safety should be visible in product behavior: editing current service price must never rewrite old visit service lines.

@@ -1,222 +1,667 @@
-.payment-workspace {
-  gap: 1.25rem;
-}
-
-.payment-case-card {
-  border-radius: 1rem;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-  padding: 1.5rem;
-}
-
-.payment-hero-card {
-  padding: 1.4rem 1.5rem;
-}
-
-.payment-hero-layout {
+.cashier-workstation {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
-  gap: 1.25rem;
-  align-items: end;
+  gap: 16px;
 }
 
-.payment-hero-copy h2 {
-  margin: 0.35rem 0 0.55rem;
-  font-size: clamp(1.7rem, 2.4vw, 2.2rem);
-  line-height: 1.12;
+.cashier-command-surface,
+.cashier-control-bar,
+.cashier-panel,
+.cashier-rail-card,
+.cashier-shortcut-bar {
+  border: 1px solid #dbe5ef;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.055);
 }
 
-.payment-hero-copy p {
+.cashier-command-surface {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.75fr) minmax(560px, 1.25fr);
+  gap: 20px;
+  align-items: stretch;
+  padding: 18px;
+}
+
+.cashier-title-block h2 {
+  margin: 4px 0 6px;
+  color: #0f172a;
+  font-size: clamp(1.45rem, 2vw, 1.9rem);
+  line-height: 1.15;
+}
+
+.cashier-title-block p {
   margin: 0;
-  color: #475569;
-  line-height: 1.6;
-  max-width: 780px;
+  color: #64748b;
   font-size: 0.92rem;
 }
 
-.payment-status-strip {
+.cashier-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.payment-stat-card {
-  height: 100%;
-  min-height: 104px;
+.cashier-kpi-card {
+  display: grid;
+  align-content: center;
+  min-height: 86px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  text-align: left;
 }
 
-.payment-shell-grid {
+button.cashier-kpi-card {
+  cursor: pointer;
+}
+
+.cashier-kpi-card span,
+.cashier-kpi-card small {
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.cashier-kpi-card strong {
+  margin-top: 3px;
+  font-size: 1.45rem;
+  line-height: 1.1;
+}
+
+.cashier-kpi-card.is-payment {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.cashier-kpi-card.is-paid {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.cashier-kpi-card.is-cash {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+}
+
+.cashier-kpi-card.is-transfer {
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+}
+
+.cashier-control-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(330px, 0.8fr);
-  gap: 1rem;
+  grid-template-columns: minmax(280px, 1fr) 180px 180px auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+}
+
+.cashier-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+  color: #64748b;
+}
+
+.cashier-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #0f172a;
+  font-weight: 700;
+  background: transparent;
+}
+
+.cashier-control-input,
+.cashier-control-btn {
+  min-height: 44px;
+  border-radius: 12px;
+}
+
+.cashier-control-input {
+  border: 1px solid #cbd5e1;
+  padding: 0 12px;
+  color: #0f172a;
+  font-weight: 700;
+  background: #fff;
+}
+
+.cashier-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 330px);
+  gap: 16px;
   align-items: start;
 }
 
-.payment-panel-card,
-.payment-side-card,
-.payment-history-card {
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.04);
-  padding: 1.1rem 1.15rem;
-}
-
-.payment-panel-card .panel-heading,
-.payment-history-card .panel-heading {
-  align-items: center;
-}
-
-.payment-case-list {
+.cashier-main {
   display: grid;
-  gap: 1rem;
+  gap: 16px;
+  min-width: 0;
 }
 
-.payment-case-card-pro {
-  border: 1px solid #dbeafe;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  padding: 1rem 1.05rem;
+.cashier-panel {
+  padding: 16px;
 }
 
-.payment-case-head {
+.cashier-panel-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 16px;
+  margin-bottom: 14px;
 }
 
-.payment-case-meta {
-  color: #475569;
-  line-height: 1.55;
-  font-size: 0.92rem;
-}
-
-.payment-case-metrics,
-.payment-field-grid,
-.payment-preview-pro {
-  display: grid;
-  gap: 0.7rem;
-}
-
-.payment-case-metrics,
-.payment-field-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.payment-preview-pro {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.payment-case-metrics div,
-.payment-preview-pro div {
-  border-radius: 0.85rem;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  padding: 0.75rem 0.85rem;
-}
-
-.payment-case-metrics span,
-.payment-preview-pro span {
-  display: block;
+.panel-kicker,
+.rail-header span {
   color: #64748b;
-  margin-bottom: 0.25rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.payment-case-metrics span {
-  font-size: 0.83rem;
-}
-
-.payment-case-metrics strong {
-  color: #0f172a;
-  font-size: 1.05rem;
-}
-
-.payment-preview-pro strong {
+.cashier-panel-header h3 {
+  margin: 3px 0 0;
   color: #0f172a;
   font-size: 1.15rem;
 }
 
-.payment-action-row {
+.cashier-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #2563eb;
+  font-weight: 800;
+  font-size: 0.84rem;
+}
+
+.payment-queue-list {
+  display: grid;
+  gap: 12px;
+}
+
+.payment-queue-card {
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 12px;
+}
+
+.queue-card-summary {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 110px 86px;
+  gap: 12px;
+  align-items: center;
+}
+
+.queue-token {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: #dbeafe;
+  color: #075985;
+  font-weight: 900;
+}
+
+.queue-patient {
+  min-width: 0;
+}
+
+.queue-patient-line {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 8px;
+  align-items: center;
 }
 
-.payment-action-row .btn {
-  min-width: 180px;
-  min-height: 44px;
+.queue-patient-line strong {
+  color: #0f172a;
+  font-size: 1rem;
 }
 
-.payment-sticky-panel {
-  position: sticky;
-  top: 1.5rem;
+.queue-meta,
+.queue-total span,
+.payment-live-total span,
+.cashier-payment-grid label span,
+.cashier-table small {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
-.payment-overview-card,
-.payment-side-block {
+.queue-total {
   display: grid;
+  gap: 3px;
+  text-align: right;
 }
 
-.payment-overview-card {
-  gap: 0.3rem;
+.queue-total strong {
+  color: #0f172a;
+  font-size: 1.05rem;
 }
 
-.payment-side-block {
-  gap: 0.85rem;
+.queue-total.is-subtle strong {
+  color: #475569;
 }
 
-.payment-workflow-list .workflow-list-item {
-  align-items: flex-start;
+.status-badge,
+.method-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
-.payment-workflow-list .workflow-list-item strong {
-  min-width: 1.2rem;
+.status-payment {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-void {
+  margin-left: 6px;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.method-badge {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.cashier-payment-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.cashier-payment-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(120px, 0.8fr) minmax(130px, 0.8fr) minmax(110px, 0.7fr) minmax(110px, 0.7fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.cashier-payment-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.cashier-payment-grid .form-control,
+.cashier-payment-grid .form-select {
+  min-height: 42px;
+  border-color: #cbd5e1;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.payment-live-total {
+  display: grid;
+  gap: 4px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.payment-live-total strong {
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.payment-warning {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.cashier-payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.cashier-payment-actions .btn {
+  min-height: 42px;
+  border-radius: 10px;
+  font-weight: 800;
+}
+
+.cashier-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 1.6rem;
+}
+
+.cashier-empty-state h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.15rem;
+}
+
+.cashier-empty-state p {
+  max-width: 520px;
+  margin: 0;
+  color: #64748b;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.cashier-table-wrap {
+  overflow-x: auto;
+}
+
+.cashier-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.cashier-table th {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cashier-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #edf2f7;
+  color: #0f172a;
+  vertical-align: middle;
+}
+
+.cashier-table td strong,
+.cashier-table td small {
+  display: block;
+}
+
+.cashier-table tr:hover td {
+  background: #f8fafc;
+}
+
+.table-empty {
+  padding: 24px !important;
+  color: #64748b !important;
+  text-align: center;
+}
+
+.cashier-rail {
+  position: sticky;
+  top: 16px;
+}
+
+.cashier-rail-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.rail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rail-header strong {
   color: #0f766e;
 }
 
-.payment-latest-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.9rem;
-  background: #fbfdff;
-  padding: 1rem;
+.rail-total {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0f766e, #0e7490);
+  color: #fff;
 }
 
-.payment-history-table th,
-.payment-history-table td {
-  padding-top: 0.85rem;
-  padding-bottom: 0.85rem;
-}
-
-.payment-history-table thead th {
-  color: #475569;
+.rail-total span {
+  opacity: 0.88;
   font-weight: 700;
-  border-bottom: 1px solid #e2e8f0;
 }
 
-.payment-empty-state {
-  padding: 1.5rem;
+.rail-total strong {
+  font-size: 1.55rem;
 }
 
-@media (max-width: 1199.98px) {
-  .payment-shell-grid {
+.rail-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rail-metrics div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.rail-metrics span,
+.rail-section h4,
+.latest-receipt span,
+.rail-empty {
+  color: #64748b;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.rail-metrics strong {
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.rail-divider {
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.rail-section {
+  display: grid;
+  gap: 9px;
+}
+
+.rail-section h4 {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.latest-receipt {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+
+.latest-receipt strong {
+  color: #0f172a;
+}
+
+.rail-action {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.rail-action:hover {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.rail-action.is-disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.rail-alert {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.rail-alert.is-warning {
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.rail-alert.is-ok {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.rail-alert.is-info {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.cashier-shortcut-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.cashier-shortcut-bar span {
+  color: #0f766e;
+  font-weight: 900;
+}
+
+.cashier-shortcut-bar kbd {
+  border-radius: 8px;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+[data-payment-card].is-hidden,
+[data-payment-row].is-hidden {
+  display: none;
+}
+
+@media (max-width: 1399.98px) {
+  .cashier-command-surface,
+  .cashier-layout {
     grid-template-columns: 1fr;
   }
 
-  .payment-sticky-panel {
+  .cashier-rail {
     position: static;
   }
 }
 
+@media (max-width: 1199.98px) {
+  .cashier-kpi-grid,
+  .cashier-control-bar,
+  .cashier-payment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cashier-search {
+    grid-column: 1 / -1;
+  }
+
+  .queue-card-summary {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .queue-total {
+    text-align: left;
+  }
+}
+
 @media (max-width: 767.98px) {
-  .payment-hero-layout,
-  .payment-shell-grid,
-  .payment-status-strip,
-  .payment-case-metrics,
-  .payment-field-grid,
-  .payment-preview-pro {
+  .cashier-command-surface,
+  .cashier-control-bar,
+  .cashier-panel,
+  .cashier-rail-card {
+    border-radius: 12px;
+  }
+
+  .cashier-kpi-grid,
+  .cashier-control-bar,
+  .cashier-payment-grid,
+  .rail-metrics {
     grid-template-columns: 1fr;
   }
 
-  .payment-action-row .btn {
+  .cashier-payment-actions .btn,
+  .empty-actions .btn {
     width: 100%;
   }
 }

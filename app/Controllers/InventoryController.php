@@ -25,17 +25,39 @@ class InventoryController extends Controller
         )->fetchAll();
 
         $batches = db()->query(
-            'SELECT inventory_batches.*, inventory_items.item_name, inventory_items.unit_name
+            'SELECT inventory_batches.*, inventory_items.item_code, inventory_items.item_name, inventory_items.unit_name
              FROM inventory_batches
              INNER JOIN inventory_items ON inventory_items.id = inventory_batches.item_id
              ORDER BY inventory_batches.expiry_date ASC, inventory_batches.id DESC
              LIMIT 100'
         )->fetchAll();
 
+        $movements = db()->query(
+            'SELECT stock_movements.*, inventory_items.item_code, inventory_items.item_name, inventory_items.unit_name,
+                    inventory_batches.lot_no, users.full_name AS created_by_name
+             FROM stock_movements
+             INNER JOIN inventory_items ON inventory_items.id = stock_movements.item_id
+             LEFT JOIN inventory_batches ON inventory_batches.id = stock_movements.batch_id
+             LEFT JOIN users ON users.id = stock_movements.created_by
+             ORDER BY stock_movements.movement_datetime DESC, stock_movements.id DESC
+             LIMIT 80'
+        )->fetchAll();
+
+        $receivedToday = (float) db()->query(
+            'SELECT COALESCE(SUM(qty), 0)
+             FROM stock_movements
+             WHERE movement_type = "IN" AND DATE(movement_datetime) = CURDATE()'
+        )->fetchColumn();
+
         $this->render('inventory/index', [
             'pageTitle' => 'คลังยาและเวชภัณฑ์',
+            'pageTopbarMode' => 'compact',
+            'pageStyles' => [app_url('assets/css/inventory.css')],
+            'pageScripts' => [app_url('assets/js/inventory.js')],
             'items' => $items,
             'batches' => $batches,
+            'movements' => $movements,
+            'receivedToday' => $receivedToday,
         ]);
     }
 
@@ -157,6 +179,11 @@ class InventoryController extends Controller
             redirect('inventory');
         }
 
+        if ($note === '') {
+            flash('error', 'กรุณาระบุเหตุผลการปรับสต๊อก เพื่อให้ตรวจสอบย้อนหลังได้');
+            redirect('inventory');
+        }
+
         try {
             $pdo = db();
             $pdo->beginTransaction();
@@ -191,7 +218,7 @@ class InventoryController extends Controller
                 'qty' => $adjustQty,
                 'unit_cost' => $batch['cost_per_unit'],
                 'reference_id' => $batchId,
-                'note' => $note ?: null,
+                'note' => $note,
                 'created_by' => current_user()['id'],
             ]);
 

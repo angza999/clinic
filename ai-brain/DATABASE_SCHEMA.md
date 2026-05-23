@@ -156,6 +156,13 @@ Key Fields:
 Relations:
 - 1:N ไป `visit_services`
 
+Service workstation note:
+- No schema change is required for the current Service Management Workstation pass.
+- `service_code` remains the stable unique key used by Smart Exam presets and service upsert.
+- `is_active = 0` hides services from new Smart Exam order entry but preserves historical `visit_services`.
+- `visit_services.unit_price` stores the billing snapshot, so later master price edits must not mutate old visits.
+- Future price audit can add `service_price_history`, but that requires a separate migration and workflow.
+
 ### `visit_services`
 Purpose:
 - บันทึกรายการบริการที่ใช้ใน visit
@@ -243,6 +250,14 @@ Movement Types:
 - `IN`
 - `OUT`
 - `ADJUST`
+
+Inventory workstation note:
+- No new table is required for the current Medical Supply Workstation pass.
+- `inventory_items` remains the item master.
+- `inventory_batches.qty_balance` remains the batch-level current balance.
+- `stock_movements` remains the audit trail for receive, Smart Exam usage, Excel import, and manual adjustment.
+- Manual adjustment must include a clear `note` so stock changes can be reviewed later.
+- If commercial-grade balance replay is needed later, consider adding a nullable `balance_after` field to `stock_movements`.
 
 ### `visit_item_usages`
 Purpose:
@@ -445,3 +460,21 @@ Stock batch import ต้องเขียน:
 
 - `inventory_batches`
 - `stock_movements` โดยใช้ `movement_type = IN`, `reference_type = EXCEL_IMPORT`, `reference_id = import_logs.id`
+
+## Payment Schema Notes
+
+- Current `payments.payment_method` enum supports only `CASH`, `TRANSFER`, and `QR`.
+- Medical Cashier Workstation uses this existing enum without schema migration.
+- `discount_amount`, `total_amount`, `paid_amount`, and `change_amount` are used for cashier validation and receipt output.
+- Future refund/card/free payment workflow requires a migration before UI options are enabled.
+
+## Service Schema Notes
+
+- Service Workstation Phase 2 adds `service_price_history` for auditable price changes.
+- Usage count, total income, and latest use are calculated from `visit_services`.
+- Smart Exam preset linkage is derived from existing `smart_exam_presets.service_codes`.
+- `visit_services.unit_price` preserves historical billing price; editing `services.price` affects future selections only.
+- `service_price_history.old_price` may be null when the row records the initial price for a newly created service.
+- `service_price_history.changed_by` references `users.id` and uses `ON DELETE SET NULL`.
+- Service action audit uses existing `audit_logs` with `table_name = services`.
+- Category management is still stored as `services.category` free text; a dedicated category table remains future scope.

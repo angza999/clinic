@@ -125,3 +125,12 @@
 - เพิ่ม export result report หลัง import
 - เพิ่ม mode update existing records พร้อม diff preview
 - เพิ่ม template `.xlsx` พร้อม sample row และ data validation dropdown
+
+## Service Management Phase 2
+
+- Expand price history into a full change review screen with filters and notes.
+- Expand service audit log for duplicate and import actions once those flows are formalized.
+- Add category management instead of free-text category only.
+- Add bundle/package services such as "ชุดทำแผล" that can add multiple service lines in Smart Exam.
+- Add advanced analytics: revenue by category, use frequency trend, and unused/inactive service review.
+- Consider import/update existing services through the existing Import Wizard with preview, mapping, validation, and confirm.

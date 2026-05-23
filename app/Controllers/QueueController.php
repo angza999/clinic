@@ -26,7 +26,7 @@ class QueueController extends Controller
         $activeVisit = $this->resolveActiveVisit($todayQueues);
 
         $this->render('queue/index', [
-            'pageTitle' => 'เธฃเธฐเธเธเธเธดเธง',
+            'pageTitle' => 'คิววันนี้',
             'todayQueues' => $todayQueues,
             'patients' => $patients,
             'todayAppointments' => $todayAppointments,
@@ -146,7 +146,7 @@ class QueueController extends Controller
         $waitingList = array_slice($waitingList, 0, 6);
 
         $this->render('queue/display', [
-            'pageTitle' => 'เธซเธเนเธฒเธเธญเน€เธฃเธตเธขเธเธเธดเธง',
+            'pageTitle' => 'หน้าจอเรียกคิว',
             'todayQueues' => $todayQueues,
             'currentQueue' => $currentQueue,
             'nextWaiting' => $nextWaiting,

@@ -53,6 +53,117 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
 
 ## Current Notable Changes
 
+## 2026-05-23 - Service Workstation Phase 2 Price History
+
+### Type
+- feature
+- schema
+- ux
+- docs
+
+### Summary
+- Added `service_price_history` for service price change traceability.
+- Added runtime schema guard for existing installs.
+- Service add/edit now records price history when the price changes or a new service is created.
+- Service create/update/enable/disable/export actions now write to existing `audit_logs`.
+- Services right rail now shows selected usage insight, price history, and recent service audit activity.
+- Cleaned remaining mojibake Thai text in service controller/view/JS.
+
+### Why
+- Service pricing is a financial control surface; admins need traceability without rewriting historical Smart Exam billing rows.
+
+### Files
+- `app/Controllers/ServiceController.php`
+- `app/Views/services/index.php`
+- `public/assets/js/services.js`
+- `public/assets/css/services.css`
+- `database/schema.sql`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/DATABASE_SCHEMA.md`
+- `ai-brain/FUTURE_FEATURES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- services
+- smart exam
+- payment
+- audit
+
+### Database Impact
+- adds `service_price_history`
+- reuses existing `audit_logs`
+
+### UI Impact
+- Price history button is now real and updates the right rail.
+- Recent service audit appears as a compact trust panel.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- DATABASE_SCHEMA.md
+- FUTURE_FEATURES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Category management and bundle/package services remain future scope.
+- Historical visit service rows keep captured `unit_price`.
+
+## 2026-05-23 - Service Workstation Phase 1 Smart Builder
+
+### Type
+- feature
+- ux
+- docs
+
+### Summary
+- Made service KPI cards actionable for filtering and sorting.
+- Rebuilt Services view with clean Thai text, interactive table rows, usage/revenue analytics, and selected row state.
+- Added Smart Service Builder panel with add/edit/duplicate/detail states, live preview, auto code generation, duplicate-code hint, validation, and smart category/price suggestions.
+- Added `GET:services-export` for Admin CSV export.
+
+### Why
+- The services page needed to move beyond CRUD and support fast clinic price-standard management without changing billing schema.
+
+### Files
+- `app/Controllers/ServiceController.php`
+- `app/Views/services/index.php`
+- `public/index.php`
+- `public/assets/js/services.js`
+- `public/assets/css/services.css`
+- `ai-brain/AI_CONTEXT.md`
+- `ai-brain/UI_UX_GUIDE.md`
+- `ai-brain/MODULES.md`
+- `ai-brain/DATABASE_SCHEMA.md`
+- `ai-brain/FUTURE_FEATURES.md`
+- `ai-brain/CHANGELOG_AI.md`
+
+### Flow Impact
+- services
+- smart exam
+- payment
+
+### Database Impact
+- none
+- usage analytics are read from existing `visit_services`
+- historical bills keep `visit_services.unit_price`
+
+### UI Impact
+- Services now behaves like a Service Management Workstation with table-first workflow and secondary builder panel.
+
+### AI Context Updates Required
+- AI_CONTEXT.md
+- UI_UX_GUIDE.md
+- MODULES.md
+- DATABASE_SCHEMA.md
+- FUTURE_FEATURES.md
+- CHANGELOG_AI.md
+
+### Notes
+- Price history, audit log, category management, and service bundles are Phase 2 scope.
+
 ## 2026-05-17 - Login Audit Trail Phase 18
 
 ### Type
@@ -1489,3 +1600,36 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
 - Simplified the smart-card intake shortcut label to reduce overlap with the patient registration page.
 - Added a right-rail readiness checklist for registration, Smart Exam progress, billable lines, and payment readiness.
 - No database or queue lifecycle logic changes.
+
+## 2026-05-19 - Medical Supply Workstation
+
+- Refactored inventory from a three-form page into a Medical Supply Workstation.
+- Added KPI cards for total items, low stock, near expiry, expired lots, stock value, and received quantity today.
+- Added command bar with realtime search, status/type filters, barcode-ready search wording, action tabs, and Excel import shortcut.
+- Added compact inventory table with status badges and row quick actions for receive, adjust, and history.
+- Added right-side Alert Center and focused action panels so only one admin task is visible at a time.
+- Added movement history panel from existing `stock_movements`.
+- Strengthened manual stock adjustment validation by requiring a reason and preserving negative-stock blocking.
+- Added `public/assets/css/inventory.css` and `public/assets/js/inventory.js`.
+- Database impact: no schema change.
+
+## 2026-05-19 - Service Management Workstation
+
+- Refactored Services from a CRUD form/table into a Service Management Workstation.
+- Added KPI cards for total services, active/inactive services, categories, and average price.
+- Added realtime service search, category/status filters, sortable table headers, and row selected state.
+- Added quick actions for detail, edit, duplicate, and enable/disable.
+- Added right-side detail/edit panel with auto code suggestion by category prefix.
+- Added server-side price validation to block negative or non-numeric prices.
+- Added `POST:services-toggle` for safe enable/disable instead of deleting service records.
+- Added `public/assets/css/services.css` and `public/assets/js/services.js`.
+- Database impact: no schema change.
+
+## 2026-05-20 - Medical Cashier Workstation
+
+- Refactored Payments from a static dashboard into a Medical Cashier Workstation.
+- Added compact KPI command surface, receipt/search control bar, payment queue, receipt history, sticky financial action rail, and shortcut bar.
+- Added `public/assets/js/payments.js` for realtime search/filter, keyboard shortcuts, payment preview, cash change calculation, and confirm-on-submit.
+- Strengthened server-side payment validation for allowed methods, numeric discount/paid amount, discount <= gross total, and cash received amount >= net total.
+- Transfer and QR now auto-normalize paid amount to net total on the server.
+- Database impact: no schema change.

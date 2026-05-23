@@ -111,6 +111,14 @@ Routes:
 Notes:
 - ถูกใช้โดย Smart Exam, Visit Detail, Report, Payment calculation
 
+Service Workstation Update:
+- Route added: `POST:services-toggle`
+- Assets: `public/assets/css/services.css`, `public/assets/js/services.js`
+- Services page now uses KPI cards, realtime search/filter, interactive data grid, and right-side detail/edit panel.
+- Admin can add/edit by `service_code`, duplicate from an existing row, and enable/disable services.
+- Nurse can view/search service standards but cannot mutate records.
+- Deleting services is intentionally avoided because `visit_services` preserves historical billing.
+
 ## 7. Inventory
 Purpose:
 - จัดการรายการยา/เวชภัณฑ์/อุปกรณ์
@@ -147,6 +155,14 @@ Routes:
 - `POST:payments-store`
 - `POST:payments-send-back`
 - `GET:receipt`
+
+Cashier Workstation Update:
+- Assets: `public/assets/css/payments.css`, `public/assets/js/payments.js`
+- Payments page now separates waiting payment queue, receipt history, and right financial action rail.
+- Realtime search supports VN, HN, patient name, and receipt number.
+- Existing payment methods are `CASH`, `TRANSFER`, and `QR`.
+- Cash payments validate received amount and calculate change; transfer/QR payments auto-fill paid amount to net total.
+- Refund/card/free workflows are future phases because the current `payments.payment_method` schema does not include those values.
 
 ## 9. Reports
 Purpose:
@@ -384,6 +400,16 @@ Notes:
 - Registration stores photos for new patients; smart-card read updates existing patient photos when a fresh image is available.
 - Patient profile and Smart Exam show the stored photo with a placeholder fallback.
 
+## Inventory Workstation Update
+
+- Controller: `app/Controllers/InventoryController.php`
+- View: `app/Views/inventory/index.php`
+- Assets: `public/assets/css/inventory.css`, `public/assets/js/inventory.js`
+- Inventory is now a Medical Supply Workstation with KPI cards, search/filter command bar, inventory table, alert rail, focused action panels, and movement history.
+- Admin can add items, receive batches, and adjust stock from one focused action panel at a time.
+- Nurse can scan inventory status and movement history without seeing all admin forms as the primary workflow.
+- Manual adjustment requires a reason and still writes `stock_movements` with `movement_type = ADJUST`.
+
 ## Import Excel
 
 - Controller: `app/Controllers/ImportController.php`
@@ -395,4 +421,23 @@ Notes:
   - `patients`
   - `inventory_items`
   - `inventory_batches`
+
+## Service Workstation Phase 1
+
+- Controller: `app/Controllers/ServiceController.php`
+- View: `app/Views/services/index.php`
+- Assets: `public/assets/css/services.css`, `public/assets/js/services.js`
+- Routes: `services`, `services-store`, `services-toggle`, `services-export`
+- Admin workflow: search/filter services, add/edit by service code, duplicate into a new code, enable/disable, export CSV.
+- Nurse workflow: view and scan active/inactive service definitions without mutation rights.
+- Analytics are read from existing `visit_services` totals and do not add fields.
+- Historical Smart Exam/billing rows keep captured `unit_price`; editing a service price only affects new selections.
+
+## Service Workstation Phase 2
+
+- Adds `service_price_history` for service price change traceability.
+- Reuses `audit_logs` for service create/update/enable/disable/export actions.
+- Right rail shows selected service usage insight, price history, and recent service audit rows.
+- `ServiceController::ensurePhase2Schema()` creates the history table for existing local installs.
+- Category table and bundle/package services are still future scope.
 - Services import ถูกเก็บเป็น Phase 2 เพื่อลด risk ต่อ workflow หลัก

@@ -510,3 +510,37 @@ Import Excel เป็น workflow แบบปลอดภัย:
 8. เขียนฐานข้อมูลด้วย transaction และบันทึก import log
 
 ระบบไม่อนุญาตให้บันทึกทันทีหลัง upload เพื่อป้องกันข้อมูลผิดเข้าฐานข้อมูลจริง
+
+## Medical Cashier Flow
+
+Cashier workflow is:
+
+1. Smart Exam or Visit Detail sends a case to `WAITING_PAYMENT`.
+2. Payments workstation shows the case in the waiting payment queue.
+3. Cashier verifies service/item total, discount, and payment method.
+4. Cashier confirms payment.
+5. Backend creates/updates `payments`, marks queue entry `COMPLETED`, and opens receipt.
+6. If billing is incomplete, cashier can send the case back to `IN_SERVICE`.
+
+Rules:
+- Current payment methods are `CASH`, `TRANSFER`, and `QR`.
+- Cash requires received amount >= net total.
+- Transfer/QR auto-fill paid amount to net total and do not calculate change.
+- Refund/free/card workflows require a future schema phase.
+
+## Service Price Governance Flow
+
+Service management workflow is:
+
+1. Admin searches/selects an existing service or starts a new service.
+2. Admin edits code, name, category, price, and active state in the Service Builder.
+3. Backend validates service code/name and blocks negative price.
+4. If the price changes, backend writes `service_price_history`.
+5. Backend writes a service audit row for create, update, enable, disable, or export.
+6. Smart Exam and new billing use the current active service price.
+7. Historical visit service lines continue to read `visit_services.unit_price`.
+
+Rules:
+- Do not hard delete services that may appear in historical visits.
+- Price history supports audit/trust; it must not recalculate old receipts.
+- Bundle/package services require a future workflow design before implementation.

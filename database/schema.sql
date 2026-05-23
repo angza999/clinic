@@ -21,6 +21,7 @@ DROP TABLE IF EXISTS `stock_movements`;
 DROP TABLE IF EXISTS `inventory_batches`;
 DROP TABLE IF EXISTS `inventory_items`;
 DROP TABLE IF EXISTS `visit_services`;
+DROP TABLE IF EXISTS `service_price_history`;
 DROP TABLE IF EXISTS `services`;
 DROP TABLE IF EXISTS `visit_vitals`;
 DROP TABLE IF EXISTS `queue_entries`;
@@ -195,6 +196,21 @@ CREATE TABLE `services` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_services_service_code` (`service_code`),
   KEY `idx_services_service_name` (`service_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `service_price_history` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `service_id` bigint unsigned NOT NULL,
+  `old_price` decimal(10,2) DEFAULT NULL,
+  `new_price` decimal(10,2) NOT NULL,
+  `changed_by` bigint unsigned DEFAULT NULL,
+  `changed_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `note` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_service_price_history_service_id` (`service_id`),
+  KEY `idx_service_price_history_changed_by` (`changed_by`),
+  CONSTRAINT `fk_service_price_history_service_id` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`),
+  CONSTRAINT `fk_service_price_history_changed_by` FOREIGN KEY (`changed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `smart_exam_presets` (

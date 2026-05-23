@@ -61,7 +61,9 @@ $routes = [
     'POST:visit-ready-payment' => [VisitController::class, 'markReadyForPayment'],
 
     'GET:services' => [ServiceController::class, 'index'],
+    'GET:services-export' => [ServiceController::class, 'export'],
     'POST:services-store' => [ServiceController::class, 'store'],
+    'POST:services-toggle' => [ServiceController::class, 'toggle'],
 
     'GET:inventory' => [InventoryController::class, 'index'],
     'POST:inventory-item-store' => [InventoryController::class, 'storeItem'],
