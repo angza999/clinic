@@ -134,3 +134,11 @@
 - Add bundle/package services such as "ชุดทำแผล" that can add multiple service lines in Smart Exam.
 - Add advanced analytics: revenue by category, use frequency trend, and unused/inactive service review.
 - Consider import/update existing services through the existing Import Wizard with preview, mapping, validation, and confirm.
+
+## Pharmacy Sticker Label Roadmap
+
+- Phase 2: print queue dashboard, reprint workflow, QR code on labels, favorite drugs, and recent drugs.
+- Phase 2: drug profile editor from Inventory or Pharmacy Workstation.
+- Phase 3: direct thermal printer bridge for TSC, Zebra, and XPrinter.
+- Phase 3: drug allergy warnings, pediatric/elderly warnings, drug interaction checks, barcode medication, voice medication, and AI suggested medication.
+- Phase 3: automatic stock deduction refinement must still preserve the rule that printing labels never deducts stock.

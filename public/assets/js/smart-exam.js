@@ -42,6 +42,13 @@
   const summaryServiceTotal = document.getElementById('smartSummaryServiceTotal');
   const summaryItemTotal = document.getElementById('smartSummaryItemTotal');
   const summaryGrandTotal = document.getElementById('smartSummaryGrandTotal');
+  const medDoseQty = document.getElementById('smartMedDoseQty');
+  const medDoseUnit = document.getElementById('smartMedDoseUnit');
+  const medFrequency = document.getElementById('smartMedFrequency');
+  const medTiming = document.getElementById('smartMedTiming');
+  const medFreeNote = document.getElementById('smartMedFreeNote');
+  const medInstructionInput = document.getElementById('smartItemNoteInput');
+  const medInstructionPreview = document.getElementById('smartMedInstructionPreview');
 
   const servicePresetButtons = Array.from(document.querySelectorAll('.smart-service-card[data-preset-key]'));
   const appendPresetButtons = Array.from(document.querySelectorAll('[data-append-target]'));
@@ -876,6 +883,32 @@
     return false;
   }
 
+  function buildMedicationInstruction() {
+    if (!medInstructionInput) {
+      return '';
+    }
+
+    const doseQty = (medDoseQty?.value || '1').trim() || '1';
+    const doseUnit = (medDoseUnit?.value || '').trim();
+    const frequency = (medFrequency?.value || '').trim();
+    const timing = (medTiming?.value || '').trim();
+    const note = (medFreeNote?.value || '').trim();
+    const instructionParts = [
+      `รับประทานครั้งละ ${doseQty}${doseUnit ? ` ${doseUnit}` : ''}`.trim(),
+      frequency,
+      timing,
+      note
+    ].filter(Boolean);
+    const instruction = instructionParts.join(' ');
+
+    medInstructionInput.value = instruction;
+    if (medInstructionPreview) {
+      medInstructionPreview.textContent = instruction || 'เลือกวิธีใช้ยาเพื่อสร้างข้อความบนสติ๊กเกอร์';
+    }
+
+    return instruction;
+  }
+
   function isOrderAction(action) {
     return [
       'visit-add-service',
@@ -891,6 +924,7 @@
     }
 
     if (orderForm.classList.contains('smart-add-line-form-items')) {
+      buildMedicationInstruction();
       const syntheticEvent = { preventDefault() {}, target: orderForm };
       if (validateSelectedItemStock(syntheticEvent) === false) {
         return true;
@@ -929,6 +963,13 @@
         }
         if (noteInput) {
           noteInput.value = '';
+        }
+        if (orderForm.classList.contains('smart-add-line-form-items')) {
+          if (medDoseQty) medDoseQty.value = '1';
+          if (medFrequency) medFrequency.value = 'วันละ 3 ครั้ง';
+          if (medTiming) medTiming.value = 'หลังอาหาร';
+          if (medFreeNote) medFreeNote.value = '';
+          buildMedicationInstruction();
         }
       }
 
@@ -1040,6 +1081,11 @@
   });
   getField('smartItemSelect')?.addEventListener('change', syncVisualState);
   getField('smartItemQtyInput')?.addEventListener('input', syncVisualState);
+  [medDoseQty, medDoseUnit, medFrequency, medTiming, medFreeNote].filter(Boolean).forEach((field) => {
+    field.addEventListener('input', buildMedicationInstruction);
+    field.addEventListener('change', buildMedicationInstruction);
+  });
+  buildMedicationInstruction();
   itemForm?.addEventListener('submit', validateSelectedItemStock);
   document.addEventListener('submit', handleOrderSubmit);
   document.addEventListener('keydown', handleGlobalShortcut);

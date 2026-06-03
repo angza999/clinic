@@ -509,3 +509,20 @@ The next production tightening pass must keep these five rules:
 - Keep row actions short even as governance features grow.
 - Category management and bundle/package workflows must be designed as focused workflows before adding full UI.
 - Historical billing safety should be visible in product behavior: editing current service price must never rewrite old visit service lines.
+
+### Pharmacy Sticker Label UX
+- Pharmacy label printing should feel like a workstation continuation of Smart Exam, not a separate document generator.
+- The primary action is `พิมพ์สติ๊กเกอร์ยา`; preview should be visible immediately with real patient and drug data.
+- Avoid modal chains. Use one preview surface, one control rail, and browser print for Phase 1.
+- Label UI must show physical label sizes: 58x40, 80x50, and 100x75 mm.
+- Medication instruction builder should reduce typing with dose, frequency, timing, and note controls.
+- Warnings must be compact and operational; allergy/drug warning automation is future scope unless a drug interaction model exists.
+
+### Clinic Settings Workstation UX
+- Settings should behave like a configuration workstation, not a long admin form.
+- Keep clinic profile and document-number controls visible as separate surfaces.
+- Show a compact "what will change" preview for HN and receipt number before save.
+- Smart Exam presets should appear as a scannable list first, then expand into an editor only when needed.
+- Do not show every preset form open at once; it increases accidental edits and scroll.
+- Preset rows should show active/inactive state, service codes, item count, and sort order in the summary line.
+- Keep settings quick wins schema-free unless a future audit/settings-history workflow is approved.

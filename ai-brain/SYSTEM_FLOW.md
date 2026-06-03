@@ -544,3 +544,18 @@ Rules:
 - Do not hard delete services that may appear in historical visits.
 - Price history supports audit/trust; it must not recalculate old receipts.
 - Bundle/package services require a future workflow design before implementation.
+
+## Pharmacy Sticker Label Flow
+
+1. Nurse opens Smart Exam.
+2. Nurse adds medicine through `visit-add-item`; this deducts stock and writes `stock_movements` as before.
+3. Medication instruction builder writes the generated Thai direction into `visit_item_usages.usage_note`.
+4. Nurse clicks `พิมพ์สติ๊กเกอร์ยา` from the Smart Exam summary rail.
+5. `PharmacyController` syncs `prescriptions` and `prescription_items` from current `visit_item_usages`.
+6. The label preview page renders one sticker per prescription item.
+7. Browser print is used for Phase 1 and `medication_print_logs` records print/reprint actions.
+
+Rules:
+- Label printing must never deduct stock.
+- Label printing must never create or update payment totals.
+- Prescription item snapshots should preserve printable instruction text even if drug defaults change later.

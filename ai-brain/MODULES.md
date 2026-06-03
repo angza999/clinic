@@ -441,3 +441,14 @@ Notes:
 - `ServiceController::ensurePhase2Schema()` creates the history table for existing local installs.
 - Category table and bundle/package services are still future scope.
 - Services import ถูกเก็บเป็น Phase 2 เพื่อลด risk ต่อ workflow หลัก
+
+## Pharmacy Sticker Label Phase 1
+
+- Controller: `app/Controllers/PharmacyController.php`
+- View: `app/Views/pharmacy/labels.php`
+- Assets: `public/assets/css/pharmacy-labels.css`, `public/assets/js/pharmacy-labels.js`
+- Routes: `pharmacy-labels`, `pharmacy-print-log`
+- Smart Exam entry point: `app/Views/queue/exam.php` medication panel and summary action rail.
+- Purpose: create prescription snapshots from already-added `visit_item_usages`, preview sticker labels, print through browser, and log print/reprint actions.
+- Key safety rule: label generation never deducts stock. Stock deduction remains owned by `VisitController::addItemUsage()` and `stock_movements` with `reference_type = VISIT_USAGE`.
+- Phase 1 is browser-print only; direct thermal printer integration is future scope.

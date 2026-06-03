@@ -478,3 +478,12 @@ Stock batch import ต้องเขียน:
 - `service_price_history.changed_by` references `users.id` and uses `ON DELETE SET NULL`.
 - Service action audit uses existing `audit_logs` with `table_name = services`.
 - Category management is still stored as `services.category` free text; a dedicated category table remains future scope.
+
+## Pharmacy Label Schema Notes
+
+- `drug_profiles` is a companion table for `inventory_items` and stores label-oriented drug defaults such as short name, category, default dose, default instruction, and warning text.
+- `inventory_items` remains the source of truth for item identity, price, active state, and stock linkage.
+- `prescriptions` is one row per visit and snapshots the medication label workflow state.
+- `prescription_items` links to `visit_item_usages` through `visit_item_usage_id`; this prevents label generation from becoming a second stock deduction path.
+- `medication_print_logs` records browser print and reprint events by prescription item, visit, patient, label size, printed user, and timestamp.
+- Label printing does not touch `payments`, `inventory_batches`, or `stock_movements`.

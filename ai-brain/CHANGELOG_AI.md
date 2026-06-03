@@ -1633,3 +1633,22 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
 - Strengthened server-side payment validation for allowed methods, numeric discount/paid amount, discount <= gross total, and cash received amount >= net total.
 - Transfer and QR now auto-normalize paid amount to net total on the server.
 - Database impact: no schema change.
+
+## 2026-05-23 - Pharmacy Sticker Label Phase 1
+
+- Added `PharmacyController` with prescription sync, label preview, and print-log recording.
+- Added `drug_profiles`, `prescriptions`, `prescription_items`, and `medication_print_logs` schema definitions.
+- Added `GET:pharmacy-labels` and `POST:pharmacy-print-log` routes.
+- Added Smart Exam medication instruction builder for dose, unit, frequency, timing, and note.
+- Added Smart Exam summary action to open medication sticker printing.
+- Added browser-print label preview for 58x40, 80x50, and 100x75 mm.
+- Stock and payment logic are unchanged; labels read from existing `visit_item_usages`.
+
+## 2026-05-26 - Settings Workstation Quick Wins
+
+- Refactored Settings into a compact Clinic Configuration Workstation.
+- Replaced the large explanatory hero with a compact command strip and quick anchors.
+- Split clinic profile and document-number settings into balanced surfaces with a sticky preview/save rail.
+- Converted Smart Exam preset management into a scannable expandable list so only one preset editor needs to be open at a time.
+- Reduced textarea heights, card padding, and visible duplicate preview blocks.
+- Database impact: no schema change.

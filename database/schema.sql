@@ -16,6 +16,10 @@ DROP TABLE IF EXISTS `smart_exam_presets`;
 DROP TABLE IF EXISTS `system_settings`;
 DROP TABLE IF EXISTS `appointments`;
 DROP TABLE IF EXISTS `payments`;
+DROP TABLE IF EXISTS `medication_print_logs`;
+DROP TABLE IF EXISTS `prescription_items`;
+DROP TABLE IF EXISTS `prescriptions`;
+DROP TABLE IF EXISTS `drug_profiles`;
 DROP TABLE IF EXISTS `visit_item_usages`;
 DROP TABLE IF EXISTS `stock_movements`;
 DROP TABLE IF EXISTS `inventory_batches`;
@@ -325,6 +329,88 @@ CREATE TABLE `visit_item_usages` (
   KEY `idx_visit_item_usages_item_id` (`item_id`),
   CONSTRAINT `fk_visit_item_usages_visit_id` FOREIGN KEY (`visit_id`) REFERENCES `visits` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_visit_item_usages_item_id` FOREIGN KEY (`item_id`) REFERENCES `inventory_items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `drug_profiles` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `item_id` bigint unsigned NOT NULL,
+  `drug_short_name` varchar(100) DEFAULT NULL,
+  `drug_category` varchar(100) DEFAULT NULL,
+  `default_dose_qty` varchar(30) DEFAULT NULL,
+  `default_dose_unit` varchar(50) DEFAULT NULL,
+  `default_frequency` varchar(100) DEFAULT NULL,
+  `default_timing` varchar(100) DEFAULT NULL,
+  `default_instruction` text DEFAULT NULL,
+  `warning_text` text DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_drug_profiles_item_id` (`item_id`),
+  KEY `idx_drug_profiles_category` (`drug_category`),
+  CONSTRAINT `fk_drug_profiles_item_id` FOREIGN KEY (`item_id`) REFERENCES `inventory_items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `prescriptions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `visit_id` bigint unsigned NOT NULL,
+  `patient_id` bigint unsigned NOT NULL,
+  `status` enum('DRAFT','READY','PRINTED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_prescriptions_visit_id` (`visit_id`),
+  KEY `idx_prescriptions_patient_id` (`patient_id`),
+  KEY `idx_prescriptions_status` (`status`),
+  CONSTRAINT `fk_prescriptions_visit_id` FOREIGN KEY (`visit_id`) REFERENCES `visits` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_prescriptions_patient_id` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_prescriptions_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `prescription_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `prescription_id` bigint unsigned NOT NULL,
+  `visit_item_usage_id` bigint unsigned DEFAULT NULL,
+  `item_id` bigint unsigned NOT NULL,
+  `drug_name_snapshot` varchar(180) NOT NULL,
+  `qty` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `unit_name` varchar(50) DEFAULT NULL,
+  `instruction_text` text DEFAULT NULL,
+  `warning_text` text DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_prescription_items_usage_id` (`visit_item_usage_id`),
+  KEY `idx_prescription_items_prescription_id` (`prescription_id`),
+  KEY `idx_prescription_items_item_id` (`item_id`),
+  CONSTRAINT `fk_prescription_items_prescription_id` FOREIGN KEY (`prescription_id`) REFERENCES `prescriptions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_prescription_items_usage_id` FOREIGN KEY (`visit_item_usage_id`) REFERENCES `visit_item_usages` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_prescription_items_item_id` FOREIGN KEY (`item_id`) REFERENCES `inventory_items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `medication_print_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `prescription_item_id` bigint unsigned NOT NULL,
+  `visit_id` bigint unsigned NOT NULL,
+  `patient_id` bigint unsigned NOT NULL,
+  `label_size` varchar(20) NOT NULL DEFAULT '58x40',
+  `printer_mode` varchar(30) NOT NULL DEFAULT 'BROWSER',
+  `status` enum('PRINTED','REPRINT') NOT NULL DEFAULT 'PRINTED',
+  `payload_json` longtext DEFAULT NULL,
+  `printed_by` bigint unsigned DEFAULT NULL,
+  `printed_at` datetime NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_medication_print_logs_item` (`prescription_item_id`),
+  KEY `idx_medication_print_logs_visit` (`visit_id`),
+  KEY `idx_medication_print_logs_patient` (`patient_id`),
+  CONSTRAINT `fk_medication_print_logs_item` FOREIGN KEY (`prescription_item_id`) REFERENCES `prescription_items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_medication_print_logs_visit` FOREIGN KEY (`visit_id`) REFERENCES `visits` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_medication_print_logs_patient` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_medication_print_logs_user` FOREIGN KEY (`printed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `payments` (

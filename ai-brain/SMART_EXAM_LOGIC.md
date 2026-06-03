@@ -462,3 +462,19 @@ Rules:
 - reusable nursing macros
 - reusable drug instruction templates
 - stronger keyboard workflow for heavy-use clinics
+
+## Pharmacy Sticker Label Phase 1
+
+Smart Exam now starts the medication label workflow.
+
+Behavior:
+- Medication order entry includes a compact instruction builder: dose, unit, frequency, timing, and optional note.
+- The generated instruction is stored in `visit_item_usages.usage_note`.
+- The summary rail includes `พิมพ์สติ๊กเกอร์ยา` when the visit has medicine/item lines.
+- Opening label print syncs `prescriptions` and `prescription_items` from existing `visit_item_usages`.
+- Prescription sync reads medicine lines only and does not create another stock movement.
+
+Rules:
+- Stock deduction remains in `visit-add-item` only.
+- Label printing is a document/dispensing workflow, not a billing workflow.
+- Browser print is Phase 1; direct printer commands are future scope.

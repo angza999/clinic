@@ -36,6 +36,7 @@ class SettingsController extends Controller
 
         $this->render('settings/index', [
             'pageTitle' => 'ตั้งค่าคลินิก',
+            'pageTopbarMode' => 'compact',
             'settings' => $settings,
             'smartPresets' => $this->smartPresets(),
         ]);

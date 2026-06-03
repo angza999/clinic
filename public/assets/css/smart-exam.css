@@ -3989,6 +3989,46 @@
   margin-top: 12px;
 }
 
+.smart-med-instruction-builder {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 84px minmax(96px, 0.7fr) minmax(132px, 1fr) minmax(120px, 0.9fr) minmax(180px, 1.2fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.smart-med-instruction-builder input,
+.smart-med-instruction-builder select {
+  min-height: 40px;
+  border: 1px solid var(--queue-border-strong);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--queue-text-main);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.smart-med-preview {
+  grid-column: 1 / -1;
+  padding: 8px 10px;
+  border: 1px dashed #99f6e4;
+  border-radius: 10px;
+  background: #f0fdfa;
+  color: var(--queue-primary-strong);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.smart-label-print-action {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: #99f6e4;
+  color: var(--queue-primary-strong);
+  font-weight: 900;
+}
+
 .queue-workspace .smart-summary-hint {
   background: #f8fafc;
   color: var(--queue-text-muted);
@@ -4004,5 +4044,9 @@
 @media (max-width: 1280px) {
   .queue-workspace .queue-command-bar {
     grid-template-columns: 1fr;
+  }
+
+  .smart-med-instruction-builder {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

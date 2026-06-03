@@ -413,6 +413,24 @@ Any new module should reuse these patterns before inventing a new page style.
 - Historical visit billing remains protected: `visit_services.unit_price` is still the source for old receipts and old visit totals.
 - Runtime schema guard creates `service_price_history` on existing installs until a formal migration system exists.
 - Bundle/package services and managed category table remain future scope; they should not be faked without workflow and schema review.
+
+## 2026-05-23 - Pharmacy Sticker Label Phase 1
+
+- Pharmacy label printing is now a dedicated workflow layer connected to Smart Exam medication usage.
+- The system must read medicine lines from `visit_item_usages`; it must not create another stock deduction when generating labels.
+- `drug_profiles` stores medication label defaults linked to `inventory_items`, while inventory remains the stock and price source of truth.
+- `prescriptions` and `prescription_items` snapshot the printable instruction text for a visit.
+- `medication_print_logs` records browser-print actions and reprint history.
+- Smart Exam medication order entry includes a compact instruction builder that generates Thai medication directions into `visit_item_usages.usage_note`.
+- Phase 1 uses browser print with CSS label sizes; direct TSC/Zebra/XPrinter integration remains future scope.
+
+## 2026-05-26 - Clinic Settings Workstation Quick Wins
+
+- Settings is now treated as a configuration workstation, not a long admin form.
+- Clinic profile and document-number controls are separated into main and sticky side surfaces.
+- HN/receipt previews stay visible near save actions so admins understand the next generated numbers before saving.
+- Smart Exam presets are now shown as a compact list with expandable editors instead of all preset forms being open at once.
+- No database schema change was made; this is a UI/UX density and workflow pass.
 ## 2026-05-17 - Import Excel Phase 1
 
 - เพิ่มแนวคิด Data Onboarding สำหรับ Medical Workstation: ห้าม upload แล้วเขียนฐานข้อมูลทันที ต้องผ่าน preview, mapping, validate และ confirm ก่อนเสมอ

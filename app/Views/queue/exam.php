@@ -516,7 +516,33 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                                 <?php endforeach; ?>
                             </select>
                             <input type="number" step="0.01" name="qty" id="smartItemQtyInput" value="1" min="0.01" aria-label="จำนวนยา">
-                            <input type="text" name="usage_note" id="smartItemNoteInput" placeholder="วิธีใช้ / หมายเหตุ">
+                            <input type="hidden" name="usage_note" id="smartItemNoteInput" value="">
+                            <div class="smart-med-instruction-builder">
+                                <input type="text" id="smartMedDoseQty" value="1" aria-label="ขนาดยาต่อครั้ง">
+                                <select id="smartMedDoseUnit" aria-label="หน่วยยา">
+                                    <option value="เม็ด">เม็ด</option>
+                                    <option value="แคปซูล">แคปซูล</option>
+                                    <option value="ช้อนชา">ช้อนชา</option>
+                                    <option value="ซอง">ซอง</option>
+                                    <option value="ครั้ง">ครั้ง</option>
+                                </select>
+                                <select id="smartMedFrequency" aria-label="ความถี่">
+                                    <option value="วันละ 1 ครั้ง">วันละ 1 ครั้ง</option>
+                                    <option value="วันละ 2 ครั้ง">วันละ 2 ครั้ง</option>
+                                    <option value="วันละ 3 ครั้ง" selected>วันละ 3 ครั้ง</option>
+                                    <option value="วันละ 4 ครั้ง">วันละ 4 ครั้ง</option>
+                                    <option value="ทุก 4 ชั่วโมง">ทุก 4 ชั่วโมง</option>
+                                    <option value="เมื่อมีอาการ">เมื่อมีอาการ</option>
+                                </select>
+                                <select id="smartMedTiming" aria-label="เวลารับประทาน">
+                                    <option value="หลังอาหาร" selected>หลังอาหาร</option>
+                                    <option value="ก่อนอาหาร">ก่อนอาหาร</option>
+                                    <option value="ก่อนนอน">ก่อนนอน</option>
+                                    <option value="">ไม่ระบุเวลา</option>
+                                </select>
+                                <input type="text" id="smartMedFreeNote" placeholder="หมายเหตุ / คำเตือนสั้น ๆ">
+                            </div>
+                            <div class="smart-med-preview" id="smartMedInstructionPreview">รับประทานครั้งละ 1 เม็ด วันละ 3 ครั้ง หลังอาหาร</div>
                             <button type="submit" class="btn btn-outline-success">เพิ่มยา</button>
                         </form>
 
@@ -671,6 +697,9 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
 
                 <div class="smart-summary-actions">
                     <div class="smart-exam-alert" id="smartExamAlert" hidden></div>
+                    <a href="<?= e(route_url('pharmacy-labels', ['visit_id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-success w-100 smart-label-print-action" title="<?= $itemCount > 0 ? 'เปิดหน้า preview สติ๊กเกอร์ยา' : 'เปิดหน้า preview เพื่อตรวจว่ามีรายการยาหรือยัง' ?>">
+                        <i class="bi bi-printer-fill me-1"></i> พิมพ์สติ๊กเกอร์ยา
+                    </a>
                     <button type="submit" form="smartExamForm" formaction="<?= e(route_url('queue-smart-finish')) ?>" name="finish_mode" value="receive_payment" class="btn btn-primary btn-lg w-100" id="smartFinishPayment">รับเงินและปิดเคส</button>
                     <button type="submit" form="smartExamForm" formaction="<?= e(route_url('queue-smart-finish')) ?>" name="finish_mode" value="waiting_payment" class="btn btn-outline-primary w-100" id="smartFinishWaitPayment">บันทึกรอชำระ</button>
                     <button type="submit" form="smartExamForm" formaction="<?= e(route_url('queue-smart-finish')) ?>" name="finish_mode" value="no_charge" class="btn btn-outline-secondary w-100" id="smartFinishNoCharge">ปิดเคสแบบไม่มีค่าใช้จ่าย</button>

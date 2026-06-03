@@ -10,6 +10,7 @@ use App\Controllers\InventoryController;
 use App\Controllers\ImportController;
 use App\Controllers\PatientController;
 use App\Controllers\PaymentController;
+use App\Controllers\PharmacyController;
 use App\Controllers\QueueController;
 use App\Controllers\ReportController;
 use App\Controllers\ServiceController;
@@ -80,6 +81,9 @@ $routes = [
     'POST:payments-store' => [PaymentController::class, 'store'],
     'POST:payments-send-back' => [PaymentController::class, 'sendBack'],
     'GET:receipt' => [PaymentController::class, 'receipt'],
+
+    'GET:pharmacy-labels' => [PharmacyController::class, 'labels'],
+    'POST:pharmacy-print-log' => [PharmacyController::class, 'printLog'],
 
     'GET:users' => [UserController::class, 'index'],
     'POST:users-store' => [UserController::class, 'store'],
