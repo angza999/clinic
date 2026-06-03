@@ -1652,3 +1652,13 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
 - Converted Smart Exam preset management into a scannable expandable list so only one preset editor needs to be open at a time.
 - Reduced textarea heights, card padding, and visible duplicate preview blocks.
 - Database impact: no schema change.
+
+## 2026-05-26 - Pharmacy Sticker Label Phase 2
+
+- Added Pharmacy Workstation route and sidebar entry.
+- Added print queue surface derived from prescriptions, prescription items, and medication print logs.
+- Added recent print/reprint visibility for pharmacy label operations.
+- Added drug master/profile table with search/filter and selected row state.
+- Added sticky drug profile editor for label short name, category, default instruction, warning text, and active state.
+- Added `public/assets/js/pharmacy-workstation.js` for click-to-edit, profile filtering, and live instruction preview.
+- Database impact: no schema change beyond existing Pharmacy Phase 1 tables.

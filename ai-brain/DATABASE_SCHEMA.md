@@ -487,3 +487,5 @@ Stock batch import ต้องเขียน:
 - `prescription_items` links to `visit_item_usages` through `visit_item_usage_id`; this prevents label generation from becoming a second stock deduction path.
 - `medication_print_logs` records browser print and reprint events by prescription item, visit, patient, label size, printed user, and timestamp.
 - Label printing does not touch `payments`, `inventory_batches`, or `stock_movements`.
+- Pharmacy Workstation Phase 2 uses the same Phase 1 pharmacy tables; no new table or column was added.
+- The print queue is derived from missing/existing `medication_print_logs` per `prescription_items` row.

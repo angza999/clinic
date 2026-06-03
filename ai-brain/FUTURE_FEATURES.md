@@ -142,3 +142,10 @@
 - Phase 3: direct thermal printer bridge for TSC, Zebra, and XPrinter.
 - Phase 3: drug allergy warnings, pediatric/elderly warnings, drug interaction checks, barcode medication, voice medication, and AI suggested medication.
 - Phase 3: automatic stock deduction refinement must still preserve the rule that printing labels never deducts stock.
+
+## Pharmacy Sticker Label Remaining Roadmap
+
+- Add QR code on labels once prescription/label URL strategy is approved.
+- Add favorite/recent drug shortcuts inside Smart Exam medication entry.
+- Add a direct thermal printer bridge only after browser-print workflow is stable.
+- Add allergy, pediatric, elderly, and interaction warnings after drug master data is mature enough.

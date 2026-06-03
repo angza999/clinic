@@ -10,6 +10,23 @@ use Throwable;
 
 class PharmacyController extends Controller
 {
+    public function index(): void
+    {
+        require_roles(['ADMIN', 'NURSE', 'CASHIER']);
+        $this->ensureSchema();
+
+        $this->render('pharmacy/index', [
+            'pageTitle' => 'สติ๊กเกอร์ยา',
+            'pageTopbarMode' => 'compact',
+            'kpis' => $this->pharmacyKpis(),
+            'printQueue' => $this->printQueue(),
+            'drugProfiles' => $this->drugProfiles(),
+            'recentLogs' => $this->recentPrintLogs(),
+            'pageStyles' => [app_url('assets/css/pharmacy-labels.css')],
+            'pageScripts' => [app_url('assets/js/pharmacy-workstation.js')],
+        ]);
+    }
+
     public function labels(): void
     {
         require_roles(['ADMIN', 'NURSE', 'CASHIER']);
@@ -40,6 +57,89 @@ class PharmacyController extends Controller
             'pageStyles' => [app_url('assets/css/pharmacy-labels.css')],
             'pageScripts' => [app_url('assets/js/pharmacy-labels.js')],
         ]);
+    }
+
+    public function storeDrugProfile(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+        $this->ensureSchema();
+
+        $itemId = (int) ($_POST['item_id'] ?? 0);
+        $drugShortName = trim((string) ($_POST['drug_short_name'] ?? ''));
+        $drugCategory = trim((string) ($_POST['drug_category'] ?? ''));
+        $defaultDoseQty = trim((string) ($_POST['default_dose_qty'] ?? ''));
+        $defaultDoseUnit = trim((string) ($_POST['default_dose_unit'] ?? ''));
+        $defaultFrequency = trim((string) ($_POST['default_frequency'] ?? ''));
+        $defaultTiming = trim((string) ($_POST['default_timing'] ?? ''));
+        $defaultInstruction = trim((string) ($_POST['default_instruction'] ?? ''));
+        $warningText = trim((string) ($_POST['warning_text'] ?? ''));
+        $isActive = isset($_POST['is_active']) ? 1 : 0;
+
+        $itemStmt = db()->prepare(
+            'SELECT id, item_name, unit_name
+             FROM inventory_items
+             WHERE id = :id AND item_type = "DRUG"
+             LIMIT 1'
+        );
+        $itemStmt->execute(['id' => $itemId]);
+        $item = $itemStmt->fetch();
+
+        if (!$item) {
+            flash('error', 'ไม่พบรายการยาที่ต้องการแก้ไข');
+            redirect('pharmacy');
+        }
+
+        if ($drugShortName === '') {
+            $drugShortName = (string) $item['item_name'];
+        }
+
+        if ($defaultDoseUnit === '') {
+            $defaultDoseUnit = (string) ($item['unit_name'] ?? '');
+        }
+
+        if ($defaultInstruction === '') {
+            $defaultInstruction = $this->buildDefaultInstruction(
+                $defaultDoseQty !== '' ? $defaultDoseQty : '1',
+                $defaultDoseUnit !== '' ? $defaultDoseUnit : 'หน่วย',
+                $defaultFrequency,
+                $defaultTiming
+            );
+        }
+
+        db()->prepare(
+            'INSERT INTO drug_profiles (
+                item_id, drug_short_name, drug_category, default_dose_qty, default_dose_unit,
+                default_frequency, default_timing, default_instruction, warning_text, is_active, created_at, updated_at
+             ) VALUES (
+                :item_id, :drug_short_name, :drug_category, :default_dose_qty, :default_dose_unit,
+                :default_frequency, :default_timing, :default_instruction, :warning_text, :is_active, NOW(), NOW()
+             )
+             ON DUPLICATE KEY UPDATE
+                drug_short_name = VALUES(drug_short_name),
+                drug_category = VALUES(drug_category),
+                default_dose_qty = VALUES(default_dose_qty),
+                default_dose_unit = VALUES(default_dose_unit),
+                default_frequency = VALUES(default_frequency),
+                default_timing = VALUES(default_timing),
+                default_instruction = VALUES(default_instruction),
+                warning_text = VALUES(warning_text),
+                is_active = VALUES(is_active),
+                updated_at = NOW()'
+        )->execute([
+            'item_id' => $itemId,
+            'drug_short_name' => $drugShortName,
+            'drug_category' => $drugCategory !== '' ? $drugCategory : null,
+            'default_dose_qty' => $defaultDoseQty !== '' ? $defaultDoseQty : null,
+            'default_dose_unit' => $defaultDoseUnit !== '' ? $defaultDoseUnit : null,
+            'default_frequency' => $defaultFrequency !== '' ? $defaultFrequency : null,
+            'default_timing' => $defaultTiming !== '' ? $defaultTiming : null,
+            'default_instruction' => $defaultInstruction !== '' ? $defaultInstruction : null,
+            'warning_text' => $warningText !== '' ? $warningText : null,
+            'is_active' => $isActive,
+        ]);
+
+        flash('success', 'บันทึกข้อมูลฉลากยาสำเร็จ');
+        redirect('pharmacy');
     }
 
     public function printLog(): void
@@ -403,6 +503,160 @@ class PharmacyController extends Controller
         $stmt->execute(['visit_id' => $visitId]);
 
         return $stmt->fetchAll();
+    }
+
+    private function pharmacyKpis(): array
+    {
+        $pdo = db();
+
+        $pendingStmt = $pdo->query(
+            'SELECT COUNT(*)
+             FROM prescription_items
+             LEFT JOIN medication_print_logs ON medication_print_logs.prescription_item_id = prescription_items.id
+             WHERE medication_print_logs.id IS NULL'
+        );
+
+        $printedTodayStmt = $pdo->query(
+            'SELECT COUNT(*)
+             FROM medication_print_logs
+             WHERE DATE(printed_at) = CURDATE()'
+        );
+
+        $drugCountStmt = $pdo->query(
+            'SELECT COUNT(*)
+             FROM inventory_items
+             WHERE item_type = "DRUG" AND is_active = 1'
+        );
+
+        $profileRiskStmt = $pdo->query(
+            'SELECT COUNT(*)
+             FROM inventory_items
+             LEFT JOIN drug_profiles ON drug_profiles.item_id = inventory_items.id
+             WHERE inventory_items.item_type = "DRUG"
+               AND inventory_items.is_active = 1
+               AND (
+                    drug_profiles.id IS NULL
+                    OR drug_profiles.default_instruction IS NULL
+                    OR TRIM(drug_profiles.default_instruction) = ""
+               )'
+        );
+
+        return [
+            'pending_labels' => (int) $pendingStmt->fetchColumn(),
+            'printed_today' => (int) $printedTodayStmt->fetchColumn(),
+            'drug_count' => (int) $drugCountStmt->fetchColumn(),
+            'profile_risk' => (int) $profileRiskStmt->fetchColumn(),
+        ];
+    }
+
+    private function printQueue(): array
+    {
+        $stmt = db()->query(
+            'SELECT prescriptions.id,
+                    prescriptions.visit_id,
+                    prescriptions.status,
+                    prescriptions.updated_at,
+                    visits.visit_no,
+                    queue_entries.queue_no,
+                    patients.hn,
+                    patients.first_name,
+                    patients.last_name,
+                    COUNT(prescription_items.id) AS label_count,
+                    SUM(CASE WHEN print_counts.print_count IS NULL OR print_counts.print_count = 0 THEN 1 ELSE 0 END) AS pending_count,
+                    MAX(print_counts.last_printed_at) AS last_printed_at
+             FROM prescriptions
+             INNER JOIN visits ON visits.id = prescriptions.visit_id
+             INNER JOIN patients ON patients.id = prescriptions.patient_id
+             LEFT JOIN queue_entries ON queue_entries.visit_id = visits.id
+             INNER JOIN prescription_items ON prescription_items.prescription_id = prescriptions.id
+             LEFT JOIN (
+                SELECT prescription_item_id, COUNT(*) AS print_count, MAX(printed_at) AS last_printed_at
+                FROM medication_print_logs
+                GROUP BY prescription_item_id
+             ) AS print_counts ON print_counts.prescription_item_id = prescription_items.id
+             GROUP BY prescriptions.id, prescriptions.visit_id, prescriptions.status, prescriptions.updated_at,
+                      visits.visit_no, queue_entries.queue_no, patients.hn, patients.first_name, patients.last_name
+             ORDER BY pending_count DESC, prescriptions.updated_at DESC
+             LIMIT 40'
+        );
+
+        return $stmt->fetchAll();
+    }
+
+    private function drugProfiles(): array
+    {
+        $stmt = db()->query(
+            'SELECT inventory_items.id AS item_id,
+                    inventory_items.item_code,
+                    inventory_items.item_name,
+                    inventory_items.unit_name,
+                    inventory_items.is_active AS item_active,
+                    COALESCE(stock.total_qty, 0) AS total_qty,
+                    drug_profiles.id AS profile_id,
+                    drug_profiles.drug_short_name,
+                    drug_profiles.drug_category,
+                    drug_profiles.default_dose_qty,
+                    drug_profiles.default_dose_unit,
+                    drug_profiles.default_frequency,
+                    drug_profiles.default_timing,
+                    drug_profiles.default_instruction,
+                    drug_profiles.warning_text,
+                    COALESCE(drug_profiles.is_active, inventory_items.is_active) AS profile_active,
+                    COALESCE(usage_stats.use_count, 0) AS use_count
+             FROM inventory_items
+             LEFT JOIN drug_profiles ON drug_profiles.item_id = inventory_items.id
+             LEFT JOIN (
+                SELECT item_id, SUM(qty_balance) AS total_qty
+                FROM inventory_batches
+                GROUP BY item_id
+             ) AS stock ON stock.item_id = inventory_items.id
+             LEFT JOIN (
+                SELECT item_id, COUNT(*) AS use_count
+                FROM prescription_items
+                GROUP BY item_id
+             ) AS usage_stats ON usage_stats.item_id = inventory_items.id
+             WHERE inventory_items.item_type = "DRUG"
+             ORDER BY profile_active DESC, inventory_items.item_name ASC'
+        );
+
+        return $stmt->fetchAll();
+    }
+
+    private function recentPrintLogs(): array
+    {
+        $stmt = db()->query(
+            'SELECT medication_print_logs.*,
+                    prescription_items.drug_name_snapshot,
+                    visits.visit_no,
+                    patients.hn,
+                    patients.first_name,
+                    patients.last_name,
+                    users.full_name AS printed_by_name
+             FROM medication_print_logs
+             INNER JOIN prescription_items ON prescription_items.id = medication_print_logs.prescription_item_id
+             INNER JOIN visits ON visits.id = medication_print_logs.visit_id
+             INNER JOIN patients ON patients.id = medication_print_logs.patient_id
+             LEFT JOIN users ON users.id = medication_print_logs.printed_by
+             ORDER BY medication_print_logs.printed_at DESC, medication_print_logs.id DESC
+             LIMIT 20'
+        );
+
+        return $stmt->fetchAll();
+    }
+
+    private function buildDefaultInstruction(string $doseQty, string $doseUnit, string $frequency, string $timing): string
+    {
+        $parts = ['รับประทานครั้งละ ' . trim($doseQty . ' ' . $doseUnit)];
+
+        if (trim($frequency) !== '') {
+            $parts[] = trim($frequency);
+        }
+
+        if (trim($timing) !== '') {
+            $parts[] = trim($timing);
+        }
+
+        return implode(' ', $parts);
     }
 
     private function normalizeLabelSize(string $size): string

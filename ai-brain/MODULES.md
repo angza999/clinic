@@ -452,3 +452,14 @@ Notes:
 - Purpose: create prescription snapshots from already-added `visit_item_usages`, preview sticker labels, print through browser, and log print/reprint actions.
 - Key safety rule: label generation never deducts stock. Stock deduction remains owned by `VisitController::addItemUsage()` and `stock_movements` with `reference_type = VISIT_USAGE`.
 - Phase 1 is browser-print only; direct thermal printer integration is future scope.
+
+## Pharmacy Sticker Label Phase 2
+
+- Controller: `app/Controllers/PharmacyController.php`
+- Views: `app/Views/pharmacy/index.php`, `app/Views/pharmacy/labels.php`
+- Assets: `public/assets/css/pharmacy-labels.css`, `public/assets/js/pharmacy-workstation.js`, `public/assets/js/pharmacy-labels.js`
+- Routes: `pharmacy`, `pharmacy-labels`, `drug-profile-store`, `pharmacy-print-log`
+- Admin/Nurse/Cashier can view the Pharmacy Workstation and label queue.
+- Admin/Nurse can edit drug label profiles through `POST:drug-profile-store`.
+- Workstation surfaces: print queue, recent print logs, drug master/profile table, and sticky smart builder profile editor.
+- Database impact: no new schema beyond Phase 1 pharmacy tables.

@@ -431,6 +431,15 @@ Any new module should reuse these patterns before inventing a new page style.
 - HN/receipt previews stay visible near save actions so admins understand the next generated numbers before saving.
 - Smart Exam presets are now shown as a compact list with expandable editors instead of all preset forms being open at once.
 - No database schema change was made; this is a UI/UX density and workflow pass.
+
+## 2026-05-26 - Pharmacy Sticker Label Phase 2
+
+- Pharmacy is now a dedicated workstation page at `GET:pharmacy`, not only a per-visit label preview.
+- The Pharmacy Workstation shows print queue, recent print/reprint activity, drug master list, and a sticky drug profile editor.
+- Drug profile editing uses existing `drug_profiles` and `inventory_items`; no new schema was added in this phase.
+- The profile editor can update short label name, category, default dose, default frequency/timing, printable instruction, warning text, and active state.
+- Print queue is calculated from `prescriptions`, `prescription_items`, and `medication_print_logs`.
+- Label printing remains browser-print and must never deduct stock or change payment totals.
 ## 2026-05-17 - Import Excel Phase 1
 
 - เพิ่มแนวคิด Data Onboarding สำหรับ Medical Workstation: ห้าม upload แล้วเขียนฐานข้อมูลทันที ต้องผ่าน preview, mapping, validate และ confirm ก่อนเสมอ

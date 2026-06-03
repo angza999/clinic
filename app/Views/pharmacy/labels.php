@@ -18,6 +18,9 @@ $queueNo = (string) ($visit['queue_no'] ?? '-');
             <p>ตรวจฉลากก่อนพิมพ์ ใช้ browser print เพื่อรองรับเครื่องพิมพ์สติ๊กเกอร์พื้นฐาน</p>
         </div>
         <div class="pharmacy-command-actions">
+            <a href="<?= e(route_url('pharmacy')) ?>" class="btn btn-outline-secondary">
+                <i class="bi bi-list-check"></i> Pharmacy Queue
+            </a>
             <a href="<?= e(route_url('queue-exam', ['id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> กลับ Smart Exam
             </a>

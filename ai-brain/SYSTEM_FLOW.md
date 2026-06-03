@@ -559,3 +559,17 @@ Rules:
 - Label printing must never deduct stock.
 - Label printing must never create or update payment totals.
 - Prescription item snapshots should preserve printable instruction text even if drug defaults change later.
+
+## Pharmacy Workstation Phase 2 Flow
+
+1. Staff opens `GET:pharmacy` from the sidebar.
+2. The workstation calculates pending/printed label queue from `prescriptions`, `prescription_items`, and `medication_print_logs`.
+3. Staff opens a queued visit through `pharmacy-labels` to preview and print/reprint labels.
+4. Admin/Nurse selects a drug profile row in the drug master table.
+5. The sticky editor loads profile defaults and previews the printable label name/instruction.
+6. Saving profile defaults updates `drug_profiles` only; it does not rewrite existing prescription snapshots.
+
+Rules:
+- Existing prescription items keep their current printable instruction until Smart Exam/label sync creates or updates that visit snapshot.
+- Drug profile editing is master-data work; it must not alter stock, payment, or visit totals.
+- Reprint visibility comes from `medication_print_logs`, not from a separate queue table.

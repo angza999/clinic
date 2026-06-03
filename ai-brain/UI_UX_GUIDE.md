@@ -526,3 +526,12 @@ The next production tightening pass must keep these five rules:
 - Do not show every preset form open at once; it increases accidental edits and scroll.
 - Preset rows should show active/inactive state, service codes, item count, and sort order in the summary line.
 - Keep settings quick wins schema-free unless a future audit/settings-history workflow is approved.
+
+### Pharmacy Workstation Phase 2 UX
+- Pharmacy should have its own operational page for print queue, reprint visibility, and drug label defaults.
+- Keep print queue on the left, drug master/profile list as the main surface, and drug profile editor as a sticky right rail.
+- Drug profile editing should be click-to-edit from the table; avoid opening one large form per drug.
+- Search/filter drug profiles in-place so nurses can find a drug in 1-2 seconds.
+- The profile editor must preview the printable label name and instruction while editing.
+- Browser print remains the implementation path; do not show direct thermal printer controls until the printer bridge exists.
+- Label/reprint actions must stay low-noise and never create stock/payment side effects.

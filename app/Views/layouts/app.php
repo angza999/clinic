@@ -3,7 +3,7 @@ $user = current_user();
 $clinicName = (string) system_setting('clinic_name', config('app.name'));
 $currentPage = current_page();
 $pageTitleText = (string) ($pageTitle ?? $clinicName);
-$workflowCompactPages = ['appointments', 'queue', 'queue-exam', 'payments', 'import'];
+$workflowCompactPages = ['appointments', 'queue', 'queue-exam', 'payments', 'import', 'pharmacy', 'pharmacy-labels'];
 $defaultTopbarMode = in_array($currentPage, $workflowCompactPages, true) ? 'compact' : 'default';
 $pageTopbarMode = (string) ($pageTopbarMode ?? $defaultTopbarMode);
 $pageDescriptions = [
@@ -14,6 +14,8 @@ $pageDescriptions = [
     'patients' => 'ค้นหา ลงทะเบียน และเปิดแฟ้มผู้รับบริการอย่างเป็นระบบ',
     'patient-show' => 'ติดตามประวัติการรับบริการและนัดหมายย้อนหลัง',
     'payments' => 'ตรวจยอด รับชำระ และออกใบเสร็จอย่างชัดเจน',
+    'pharmacy' => 'จัดการคิวพิมพ์สติ๊กเกอร์ยา แก้ default วิธีใช้ และพิมพ์ซ้ำอย่างเป็นระบบ',
+    'pharmacy-labels' => 'ตรวจฉลากยาแบบ preview ก่อนพิมพ์สติ๊กเกอร์ซองยา',
     'inventory' => 'ติดตามสต๊อก เวชภัณฑ์ และวันหมดอายุในมุมมองเดียว',
     'services' => 'ดูแลรายการบริการและราคาให้เป็นมาตรฐานเดียวกัน',
     'import' => 'นำเข้าข้อมูลตั้งต้นแบบมี preview, mapping, validate และ confirm ก่อนบันทึกเข้าระบบ',
@@ -29,6 +31,7 @@ $navItems = [
     ['page' => 'queue', 'label' => 'คิววันนี้', 'icon' => 'bi-grid-1x2-fill', 'url' => route_url('queue'), 'visible' => true, 'active' => $currentPage === 'queue'],
     ['page' => 'patients', 'label' => 'ผู้รับบริการ', 'icon' => 'bi-person-vcard-fill', 'url' => route_url('patients'), 'visible' => true, 'active' => in_array($currentPage, ['patients', 'patient-show'], true)],
     ['page' => 'payments', 'label' => 'การเงิน', 'icon' => 'bi-cash-stack', 'url' => route_url('payments'), 'visible' => has_role(['ADMIN', 'CASHIER']), 'active' => $currentPage === 'payments'],
+    ['page' => 'pharmacy', 'label' => 'สติ๊กเกอร์ยา', 'icon' => 'bi-printer-fill', 'url' => route_url('pharmacy'), 'visible' => has_role(['ADMIN', 'NURSE', 'CASHIER']), 'active' => in_array($currentPage, ['pharmacy', 'pharmacy-labels'], true)],
     ['page' => 'inventory', 'label' => 'คลังยา/เวชภัณฑ์', 'icon' => 'bi-capsule-pill', 'url' => route_url('inventory'), 'visible' => has_role(['ADMIN', 'NURSE']), 'active' => $currentPage === 'inventory'],
     ['page' => 'services', 'label' => 'บริการและราคา', 'icon' => 'bi-clipboard2-pulse-fill', 'url' => route_url('services'), 'visible' => has_role(['ADMIN', 'NURSE']), 'active' => $currentPage === 'services'],
     ['page' => 'import', 'label' => 'นำเข้าข้อมูล Excel', 'icon' => 'bi-file-earmark-spreadsheet-fill', 'url' => route_url('import'), 'visible' => has_role(['ADMIN', 'NURSE']), 'active' => $currentPage === 'import'],

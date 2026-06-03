@@ -82,7 +82,9 @@ $routes = [
     'POST:payments-send-back' => [PaymentController::class, 'sendBack'],
     'GET:receipt' => [PaymentController::class, 'receipt'],
 
+    'GET:pharmacy' => [PharmacyController::class, 'index'],
     'GET:pharmacy-labels' => [PharmacyController::class, 'labels'],
+    'POST:drug-profile-store' => [PharmacyController::class, 'storeDrugProfile'],
     'POST:pharmacy-print-log' => [PharmacyController::class, 'printLog'],
 
     'GET:users' => [UserController::class, 'index'],
