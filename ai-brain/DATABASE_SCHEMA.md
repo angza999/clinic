@@ -489,3 +489,29 @@ Stock batch import ต้องเขียน:
 - Label printing does not touch `payments`, `inventory_batches`, or `stock_movements`.
 - Pharmacy Workstation Phase 2 uses the same Phase 1 pharmacy tables; no new table or column was added.
 - The print queue is derived from missing/existing `medication_print_logs` per `prescription_items` row.
+## 2026-06-03 Production Readiness Schema
+
+### `backup_logs`
+Purpose:
+- Record database backup history for production readiness and restore discipline.
+
+Key Fields:
+- `id`
+- `file_name`
+- `file_path`
+- `file_size_bytes`
+- `receipt_count`
+- `paid_total`
+- `pending_work_count`
+- `retention_limit`
+- `status`
+- `created_by`
+- `created_at`
+
+Relations:
+- N:1 to `users` through `created_by`
+
+Notes:
+- Fresh installs get this table from `database/schema.sql`.
+- Existing installs should run `database/production_readiness.sql`.
+- Backup generation also writes an `audit_logs` action `BACKUP_CREATED`.

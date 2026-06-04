@@ -25,5 +25,7 @@
 /database/backups/
 
 /tools/*
+!/tools/smoke-check.php
+!/tools/apply-production-readiness.php
 !/tools/smart-card-bridge/
 !/tools/smart-card-bridge/**

@@ -1,0 +1,249 @@
+.production-page {
+  display: grid;
+  gap: 16px;
+  color: #0f172a;
+}
+
+.production-hero,
+.production-command,
+.production-panel {
+  border: 1px solid #dbe5f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
+.production-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px;
+}
+
+.production-kicker {
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.production-hero h1,
+.production-panel h2 {
+  margin: 4px 0;
+  font-weight: 950;
+}
+
+.production-hero h1 {
+  font-size: 1.65rem;
+}
+
+.production-hero p,
+.production-check p,
+.production-mini-row span,
+.production-mini-row small,
+.production-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.production-score-grid {
+  display: grid;
+  min-width: 360px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.production-score {
+  display: grid;
+  min-height: 72px;
+  align-content: center;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.production-score span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.production-score strong {
+  font-size: 1.5rem;
+  font-weight: 950;
+}
+
+.production-score.is-passed {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.production-score.is-warning {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.production-score.is-failed {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.production-command {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px;
+}
+
+.production-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 16px;
+  align-items: start;
+}
+
+.production-panel {
+  padding: 16px;
+}
+
+.production-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.production-panel-head h2 {
+  font-size: 1.05rem;
+}
+
+.production-panel-head > span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.production-check-list,
+.production-mini-list {
+  display: grid;
+  gap: 10px;
+}
+
+.production-check {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.production-check > i {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.production-check.is-passed > i {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.production-check.is-warning > i {
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.production-check.is-failed > i {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.production-check-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.production-check-title strong {
+  font-weight: 950;
+}
+
+.production-check-title span,
+.production-check em {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.production-check em {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #fff;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.production-rail {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 16px;
+}
+
+.production-mini-row {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.production-mini-row strong {
+  font-size: 0.88rem;
+  font-weight: 950;
+}
+
+.production-mini-row small {
+  font-size: 0.78rem;
+}
+
+.production-empty {
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  text-align: center;
+}
+
+@media (max-width: 1180px) {
+  .production-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .production-score-grid,
+  .production-grid {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .production-rail {
+    position: static;
+  }
+}

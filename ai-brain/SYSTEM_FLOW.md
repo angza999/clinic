@@ -573,3 +573,18 @@ Rules:
 - Existing prescription items keep their current printable instruction until Smart Exam/label sync creates or updates that visit snapshot.
 - Drug profile editing is master-data work; it must not alter stock, payment, or visit totals.
 - Reprint visibility comes from `medication_print_logs`, not from a separate queue table.
+## 2026-06-03 Production Readiness Flow
+
+Admin production go-live flow:
+1. Open `?page=production`.
+2. Review readiness checks across database, backup, audit, queue/payment workload, stock, smart card, printer, and privacy storage.
+3. Run smoke JSON or CLI smoke check through `tools/smoke-check.php`.
+4. Create/download a backup before real patient data entry.
+5. Confirm Smart Card Bridge health at `http://127.0.0.1:8189/health`.
+6. Test receipt and medication sticker browser print on the real printer.
+7. Review audit and backup history before pilot or daily close.
+
+Operational constraints:
+- Production checks must not alter queue/payment/stock workflow state.
+- Backup history may create `backup_logs` and `audit_logs` entries.
+- Smoke checks are diagnostic and should be run before go-live and after deployment.

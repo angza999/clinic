@@ -1662,3 +1662,17 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
 - Added sticky drug profile editor for label short name, category, default instruction, warning text, and active state.
 - Added `public/assets/js/pharmacy-workstation.js` for click-to-edit, profile filtering, and live instruction preview.
 - Database impact: no schema change beyond existing Pharmacy Phase 1 tables.
+## 2026-06-03 - Production Readiness Phase
+
+- Added Admin-only Production Readiness workstation at `?page=production`.
+- Added smoke JSON route `?page=production-smoke` and CLI smoke script `tools/smoke-check.php`.
+- Expanded backup coverage to include import logs, service price history, pharmacy/prescription tables, medication print logs, and backup logs.
+- Added `backup_logs` schema to `database/schema.sql` and existing-install migration `database/production_readiness.sql`.
+- Added `tools/apply-production-readiness.php` to apply the production readiness migration from the project runtime.
+- Backup downloads now record backup history and an audit action `BACKUP_CREATED`.
+- Added deployment, smart-card/printer, and privacy/security documentation:
+  - `docs/PRODUCTION_DEPLOYMENT.md`
+  - `docs/SMART_CARD_PRINTER_CHECKLIST.md`
+  - `docs/DATA_PRIVACY_SECURITY.md`
+- Added sidebar entry `ตรวจระบบใช้งานจริง` for Admin.
+- Database impact: new `backup_logs` table for existing installations via migration.

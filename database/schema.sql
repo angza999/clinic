@@ -10,6 +10,7 @@ USE `dongmahawan_clinic`;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS `audit_logs`;
+DROP TABLE IF EXISTS `backup_logs`;
 DROP TABLE IF EXISTS `import_log_rows`;
 DROP TABLE IF EXISTS `import_logs`;
 DROP TABLE IF EXISTS `smart_exam_presets`;
@@ -482,6 +483,24 @@ CREATE TABLE `audit_logs` (
   PRIMARY KEY (`id`),
   KEY `idx_audit_logs_user_id` (`user_id`),
   CONSTRAINT `fk_audit_logs_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `backup_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `file_name` varchar(255) NOT NULL,
+  `file_path` varchar(255) NOT NULL,
+  `file_size_bytes` bigint unsigned NOT NULL DEFAULT 0,
+  `receipt_count` int unsigned NOT NULL DEFAULT 0,
+  `paid_total` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `pending_work_count` int unsigned NOT NULL DEFAULT 0,
+  `retention_limit` int unsigned NOT NULL DEFAULT 30,
+  `status` enum('CREATED','FAILED') NOT NULL DEFAULT 'CREATED',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_backup_logs_created_at` (`created_at`),
+  KEY `idx_backup_logs_created_by` (`created_by`),
+  CONSTRAINT `fk_backup_logs_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `running_numbers` (

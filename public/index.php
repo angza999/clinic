@@ -11,6 +11,7 @@ use App\Controllers\ImportController;
 use App\Controllers\PatientController;
 use App\Controllers\PaymentController;
 use App\Controllers\PharmacyController;
+use App\Controllers\ProductionController;
 use App\Controllers\QueueController;
 use App\Controllers\ReportController;
 use App\Controllers\ServiceController;
@@ -100,6 +101,8 @@ $routes = [
     'POST:settings-preset-store' => [SettingsController::class, 'storePreset'],
 
     'GET:backup' => [BackupController::class, 'download'],
+    'GET:production' => [ProductionController::class, 'index'],
+    'GET:production-smoke' => [ProductionController::class, 'smoke'],
 ];
 
 $routeKey = $method . ':' . $page;

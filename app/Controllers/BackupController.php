@@ -5,32 +5,42 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use Throwable;
 
 class BackupController extends Controller
 {
     public function download(): void
     {
         require_roles(['ADMIN']);
+        $this->ensureSchema();
 
         $tables = [
             'roles',
             'users',
+            'import_logs',
+            'import_log_rows',
             'patients',
             'visits',
             'queue_entries',
             'visit_vitals',
             'services',
+            'service_price_history',
             'visit_services',
             'inventory_items',
             'inventory_batches',
             'stock_movements',
             'visit_item_usages',
+            'drug_profiles',
+            'prescriptions',
+            'prescription_items',
+            'medication_print_logs',
             'payments',
             'appointments',
             'system_settings',
             'smart_exam_presets',
             'running_numbers',
             'audit_logs',
+            'backup_logs',
         ];
 
         $retentionLimit = 30;
@@ -90,11 +100,77 @@ class BackupController extends Controller
 
         file_put_contents($fullPath, $sqlDump);
         $this->cleanupOldBackups($exportDirectory, $retentionLimit);
+        $this->recordBackupLog($filename, $fullPath, $dailyClose ?: [], $pendingWorkCount, $retentionLimit);
 
         header('Content-Type: application/sql');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         readfile($fullPath);
         exit;
+    }
+
+    private function ensureSchema(): void
+    {
+        db()->exec(
+            'CREATE TABLE IF NOT EXISTS backup_logs (
+                id bigint unsigned NOT NULL AUTO_INCREMENT,
+                file_name varchar(255) NOT NULL,
+                file_path varchar(255) NOT NULL,
+                file_size_bytes bigint unsigned NOT NULL DEFAULT 0,
+                receipt_count int unsigned NOT NULL DEFAULT 0,
+                paid_total decimal(12,2) NOT NULL DEFAULT 0.00,
+                pending_work_count int unsigned NOT NULL DEFAULT 0,
+                retention_limit int unsigned NOT NULL DEFAULT 30,
+                status enum("CREATED","FAILED") NOT NULL DEFAULT "CREATED",
+                created_by bigint unsigned DEFAULT NULL,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_backup_logs_created_at (created_at),
+                KEY idx_backup_logs_created_by (created_by),
+                CONSTRAINT fk_backup_logs_created_by FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+    }
+
+    private function recordBackupLog(string $filename, string $fullPath, array $dailyClose, int $pendingWorkCount, int $retentionLimit): void
+    {
+        try {
+            $actor = current_user();
+            $pdo = db();
+            $pdo->prepare(
+                'INSERT INTO backup_logs (
+                    file_name, file_path, file_size_bytes, receipt_count, paid_total,
+                    pending_work_count, retention_limit, status, created_by, created_at
+                 ) VALUES (
+                    :file_name, :file_path, :file_size_bytes, :receipt_count, :paid_total,
+                    :pending_work_count, :retention_limit, "CREATED", :created_by, NOW()
+                 )'
+            )->execute([
+                'file_name' => $filename,
+                'file_path' => str_replace('\\', '/', $fullPath),
+                'file_size_bytes' => is_file($fullPath) ? (int) filesize($fullPath) : 0,
+                'receipt_count' => (int) ($dailyClose['receipt_count'] ?? 0),
+                'paid_total' => (float) ($dailyClose['total_amount'] ?? 0),
+                'pending_work_count' => $pendingWorkCount,
+                'retention_limit' => $retentionLimit,
+                'created_by' => $actor['id'] ?? null,
+            ]);
+
+            $backupId = (int) $pdo->lastInsertId();
+            $pdo->prepare(
+                'INSERT INTO audit_logs (user_id, action, table_name, record_id, detail_json, created_at)
+                 VALUES (:user_id, "BACKUP_CREATED", "backup_logs", :record_id, :detail_json, NOW())'
+            )->execute([
+                'user_id' => $actor['id'] ?? null,
+                'record_id' => $backupId,
+                'detail_json' => json_encode([
+                    'file_name' => $filename,
+                    'file_size_bytes' => is_file($fullPath) ? (int) filesize($fullPath) : 0,
+                    'pending_work_count' => $pendingWorkCount,
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
+        } catch (Throwable $throwable) {
+            // Backup file has already been created; log failure must not block download.
+        }
     }
 
     private function cleanupOldBackups(string $exportDirectory, int $retentionLimit): void

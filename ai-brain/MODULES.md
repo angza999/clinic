@@ -158,6 +158,27 @@ Routes:
 
 Cashier Workstation Update:
 - Assets: `public/assets/css/payments.css`, `public/assets/js/payments.js`
+
+## Production Readiness
+Purpose:
+- Admin-only go-live checklist and operational health surface.
+- Helps the clinic verify backup, schema, smart-card bridge, printer readiness, privacy storage, audit activity, and pending operational work.
+
+Routes:
+- `GET:production`
+- `GET:production-smoke`
+
+Key Files:
+- `app/Controllers/ProductionController.php`
+- `app/Views/production/index.php`
+- `public/assets/css/production.css`
+- `tools/smoke-check.php`
+- `database/production_readiness.sql`
+
+Notes:
+- `backup_logs` records backup history for production monitoring.
+- The production page is not a dashboard replacement; it is a go-live and daily safety workstation for Admin.
+- Smart-card bridge checks use `http://127.0.0.1:8189/health`.
 - Payments page now separates waiting payment queue, receipt history, and right financial action rail.
 - Realtime search supports VN, HN, patient name, and receipt number.
 - Existing payment methods are `CASH`, `TRANSFER`, and `QR`.

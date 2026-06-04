@@ -118,6 +118,17 @@ AI coding assistant ที่เข้ามาทำงานในโปรเ
 - ใช้ preset, quick service, quick item, auto suggestion และ summary sidebar ช่วยลดเวลา
 
 ## Architectural Principles
+
+## 2026-06-03 Production Readiness Context
+- The project now includes an Admin-only Production Readiness workstation at `?page=production`.
+- Purpose: verify whether the local clinic workstation is safe enough for real daily use before go-live.
+- It checks database/schema readiness, backup capability, audit activity, pending queue/payment workload, stock warnings, smart-card bridge availability, browser-print readiness, patient photo storage, and import staging.
+- Daily production operation should include: backup download, smoke check, smart-card health check, printer test, and review of audit/backup history.
+- Deployment references:
+  - `docs/PRODUCTION_DEPLOYMENT.md`
+  - `docs/SMART_CARD_PRINTER_CHECKLIST.md`
+  - `docs/DATA_PRIVACY_SECURITY.md`
+  - `database/production_readiness.sql` for existing databases
 - Keep business flow explicit
 - Keep state transitions controlled
 - Avoid hidden automatic mutations ที่ตรวจสอบยาก

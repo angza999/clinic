@@ -22,6 +22,7 @@ $pageDescriptions = [
     'users' => 'กำหนดผู้ใช้งาน สิทธิ์ และความพร้อมของทีมงาน',
     'reports' => 'สรุปรายงานประจำวัน ประจำเดือน และไฟล์สำรองข้อมูล',
     'settings' => 'กำหนดข้อมูลคลินิก รูปแบบเอกสาร และการแจ้งเตือน',
+    'production' => 'ตรวจความพร้อมก่อนใช้งานจริง Backup, Smart Card, Printer, Privacy และ Smoke checks',
     'dashboard' => 'ภาพรวมการให้บริการ รายได้ และสถานะงานประจำวัน',
 ];
 $pageDescription = $pageDescriptions[$currentPage] ?? 'ระบบบริหารจัดการคลินิกพยาบาล';
@@ -38,6 +39,7 @@ $navItems = [
     ['page' => 'users', 'label' => 'จัดการผู้ใช้', 'icon' => 'bi-people-fill', 'url' => route_url('users'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'users'],
     ['page' => 'reports', 'label' => 'รายงานและ Backup', 'icon' => 'bi-bar-chart-fill', 'url' => route_url('reports'), 'visible' => has_role('ADMIN'), 'active' => in_array($currentPage, ['reports', 'report-print'], true)],
     ['page' => 'settings', 'label' => 'ตั้งค่าคลินิก', 'icon' => 'bi-sliders2', 'url' => route_url('settings'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'settings'],
+    ['page' => 'production', 'label' => 'ตรวจระบบใช้งานจริง', 'icon' => 'bi-shield-check', 'url' => route_url('production'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'production'],
     ['page' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-speedometer2', 'url' => route_url('dashboard'), 'visible' => true, 'active' => $currentPage === 'dashboard'],
 ];
 ?>

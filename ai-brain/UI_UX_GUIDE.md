@@ -535,3 +535,15 @@ The next production tightening pass must keep these five rules:
 - The profile editor must preview the printable label name and instruction while editing.
 - Browser print remains the implementation path; do not show direct thermal printer controls until the printer bridge exists.
 - Label/reprint actions must stay low-noise and never create stock/payment side effects.
+## 2026-06-03 Production Readiness UX
+
+Production readiness screens should feel like an operational safety checklist, not a marketing dashboard.
+
+Rules:
+- Use compact status cards for pass/warn/fail counts.
+- Group checks by operational domain: database, backup, permissions/audit, workflow, devices, privacy.
+- Show clear human-readable messages and the next action.
+- Keep destructive or risky actions out of the readiness screen.
+- Link to real workflows: backup, reports, settings, smart-card/printer docs.
+- Use red only for blockers, amber for attention, and teal/green for ready.
+- Admin should understand go-live risk within 10 seconds.
