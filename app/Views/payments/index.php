@@ -173,7 +173,7 @@ $receiptUrl = static fn(?array $row): string => $row && !empty($row['payment_id'
                                             ส่งกลับห้องตรวจ
                                         </button>
                                         <a class="btn btn-link" href="<?= e(route_url('visit-edit', ['id' => $row['visit_id']])) ?>">
-                                            ตรวจรายละเอียด
+                                            ประวัติเคส
                                         </a>
                                     </div>
                                 </form>

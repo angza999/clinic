@@ -149,3 +149,17 @@
 - Add favorite/recent drug shortcuts inside Smart Exam medication entry.
 - Add a direct thermal printer bridge only after browser-print workflow is stable.
 - Add allergy, pediatric, elderly, and interaction warnings after drug master data is mature enough.
+
+## Queue Workstation Future Hardening
+
+- Dedicated queue activity/event table for richer Recent Activity without relying on derived timestamps.
+- Device status bridge for printer and smart-card reader readiness instead of mock/advisory status.
+- Role-aware backup now action with progress and completion feedback inside Today Status.
+- Stronger active-case locking if the clinic later adds multiple concurrent users.
+- Optional queue SLA settings so warning/critical wait thresholds can be configured per clinic.
+- Treatment Preset Phase 2:
+  - Add explicit "apply again" mode for legitimate duplicate bundle usage with stronger warning.
+  - Add preset usage analytics: times used, revenue, stock impact, and latest used date.
+  - Add preset category/favorites for high-volume clinics.
+  - Add stock availability preview before confirmation.
+  - Add drug allergy/drug interaction checks before applying medication bundles.

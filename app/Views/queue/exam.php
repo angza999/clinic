@@ -3,6 +3,7 @@ $visit = $activeVisit ?? [];
 $services = $services ?? [];
 $items = $items ?? [];
 $quickPresets = $quickPresets ?? [];
+$treatmentPresets = $treatmentPresets ?? [];
 $frequentServices = $frequentServices ?? [];
 $frequentItems = $frequentItems ?? [];
 $expiryAlertDays = (int) ($expiryAlertDays ?? 30);
@@ -15,6 +16,10 @@ $unpaidCount = (int) ($patientSnapshot['unpaid_count'] ?? 0);
 $lastPaidAt = $patientSnapshot['last_paid_at'] ?? null;
 $currentPresetKey = trim((string) ($_GET['preset'] ?? ''));
 $currentPreset = $quickPresets[$currentPresetKey] ?? null;
+$formatQty = static function (float $qty): string {
+    $value = number_format($qty, 2, '.', '');
+    return rtrim(rtrim($value, '0'), '.') ?: '0';
+};
 $serviceLines = $visit['service_lines'] ?? [];
 $itemLines = $visit['item_lines'] ?? [];
 $serviceCount = count($serviceLines);
@@ -22,6 +27,118 @@ $itemCount = count($itemLines);
 $fullName = trim((string) (($visit['first_name'] ?? '') . ' ' . ($visit['last_name'] ?? '')));
 $drugAllergyText = trim((string) ($visit['drug_allergy'] ?? ''));
 $hasDrugAllergy = $drugAllergyText !== '' && $drugAllergyText !== '-';
+$chronicText = trim((string) (($snapshotProfile['underlying_disease'] ?? $visit['underlying_disease'] ?? '') ?: ''));
+$hasChronic = $chronicText !== '' && $chronicText !== '-';
+if (!function_exists('smart_exam_birth_date')) {
+    function smart_exam_birth_date(?string $birthDate): ?DateTimeImmutable
+    {
+        $birthDate = trim((string) $birthDate);
+        if ($birthDate === '') {
+            return null;
+        }
+
+        try {
+            if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $birthDate, $matches)) {
+                $year = (int) $matches[1];
+                if ($year >= 2400) {
+                    $year -= 543;
+                }
+
+                return new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, (int) $matches[2], (int) $matches[3]));
+            }
+
+            if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $birthDate, $matches)) {
+                $year = (int) $matches[3];
+                if ($year >= 2400) {
+                    $year -= 543;
+                }
+
+                return new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, (int) $matches[2], (int) $matches[1]));
+            }
+
+            $date = new DateTimeImmutable($birthDate);
+            $year = (int) $date->format('Y');
+            if ($year >= 2400) {
+                $date = new DateTimeImmutable(sprintf('%04d-%s', $year - 543, $date->format('m-d')));
+            }
+
+            return $date;
+        } catch (Throwable $throwable) {
+            return null;
+        }
+    }
+}
+
+if (!function_exists('smart_exam_age_text')) {
+    function smart_exam_age_text(?DateTimeImmutable $birthDate): string
+    {
+        if (!$birthDate) {
+            return '-';
+        }
+
+        $today = new DateTimeImmutable('today');
+        if ($birthDate > $today) {
+            return '-';
+        }
+
+        $age = $birthDate->diff($today)->y;
+        return $age <= 130 ? $age . ' ปี' : '-';
+    }
+}
+$birthDate = smart_exam_birth_date((string) ($visit['birth_date'] ?? ''));
+$ageText = smart_exam_age_text($birthDate);
+$genderText = trim((string) ($visit['gender'] ?? '')) !== '' ? (string) $visit['gender'] : '-';
+$phoneText = trim((string) ($visit['phone'] ?? '')) !== '' ? (string) $visit['phone'] : '-';
+$lastVisitAt = $snapshotProfile['last_visit_at'] ?? null;
+$smartExamUser = current_user() ?? [];
+$smartExamRole = (string) ($smartExamUser['role_code'] ?? '');
+$canEditPatientFull = $smartExamRole === 'ADMIN';
+$canEditPatientLimited = in_array($smartExamRole, ['ADMIN', 'NURSE'], true);
+$birthDateText = '';
+if (!empty($visit['birth_date'])) {
+    try {
+        $birthDateText = (new DateTimeImmutable((string) $visit['birth_date']))->format('d/m/') . ((int) (new DateTimeImmutable((string) $visit['birth_date']))->format('Y') + 543);
+    } catch (Throwable $throwable) {
+        $birthDateText = '';
+    }
+}
+$birthDateText = $birthDate ? $birthDate->format('d/m/') . ((int) $birthDate->format('Y') + 543) : $birthDateText;
+$patientProfile = [
+    'id' => (int) ($visit['patient_id'] ?? 0),
+    'hn' => (string) ($visit['hn'] ?? ''),
+    'vn' => (string) ($visit['visit_no'] ?? ''),
+    'citizen_id' => (string) (($snapshotProfile['citizen_id'] ?? $visit['citizen_id'] ?? '') ?: ''),
+    'title_name' => (string) (($snapshotProfile['title_name'] ?? $visit['title_name'] ?? '') ?: ''),
+    'first_name' => (string) ($visit['first_name'] ?? ''),
+    'last_name' => (string) ($visit['last_name'] ?? ''),
+    'gender' => (string) ($visit['gender'] ?? ''),
+    'gender_text' => $genderText,
+    'birth_date_text' => $birthDateText,
+    'age_text' => $ageText,
+    'phone' => (string) ($visit['phone'] ?? ''),
+    'address' => (string) (($snapshotProfile['address'] ?? $visit['address'] ?? '') ?: ''),
+    'underlying_disease' => $chronicText,
+    'drug_allergy' => $drugAllergyText,
+    'note' => (string) (($snapshotProfile['note'] ?? $visit['note'] ?? '') ?: ''),
+    'visit_count' => (int) ($snapshotProfile['visit_count'] ?? $visit['visit_count'] ?? 1),
+    'last_visit_text' => $lastVisitAt ? thai_date($lastVisitAt) : '-',
+];
+$historyPreview = array_slice($recentVisits, 0, 3);
+$latestMedicineNames = [];
+foreach ($historyPreview as $recentVisit) {
+    $itemsSummary = trim((string) ($recentVisit['items_summary'] ?? ''));
+    if ($itemsSummary === '' || $itemsSummary === '-') {
+        continue;
+    }
+
+    foreach (preg_split('/,\s*/u', $itemsSummary) ?: [] as $medicineName) {
+        $medicineName = trim($medicineName);
+        if ($medicineName !== '' && $medicineName !== '-' && !in_array($medicineName, $latestMedicineNames, true)) {
+            $latestMedicineNames[] = $medicineName;
+        }
+    }
+}
+$latestMedicineNames = array_slice($latestMedicineNames, 0, 3);
 $serviceTotal = (float) ($visit['service_total'] ?? 0);
 $itemTotal = (float) ($visit['item_total'] ?? 0);
 $grandTotal = $serviceTotal + $itemTotal;
@@ -87,7 +204,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
 
         <div class="smart-encounter-actions">
             <a href="<?= e(route_url('queue', ['visit_id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-secondary btn-sm">กลับคิว</a>
-            <a href="<?= e(route_url('visit-edit', ['id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-dark btn-sm">ขั้นสูง</a>
+            <a href="<?= e(route_url('visit-edit', ['id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-dark btn-sm">ประวัติเคส</a>
         </div>
     </section>
 
@@ -98,7 +215,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
         </div>
         <div class="smart-exam-page-actions">
             <a href="<?= e(route_url('queue', ['visit_id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-secondary">กลับไปหน้าคิว</a>
-            <a href="<?= e(route_url('visit-edit', ['id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-dark">รายละเอียดขั้นสูง</a>
+            <a href="<?= e(route_url('visit-edit', ['id' => (int) ($visit['id'] ?? 0)])) ?>" class="btn btn-outline-dark">ประวัติเคส</a>
         </div>
     </section>
 
@@ -109,6 +226,116 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
     </section>
 
     <section class="smart-exam-page-grid">
+        <aside class="smart-patient-context" aria-label="Patient context">
+            <article class="card smart-panel-card smart-context-card"
+                data-patient-context-card
+                data-profile-update-url="<?= e(route_url('queue-patient-profile-update')) ?>">
+                <div class="smart-context-identity">
+                    <div class="smart-context-photo">
+                        <?php if ($patientPhotoUrl !== ''): ?>
+                            <img src="<?= e($patientPhotoUrl) ?>" alt="รูปผู้รับบริการ">
+                        <?php else: ?>
+                            <i class="bi bi-person-badge"></i>
+                        <?php endif; ?>
+                    </div>
+                    <div>
+                        <div class="smart-section-label">Patient Context</div>
+                        <h3 data-patient-full-name><?= e($fullName) ?></h3>
+                        <p>HN <span data-patient-hn><?= e((string) ($visit['hn'] ?? '')) ?></span> / VN <span data-patient-vn><?= e((string) ($visit['visit_no'] ?? '')) ?></span></p>
+                    </div>
+                    <div class="smart-context-menu-wrap">
+                        <?php if ($canEditPatientLimited): ?>
+                            <button type="button" class="smart-context-edit-trigger" data-patient-drawer-open="edit" aria-label="แก้ไขข้อมูลคนไข้">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        <?php endif; ?>
+                        <button type="button" class="smart-context-menu-trigger" data-patient-menu-toggle aria-label="เมนูข้อมูลผู้รับบริการ" aria-expanded="false">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <div class="smart-context-menu" data-patient-menu hidden>
+                            <button type="button" data-patient-drawer-open="view"><i class="bi bi-person-lines-fill"></i> ดูข้อมูลทั้งหมด</button>
+                            <?php if ($canEditPatientLimited): ?>
+                                <button type="button" data-patient-drawer-open="edit"><i class="bi bi-pencil-square"></i> แก้ไขข้อมูลผู้รับบริการ</button>
+                            <?php endif; ?>
+                            <a href="<?= e(route_url('visit-edit', ['id' => (int) ($visit['id'] ?? 0)])) ?>"><i class="bi bi-clock-history"></i> ประวัติการรักษาทั้งหมด</a>
+                            <button type="button" data-patient-menu-placeholder="พิมพ์บัตรผู้รับบริการ"><i class="bi bi-printer"></i> พิมพ์บัตรผู้รับบริการ</button>
+                            <button type="button" data-patient-menu-placeholder="พิมพ์ QR Code"><i class="bi bi-qr-code"></i> พิมพ์ QR Code</button>
+                            <button type="button" data-patient-menu-close><i class="bi bi-x-lg"></i> ปิดเมนู</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="smart-context-facts">
+                    <div><span>อายุ</span><strong data-patient-age><?= e($ageText) ?></strong></div>
+                    <div><span>เพศ</span><strong data-patient-gender><?= e($genderText) ?></strong></div>
+                    <div><span>โทร</span><strong data-patient-phone><?= e($phoneText) ?></strong></div>
+                    <div><span>มาแล้ว</span><strong data-patient-visit-count><?= e((string) ($snapshotProfile['visit_count'] ?? $visit['visit_count'] ?? 1)) ?> ครั้ง</strong></div>
+                </div>
+
+                <div class="smart-safety-banner <?= $hasDrugAllergy ? 'is-danger' : ($hasChronic ? 'is-warning' : 'is-clear') ?>" data-patient-safety-banner>
+                    <div>
+                        <span>แพ้ยา</span>
+                        <strong data-patient-allergy><?= e($hasDrugAllergy ? $drugAllergyText : 'ไม่มีประวัติแพ้ยา') ?></strong>
+                    </div>
+                    <div>
+                        <span>โรคประจำตัว</span>
+                        <strong data-patient-chronic><?= e($hasChronic ? $chronicText : 'ไม่มีโรคประจำตัว') ?></strong>
+                    </div>
+                </div>
+
+                <div class="smart-context-block">
+                    <div class="smart-context-block-head">
+                        <strong>ประวัติย้อนหลัง</strong>
+                        <span><?= e((string) count($historyPreview)) ?> รายการ</span>
+                    </div>
+                    <?php if ($historyPreview): ?>
+                        <div class="smart-context-history">
+                            <?php foreach ($historyPreview as $recentVisit): ?>
+                                <div class="smart-context-history-row">
+                                    <span><?= thai_date_only($recentVisit['visit_datetime'] ?? null) ?></span>
+                                    <strong><?= e((string) (($recentVisit['chief_complaint'] ?? '') ?: (($recentVisit['diagnosis'] ?? '') ?: '-'))) ?></strong>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <details class="smart-one-click">
+                            <summary>ดูรายละเอียดทั้งหมด</summary>
+                            <div class="smart-one-click-body">
+                                <?php foreach ($recentVisits as $recentVisit): ?>
+                                    <div class="smart-one-click-row">
+                                        <div><strong><?= thai_date($recentVisit['visit_datetime'] ?? null) ?></strong> · <?= e((string) (($recentVisit['diagnosis'] ?? '') ?: 'ยังไม่มี Dx')) ?></div>
+                                        <span>ยา/เวชภัณฑ์: <?= e((string) ($recentVisit['items_summary'] ?? '-')) ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </details>
+                    <?php else: ?>
+                        <div class="smart-context-empty">ยังไม่มีประวัติย้อนหลัง</div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="smart-context-block">
+                    <div class="smart-context-block-head">
+                        <strong>ยาที่เคยได้รับล่าสุด</strong>
+                        <span>One click</span>
+                    </div>
+                    <?php if ($latestMedicineNames): ?>
+                        <div class="smart-context-pill-list">
+                            <?php foreach ($latestMedicineNames as $medicineName): ?>
+                                <span><?= e($medicineName) ?></span>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="smart-context-empty">ยังไม่พบรายการยาล่าสุด</div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="smart-context-footer">
+                    <span>มาครั้งล่าสุด <?= $lastVisitAt ? thai_date($lastVisitAt) : '-' ?></span>
+                    <button type="button" data-patient-drawer-open="view">ข้อมูลทั้งหมด</button>
+                </div>
+            </article>
+        </aside>
+
         <main class="smart-exam-main">
             <article class="card smart-panel-card smart-main-card">
                 <div class="smart-active-case">
@@ -235,6 +462,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                         data-remove-item-url="<?= e(route_url('visit-remove-item')) ?>"
                     ></div>
 
+                    <div class="smart-exam-top-grid">
                     <div class="smart-service-presets">
                         <div class="smart-service-presets-head">
                             <div class="smart-section-label">Preset บริการและอุปกรณ์ที่ใช้บ่อย</div>
@@ -245,7 +473,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                                 <strong>Preset ล่าสุด:</strong> <?= e($currentPreset['label']) ?> ถูกเพิ่มแล้ว ตรวจ CC / Dx ต่อได้เลย
                             </div>
                         <?php endif; ?>
-                        <div class="smart-service-grid">
+                        <div class="smart-service-grid smart-compact-preset-row">
                             <?php foreach ($quickPresets as $presetKey => $preset): ?>
                                 <button
                                     type="submit"
@@ -260,44 +488,164 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                                 </button>
                             <?php endforeach; ?>
                         </div>
+
+                        <?php if ($treatmentPresets): ?>
+                            <div class="treatment-preset-block">
+                                <div class="smart-service-presets-head">
+                                    <div class="smart-section-label">Treatment Preset</div>
+                                    <div class="smart-service-presets-hint">เพิ่มบริการ ยา และเวชภัณฑ์เป็นชุด หลังตรวจรายการก่อนยืนยัน</div>
+                                </div>
+                                <div class="treatment-preset-grid">
+                                    <?php foreach ($treatmentPresets as $treatmentPreset): ?>
+                                        <?php
+                                        $serviceSummary = array_map(
+                                            static fn(array $row): string => (string) $row['service_name'] . ' x' . $formatQty((float) $row['qty']),
+                                            $treatmentPreset['services'] ?? []
+                                        );
+                                        $medicationSummary = array_map(
+                                            static fn(array $row): string => (string) $row['item_name'] . ' x' . $formatQty((float) $row['qty']) . ' ' . (string) ($row['unit_name'] ?? ''),
+                                            $treatmentPreset['medications'] ?? []
+                                        );
+                                        $supplySummary = array_map(
+                                            static fn(array $row): string => (string) $row['item_name'] . ' x' . $formatQty((float) $row['qty']) . ' ' . (string) ($row['unit_name'] ?? ''),
+                                            $treatmentPreset['supplies'] ?? []
+                                        );
+                                        $totalPresetRows = count($serviceSummary) + count($medicationSummary) + count($supplySummary);
+                                        ?>
+                                        <button
+                                            type="button"
+                                            class="treatment-preset-card"
+                                            data-treatment-preset-trigger
+                                            data-preset-id="<?= e((string) $treatmentPreset['id']) ?>"
+                                            data-preset-name="<?= e((string) $treatmentPreset['preset_name']) ?>"
+                                            data-preset-description="<?= e((string) ($treatmentPreset['description'] ?? '')) ?>"
+                                            data-preset-services="<?= e(json_encode($serviceSummary, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"
+                                            data-preset-medications="<?= e(json_encode($medicationSummary, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"
+                                            data-preset-supplies="<?= e(json_encode($supplySummary, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"
+                                        >
+                                            <span class="treatment-preset-name"><?= e((string) $treatmentPreset['preset_name']) ?></span>
+                                            <span class="treatment-preset-meta"><?= e((string) $totalPresetRows) ?> รายการในชุด</span>
+                                        </button>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
-                    <div class="smart-exam-card smart-vitals-card">
-                        <div class="smart-card-head">
-                            <h4>ข้อมูลสัญญาณชีพ</h4>
+                    <div class="smart-template-launch-card">
+                        <button type="button" class="btn btn-outline-primary smart-template-open" data-smart-template-open>
+                            <i class="bi bi-magic"></i> เลือก Template
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary smart-template-more" data-smart-template-open>
+                            + เพิ่มเติม
+                        </button>
+
+                        <dialog class="smart-template-dialog" data-smart-template-dialog aria-label="เลือก Smart Template">
+                            <div class="smart-template-dialog-head">
+                                <div>
+                                    <div class="smart-section-label">Smart Template</div>
+                                    <h3>เลือก Template</h3>
+                                </div>
+                                <button type="button" class="smart-dialog-close" data-smart-template-close aria-label="ปิด">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+
+                            <div class="smart-template-picker">
+                                <label for="smartTemplateSelect">Template Dropdown</label>
+                                <select id="smartTemplateSelect">
+                                    <option value="">เลือก template</option>
+                                    <option value="uri">ตรวจทั่วไป / URI</option>
+                                    <option value="wound">ทำแผล</option>
+                                    <option value="gastritis">ปวดท้อง</option>
+                                    <option value="iv">ให้น้ำเกลือ</option>
+                                </select>
+                            </div>
+
+                            <div class="smart-one-click smart-template-advanced">
+                            <div class="smart-preset-group">
+                                <h6>CC</h6>
+                                <div class="smart-preset-buttons compact">
+                                    <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="ไข้">ไข้</button>
+                                    <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="ไอ">ไอ</button>
+                                    <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="เจ็บคอ">เจ็บคอ</button>
+                                    <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="ปวดท้อง">ปวดท้อง</button>
+                                    <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="มีแผล">มีแผล</button>
+                                    <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="เวียนศีรษะ">เวียนศีรษะ</button>
+                                </div>
+                            </div>
+
+                            <div class="smart-preset-group">
+                                <h6>PI Template</h6>
+                                <div class="smart-preset-buttons compact">
+                                    <button type="button" class="smart-preset-btn" data-template="uri">ไข้หวัด</button>
+                                    <button type="button" class="smart-preset-btn" data-template="wound">แผลสด</button>
+                                    <button type="button" class="smart-preset-btn" data-template="gastritis">ปวดท้อง</button>
+                                    <button type="button" class="smart-preset-btn" data-template="iv">ให้น้ำเกลือ</button>
+                                </div>
+                            </div>
+
+                            <div class="smart-preset-group">
+                                <h6>PE</h6>
+                                <div class="smart-preset-buttons compact smart-preset-buttons-pe">
+                                    <button type="button" class="smart-preset-btn" data-append-target="pe" data-append-text="General appearance: good">General</button>
+                                    <button type="button" class="smart-preset-btn" data-append-target="pe" data-append-text="Chest clear, no wheezing">Chest</button>
+                                    <button type="button" class="smart-preset-btn" data-append-target="pe" data-append-text="Abdomen soft, no guarding">Abdomen</button>
+                                    <button type="button" class="smart-preset-btn" data-append-target="pe" data-append-text="Wound clean, no active bleeding">Wound</button>
+                                </div>
+                            </div>
+                            </div>
+                        </dialog>
+                    </div>
+                    </div>
+
+                    <dialog class="treatment-preset-dialog" data-treatment-preset-dialog aria-label="ยืนยัน Treatment Preset">
+                        <div class="treatment-preset-dialog-head">
+                            <div>
+                                <div class="smart-section-label">Treatment Preset</div>
+                                <h3 data-treatment-preset-title>ยืนยันชุดการรักษา</h3>
+                                <p data-treatment-preset-description>ตรวจรายการก่อนเพิ่มเข้าเคส</p>
+                            </div>
+                            <button type="button" class="smart-dialog-close" data-treatment-preset-close aria-label="ปิด">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
                         </div>
 
-                        <div class="smart-vital-row">
-                            <div>
-                                <label for="weight_kg">Weight</label>
-                                <input type="number" step="0.1" id="weight_kg" name="weight_kg" value="<?= e((string) ($visit['weight_kg'] ?? '')) ?>" placeholder="kg">
-                            </div>
-                            <div>
-                                <label for="temp_c">Temp</label>
-                                <input type="number" step="0.1" id="temp_c" name="temp_c" value="<?= e((string) ($visit['temp_c'] ?? '')) ?>" placeholder="°C">
-                            </div>
-                            <div>
-                                <label for="pulse_rate">Pulse</label>
-                                <input type="number" id="pulse_rate" name="pulse_rate" value="<?= e((string) ($visit['pulse_rate'] ?? '')) ?>" placeholder="/min">
-                            </div>
-                            <div>
-                                <label for="resp_rate">Resp</label>
-                                <input type="number" id="resp_rate" name="resp_rate" value="<?= e((string) ($visit['resp_rate'] ?? '')) ?>" placeholder="/min">
-                            </div>
-                            <div>
-                                <label for="bp_systolic">BP บน</label>
-                                <input type="number" id="bp_systolic" name="bp_systolic" value="<?= e((string) ($visit['bp_systolic'] ?? '')) ?>" placeholder="120">
-                            </div>
-                            <div>
-                                <label for="bp_diastolic">BP ล่าง</label>
-                                <input type="number" id="bp_diastolic" name="bp_diastolic" value="<?= e((string) ($visit['bp_diastolic'] ?? '')) ?>" placeholder="80">
-                            </div>
-                            <div>
-                                <label for="spo2">SpO2</label>
-                                <input type="number" id="spo2" name="spo2" value="<?= e((string) ($visit['spo2'] ?? '')) ?>" placeholder="%">
-                            </div>
+                        <div class="treatment-preset-dialog-body">
+                            <section>
+                                <h4><i class="bi bi-clipboard2-pulse"></i> บริการ</h4>
+                                <ul data-treatment-preset-services></ul>
+                            </section>
+                            <section>
+                                <h4><i class="bi bi-capsule-pill"></i> ยา</h4>
+                                <ul data-treatment-preset-medications></ul>
+                            </section>
+                            <section>
+                                <h4><i class="bi bi-box-seam"></i> เวชภัณฑ์</h4>
+                                <ul data-treatment-preset-supplies></ul>
+                            </section>
                         </div>
-                    </div>
+
+                        <div class="treatment-preset-warning">
+                            ระบบจะเพิ่มรายการเข้าเคสและตัด Stock ทันที สามารถลบรายการออกจากเคสเพื่อคืน Stock ได้ภายหลัง
+                        </div>
+
+                        <div class="treatment-preset-dialog-actions">
+                            <button type="button" class="btn btn-outline-secondary" data-treatment-preset-close>ยกเลิก</button>
+                            <button
+                                type="submit"
+                                class="btn btn-primary"
+                                formaction="<?= e(route_url('queue-apply-treatment-preset')) ?>"
+                                name="treatment_preset_id"
+                                value=""
+                                data-treatment-preset-confirm
+                            >
+                                ยืนยันเพิ่มชุดการรักษา
+                            </button>
+                        </div>
+                    </dialog>
+
+                    <div class="smart-exam-work-grid">
 
                     <div class="smart-exam-card smart-clinical-card">
                         <div class="smart-clinical-head">
@@ -310,60 +658,57 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                         <div class="smart-clinical-grid">
                             <div class="smart-exam-inputs">
                                 <label for="cc">CC: อาการสำคัญ</label>
-                                <textarea id="cc" name="cc" placeholder="เช่น ไข้ ไอ เจ็บคอ"><?= e((string) ($visit['chief_complaint'] ?? '')) ?></textarea>
+                                <textarea id="cc" name="cc" rows="2" data-auto-expand data-min-rows="2" placeholder="เช่น ไข้ ไอ เจ็บคอ"><?= e((string) ($visit['chief_complaint'] ?? '')) ?></textarea>
 
                                 <label for="pi">PI: ประวัติปัจจุบัน</label>
-                                <textarea id="pi" name="pi" placeholder="รายละเอียดอาการ"><?= e((string) ($visit['present_illness'] ?? '')) ?></textarea>
-
-                                <label for="pe">PE: ตรวจร่างกาย</label>
-                                <textarea id="pe" name="pe" placeholder="ผลการตรวจร่างกาย"><?= e((string) ($visit['physical_exam'] ?? '')) ?></textarea>
+                                <textarea id="pi" name="pi" rows="3" data-auto-expand data-min-rows="3" placeholder="รายละเอียดอาการ"><?= e((string) ($visit['present_illness'] ?? '')) ?></textarea>
 
                                 <label for="dx">Dx: วินิจฉัยเบื้องต้น</label>
                                 <input id="dx" name="dx" value="<?= e((string) ($visit['diagnosis'] ?? '')) ?>" placeholder="เช่น URI, Gastritis, Wound">
+
+                                <label for="pe">PE: ตรวจร่างกาย</label>
+                                <textarea id="pe" name="pe" rows="2" data-auto-expand data-min-rows="2" placeholder="ผลการตรวจร่างกาย"><?= e((string) ($visit['physical_exam'] ?? '')) ?></textarea>
 
                                 <div id="dxSuggest" class="smart-dx-suggest" hidden></div>
                                 <div class="smart-keyboard-hint">กด Enter เพื่อไปช่องถัดไป และกด Ctrl + Enter ในช่องข้อความเพื่อข้ามไปส่วนถัดไป</div>
                             </div>
 
-                            <div class="smart-preset-panel">
-                                <div class="smart-preset-panel-head">
-                                    <h5>Smart Preset</h5>
-                                    <span>ตัวช่วยเติมข้อความแบบเร็ว</span>
-                                </div>
+                        </div>
 
-                                <div class="smart-preset-group">
-                                    <h6>CC</h6>
-                                    <div class="smart-preset-buttons compact">
-                                        <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="ไข้">ไข้</button>
-                                        <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="ไอ">ไอ</button>
-                                        <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="เจ็บคอ">เจ็บคอ</button>
-                                        <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="ปวดท้อง">ปวดท้อง</button>
-                                        <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="มีแผล">มีแผล</button>
-                                        <button type="button" class="smart-preset-btn" data-append-target="cc" data-append-text="เวียนศีรษะ">เวียนศีรษะ</button>
-                                    </div>
+                        <div class="smart-vitals-inline">
+                            <div class="smart-vitals-inline-head">ข้อมูลสัญญาณชีพ</div>
+                            <div class="smart-vital-row">
+                                <div class="smart-vital-field smart-vital-bp-up">
+                                    <label for="bp_systolic">BP บน</label>
+                                    <input type="number" id="bp_systolic" name="bp_systolic" value="<?= e((string) ($visit['bp_systolic'] ?? '')) ?>" placeholder="120">
                                 </div>
-
-                                <div class="smart-preset-group">
-                                    <h6>PI Template</h6>
-                                    <div class="smart-preset-buttons compact">
-                                        <button type="button" class="smart-preset-btn" data-template="uri">ไข้หวัด</button>
-                                        <button type="button" class="smart-preset-btn" data-template="wound">แผลสด</button>
-                                        <button type="button" class="smart-preset-btn" data-template="gastritis">ปวดท้อง</button>
-                                        <button type="button" class="smart-preset-btn" data-template="iv">ให้น้ำเกลือ</button>
-                                    </div>
+                                <div class="smart-vital-field smart-vital-bp-down">
+                                    <label for="bp_diastolic">BP ล่าง</label>
+                                    <input type="number" id="bp_diastolic" name="bp_diastolic" value="<?= e((string) ($visit['bp_diastolic'] ?? '')) ?>" placeholder="80">
                                 </div>
-
-                                <div class="smart-preset-group">
-                                    <h6>PE</h6>
-                                    <div class="smart-preset-buttons compact smart-preset-buttons-pe">
-                                        <button type="button" class="smart-preset-btn" data-append-target="pe" data-append-text="General appearance: good">General</button>
-                                        <button type="button" class="smart-preset-btn" data-append-target="pe" data-append-text="Chest clear, no wheezing">Chest</button>
-                                        <button type="button" class="smart-preset-btn" data-append-target="pe" data-append-text="Abdomen soft, no guarding">Abdomen</button>
-                                        <button type="button" class="smart-preset-btn" data-append-target="pe" data-append-text="Wound clean, no active bleeding">Wound</button>
-                                    </div>
+                                <div class="smart-vital-field smart-vital-temp">
+                                    <label for="temp_c">Temp</label>
+                                    <input type="number" step="0.1" id="temp_c" name="temp_c" value="<?= e((string) ($visit['temp_c'] ?? '')) ?>" placeholder="°C">
+                                </div>
+                                <div class="smart-vital-field smart-vital-pulse">
+                                    <label for="pulse_rate">Pulse</label>
+                                    <input type="number" id="pulse_rate" name="pulse_rate" value="<?= e((string) ($visit['pulse_rate'] ?? '')) ?>" placeholder="/min">
+                                </div>
+                                <div class="smart-vital-field smart-vital-resp">
+                                    <label for="resp_rate">Resp</label>
+                                    <input type="number" id="resp_rate" name="resp_rate" value="<?= e((string) ($visit['resp_rate'] ?? '')) ?>" placeholder="/min">
+                                </div>
+                                <div class="smart-vital-field smart-vital-spo2">
+                                    <label for="spo2">SpO2</label>
+                                    <input type="number" id="spo2" name="spo2" value="<?= e((string) ($visit['spo2'] ?? '')) ?>" placeholder="%">
+                                </div>
+                                <div class="smart-vital-field smart-vital-weight">
+                                    <label for="weight_kg">Weight</label>
+                                    <input type="number" step="0.1" id="weight_kg" name="weight_kg" value="<?= e((string) ($visit['weight_kg'] ?? '')) ?>" placeholder="kg">
                                 </div>
                             </div>
                         </div>
+                    </div>
                     </div>
 
                     <div class="smart-exam-card smart-followup-card">
@@ -392,7 +737,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                 </form>
 
                 <section class="smart-billing-workspace" aria-label="บริการและยาในเคส">
-                    <div class="smart-exam-card smart-billing-card">
+                    <div class="smart-exam-card smart-billing-card smart-service-order-card">
                         <div class="smart-billing-head">
                             <div>
                                 <div class="smart-section-label">บริการ</div>
@@ -464,7 +809,7 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                         </div>
                     </div>
 
-                    <div class="smart-exam-card smart-billing-card">
+                    <div class="smart-exam-card smart-billing-card smart-medication-card">
                         <div class="smart-billing-head">
                             <div>
                                 <div class="smart-section-label">ยา / เวชภัณฑ์</div>
@@ -592,6 +937,11 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                     <strong><?= e($hasDrugAllergy ? $drugAllergyText : 'ไม่พบข้อมูลแพ้ยา') ?></strong>
                 </div>
 
+                <div class="smart-summary-clinical-flag<?= $hasChronic ? ' is-warning' : '' ?>">
+                    <span>โรคประจำตัว</span>
+                    <strong><?= e($hasChronic ? $chronicText : 'ไม่มีโรคประจำตัว') ?></strong>
+                </div>
+
                 <div class="smart-summary-meta-grid">
                     <div class="smart-summary-metric">
                         <span>บริการ</span>
@@ -702,9 +1052,125 @@ $stockMeta = static function (array $item) use ($expiryAlertDays): array {
                     </a>
                     <button type="submit" form="smartExamForm" formaction="<?= e(route_url('queue-smart-finish')) ?>" name="finish_mode" value="receive_payment" class="btn btn-primary btn-lg w-100" id="smartFinishPayment">รับเงินและปิดเคส</button>
                     <button type="submit" form="smartExamForm" formaction="<?= e(route_url('queue-smart-finish')) ?>" name="finish_mode" value="waiting_payment" class="btn btn-outline-primary w-100" id="smartFinishWaitPayment">บันทึกรอชำระ</button>
-                    <button type="submit" form="smartExamForm" formaction="<?= e(route_url('queue-smart-finish')) ?>" name="finish_mode" value="no_charge" class="btn btn-outline-secondary w-100" id="smartFinishNoCharge">ปิดเคสแบบไม่มีค่าใช้จ่าย</button>
+                    <details class="smart-secondary-finish">
+                        <summary>ตัวเลือกปิดเคสอื่น</summary>
+                        <button type="submit" form="smartExamForm" formaction="<?= e(route_url('queue-smart-finish')) ?>" name="finish_mode" value="no_charge" class="btn btn-outline-secondary w-100" id="smartFinishNoCharge">ปิดเคสแบบไม่มีค่าใช้จ่าย</button>
+                    </details>
                 </div>
             </article>
         </aside>
     </section>
+
+    <div class="smart-patient-drawer-backdrop" data-patient-drawer-backdrop hidden></div>
+    <aside class="smart-patient-drawer" data-patient-drawer aria-hidden="true" aria-label="ข้อมูลผู้รับบริการ">
+        <div class="smart-patient-drawer-head">
+            <div>
+                <div class="smart-section-label">Patient Profile</div>
+                <h3 data-patient-drawer-title>ข้อมูลผู้รับบริการ</h3>
+                <p>แก้ข้อมูลเท่าที่จำเป็นโดยไม่ออกจาก Smart Exam</p>
+            </div>
+            <button type="button" class="smart-drawer-close" data-patient-drawer-close aria-label="ปิด">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="smart-patient-drawer-status" data-patient-drawer-status hidden></div>
+
+        <section class="smart-patient-drawer-panel" data-patient-drawer-view>
+            <div class="smart-profile-readonly-grid">
+                <div><span>ชื่อ</span><strong data-profile-readonly="full_name"><?= e($fullName) ?></strong></div>
+                <div><span>HN</span><strong><?= e((string) ($visit['hn'] ?? '')) ?></strong></div>
+                <div><span>VN</span><strong><?= e((string) ($visit['visit_no'] ?? '')) ?></strong></div>
+                <div><span>เลขบัตรประชาชน</span><strong data-profile-readonly="citizen_id"><?= e($patientProfile['citizen_id'] ?: '-') ?></strong></div>
+                <div><span>วันเกิด</span><strong data-profile-readonly="birth_date_text"><?= e($patientProfile['birth_date_text'] ?: '-') ?></strong></div>
+                <div><span>อายุ</span><strong data-profile-readonly="age_text"><?= e($ageText) ?></strong></div>
+                <div><span>เพศ</span><strong data-profile-readonly="gender_text"><?= e($genderText) ?></strong></div>
+                <div><span>โทร</span><strong data-profile-readonly="phone_text"><?= e($phoneText) ?></strong></div>
+                <div class="wide"><span>ที่อยู่</span><strong data-profile-readonly="address"><?= e($patientProfile['address'] ?: '-') ?></strong></div>
+                <div class="wide danger"><span>แพ้ยา</span><strong data-profile-readonly="drug_allergy_text"><?= e($hasDrugAllergy ? $drugAllergyText : 'ไม่มีประวัติแพ้ยา') ?></strong></div>
+                <div class="wide warning"><span>โรคประจำตัว</span><strong data-profile-readonly="underlying_disease_text"><?= e($hasChronic ? $chronicText : 'ไม่มีโรคประจำตัว') ?></strong></div>
+                <div class="wide"><span>หมายเหตุ</span><strong data-profile-readonly="note"><?= e($patientProfile['note'] ?: '-') ?></strong></div>
+            </div>
+        </section>
+
+        <?php if ($canEditPatientLimited): ?>
+            <form class="smart-patient-drawer-panel smart-profile-edit-form" data-patient-profile-form>
+                <?= csrf_field() ?>
+                <input type="hidden" name="visit_id" value="<?= e((string) ($visit['id'] ?? 0)) ?>">
+                <input type="hidden" name="patient_id" value="<?= e((string) ($visit['patient_id'] ?? 0)) ?>">
+
+                <div class="smart-profile-section-title">
+                    <i class="bi bi-person-vcard"></i>
+                    <span>ข้อมูลพื้นฐาน</span>
+                </div>
+                <div class="smart-profile-form-grid">
+                    <label>
+                        <span>คำนำหน้า</span>
+                        <input type="text" name="title_name" value="<?= e($patientProfile['title_name']) ?>" <?= $canEditPatientFull ? '' : 'disabled' ?>>
+                    </label>
+                    <label>
+                        <span>ชื่อ</span>
+                        <input type="text" name="first_name" value="<?= e($patientProfile['first_name']) ?>" <?= $canEditPatientFull ? 'required' : 'disabled' ?>>
+                    </label>
+                    <label>
+                        <span>นามสกุล</span>
+                        <input type="text" name="last_name" value="<?= e($patientProfile['last_name']) ?>" <?= $canEditPatientFull ? 'required' : 'disabled' ?>>
+                    </label>
+                    <label>
+                        <span>เลขบัตรประชาชน</span>
+                        <input type="text" name="citizen_id" value="<?= e($patientProfile['citizen_id']) ?>" inputmode="numeric" maxlength="13" <?= $canEditPatientFull ? '' : 'disabled' ?>>
+                    </label>
+                    <label>
+                        <span>วันเกิด</span>
+                        <input type="text" name="birth_date" value="<?= e($patientProfile['birth_date_text']) ?>" placeholder="เช่น 28/10/2549" <?= $canEditPatientFull ? '' : 'disabled' ?>>
+                    </label>
+                    <label>
+                        <span>เพศ</span>
+                        <select name="gender" <?= $canEditPatientFull ? '' : 'disabled' ?>>
+                            <option value="">ไม่ระบุ</option>
+                            <option value="M" <?= selected($patientProfile['gender'], 'M') ?>>ชาย</option>
+                            <option value="F" <?= selected($patientProfile['gender'], 'F') ?>>หญิง</option>
+                            <option value="O" <?= selected($patientProfile['gender'], 'O') ?>>อื่นๆ</option>
+                        </select>
+                    </label>
+                    <label class="wide">
+                        <span>เบอร์โทร</span>
+                        <input type="text" name="phone" value="<?= e($patientProfile['phone']) ?>" inputmode="tel">
+                    </label>
+                    <label class="wide">
+                        <span>ที่อยู่</span>
+                        <textarea name="address" rows="3"><?= e($patientProfile['address']) ?></textarea>
+                    </label>
+                </div>
+
+                <div class="smart-profile-section-title safety">
+                    <i class="bi bi-shield-exclamation"></i>
+                    <span>ข้อมูลสุขภาพสำคัญ</span>
+                </div>
+                <div class="smart-profile-form-grid">
+                    <label class="wide">
+                        <span>แพ้ยา</span>
+                        <textarea name="drug_allergy" rows="2" placeholder="ถ้าไม่มี ให้เว้นว่าง"><?= e($patientProfile['drug_allergy']) ?></textarea>
+                    </label>
+                    <label class="wide">
+                        <span>โรคประจำตัว</span>
+                        <textarea name="underlying_disease" rows="2" placeholder="ถ้าไม่มี ให้เว้นว่าง"><?= e($patientProfile['underlying_disease']) ?></textarea>
+                    </label>
+                    <label class="wide">
+                        <span>หมายเหตุ</span>
+                        <textarea name="note" rows="2"><?= e($patientProfile['note']) ?></textarea>
+                    </label>
+                </div>
+
+                <div class="smart-profile-permission-note">
+                    <?= $canEditPatientFull ? 'สิทธิ์ Admin: แก้ไขข้อมูลผู้รับบริการได้ครบทุกช่อง' : 'สิทธิ์ Nurse: แก้ได้เฉพาะเบอร์โทร ที่อยู่ แพ้ยา โรคประจำตัว และหมายเหตุ' ?>
+                </div>
+
+                <div class="smart-profile-actions">
+                    <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+                    <button type="button" class="btn btn-outline-secondary" data-patient-drawer-close>ยกเลิก</button>
+                </div>
+            </form>
+        <?php endif; ?>
+    </aside>
 </div>

@@ -39,6 +39,7 @@ Routes:
 ## 3. Queue
 Purpose:
 - ควบคุม operational state ของผู้ป่วยในวันนั้น
+- เป็น Single Nurse Clinic Workstation สำหรับคลินิกขนาดเล็กที่พยาบาลทำ intake, exam, payment handoff และ finish flow
 
 Key Functions:
 - create queue from existing patient
@@ -47,6 +48,8 @@ Key Functions:
 - move queue status
 - select active visit
 - display queue board
+- show compact today status and next action
+- guide the nurse through assistant rail alerts and shortcuts
 
 Routes:
 - `GET:queue`
@@ -54,6 +57,11 @@ Routes:
 - `POST:queue-store`
 - `POST:queue-quick-register`
 - `POST:queue-status`
+
+UX Notes:
+- Queue page must avoid duplicate status strips and duplicate board rendering.
+- Active Case is the primary working surface; Queue Board is situational awareness.
+- The right rail uses existing data for revenue, low stock, pending payment, pending cases, and backup context without changing database state.
 
 ## 4. Smart Exam
 Purpose:
@@ -136,6 +144,16 @@ Routes:
 - `POST:inventory-item-store`
 - `POST:inventory-batch-store`
 - `POST:inventory-adjust`
+
+Medical Inventory Command Center Update:
+- Inventory is a workflow surface, not a permanently visible set of forms.
+- Top KPIs show total items, low stock, near expiry, expired, stock value, and received quantity today.
+- Search supports item name, item code, lot, and barcode-ready workflows.
+- Table rows expose stock bars, expiry age, latest lot, status badges, and a compact action menu.
+- Admin stock operations use focused modals for add item, receive stock, and adjust stock.
+- Movement history is a timeline with filters for IN, OUT, and ADJUST.
+- Analytics show cost value, sale value, approximate remaining profit, consumption trend, and simple forecast.
+- No schema change; the module reuses `inventory_items`, `inventory_batches`, `stock_movements`, and historical usage data.
 
 ## 8. Payments
 Purpose:
@@ -484,3 +502,118 @@ Notes:
 - Admin/Nurse can edit drug label profiles through `POST:drug-profile-store`.
 - Workstation surfaces: print queue, recent print logs, drug master/profile table, and sticky smart builder profile editor.
 - Database impact: no new schema beyond Phase 1 pharmacy tables.
+
+## Queue Workstation Production UX
+
+- Controller: `app/Controllers/QueueController.php`
+- View: `app/Views/queue/index.php`
+- Assets: `public/assets/css/queue.css`, `public/assets/js/queue.js`
+- Queue is optimized for a single nurse, not a multi-role dashboard.
+- Top bar shows four status counts only; right rail owns daily snapshot and financial snapshot.
+- Queue cards now select an active case through `GET:queue&visit_id=...` and expose only queue number, patient name, waiting duration, and automatic wait-priority.
+- Active Case acts as Quick Patient Preview with allergy, chronic disease, visit count, queue duration, and one primary next action.
+- Next Patient sits above Active Case and can call the next waiting queue or call-and-open Smart Exam.
+- Active Case includes a workflow timeline for registration, Smart Exam, service work, payment, and completion.
+- Queue Aging Alert warns when waiting queues exceed 30 or 60 minutes.
+- Recent Activity is derived from queue, service, payment, and finish timestamps; no new table was added.
+- Assistant alerts include low stock, waiting payment, smart-card bridge status, printer readiness, backup today, and stuck cases.
+- Database impact: no schema change.
+
+## Queue Workstation Version 2
+
+- Controller: `app/Controllers/QueueController.php`
+- View: `app/Views/queue/index.php`
+- Assets: `public/assets/css/queue.css`, `public/assets/js/queue.js`
+- Routes: `queue`, `queue-status`, `queue-close-next`, `pharmacy-labels`, `backup`
+- The right rail is consolidated into a single Today Status panel with daily overview, finance, alerts, latest work, activity summary, backup reminder, and shortcuts.
+- Active Case includes patient history quick view and contextual medication sticker print access.
+- `POST:queue-close-next` closes paid/no-charge active cases and optionally promotes the next waiting queue to `IN_SERVICE`.
+- Queue status and close-next transitions write to existing `audit_logs` when available.
+- Pharmacy print logging writes a medication label audit row after successful print-log creation.
+- Database impact: no schema change.
+
+## Queue Workstation Final Production Refactor
+
+- Controller: `app/Controllers/QueueController.php`
+- View: `app/Views/queue/index.php`
+- Assets: `public/assets/css/queue.css`, `public/assets/js/queue.js`
+- Live Queue Board now shows three columns only: `WAITING`, `IN_SERVICE`, and `WAITING_PAYMENT`.
+- Completed queues move to a History tab inside the queue board.
+- Queue cards show queue number, patient name, HN, wait time, and priority. Detailed demographics stay in Active Case.
+- Active Case now leads with Patient Safety Banner and compact case facts, then workflow timeline, event timeline, one primary next action, and patient history drawer.
+- Today Status rail is critical-only for queue operation: aged queue, smart-card bridge status, and printer readiness.
+- Left recent list is positioned as Recent Search/Favorite Patient instead of another queue list.
+- Database impact: no schema change.
+
+## Smart Exam Progressive Disclosure
+
+- Controller: `app/Controllers/QueueController.php`
+- View: `app/Views/queue/exam.php`
+- Assets: `public/assets/css/smart-exam.css`, `public/assets/js/smart-exam.js`
+- Smart Exam now uses a three-surface layout: Patient Context, Clinical Work, and Sticky Summary.
+- Patient Context is always visible on desktop and includes identity, HN/VN, age, gender, phone, allergy, chronic disease, visit count, latest history, and latest medication.
+- Duplicate center Patient Snapshot/Active Case blocks are visually suppressed so patient details have one primary home.
+- Smart Preset now has a compact template dropdown for the main path; advanced preset buttons stay collapsed.
+- Database impact: no schema change.
+
+### Patient Context Actions
+
+- Route: `POST:queue-patient-profile-update`
+- Controller method: `QueueController::updatePatientProfile()`
+- The Patient Context card has a three-dot menu for non-every-case actions.
+- Full patient profile and edit profile open in a right drawer on the Smart Exam page.
+- Admin can update title/name/citizen ID/birthdate/gender/phone/address/chronic disease/drug allergy/note.
+- Nurse can update phone/address/chronic disease/drug allergy/note only.
+- Updates return JSON and immediately sync the visible Patient Context Card.
+- Audit: writes `UPDATE_PATIENT_PROFILE` to existing `audit_logs` with `table_name = patients`.
+- Print patient card and QR Code menu items are Phase 1 placeholders.
+- Database impact: no schema change.
+
+## Case History
+
+- Controller: `app/Controllers/VisitController.php`
+- View: `app/Views/visits/edit.php`
+- Assets: `public/assets/css/app.css`
+- `visit-edit` is labeled "ประวัติเคส" and now loads review data only: current service/item lines, patient visit timeline, service history, drug/supply history, payment history, and audit logs.
+- The view no longer renders clinical edit forms, service add/remove forms, item add/remove forms, payment send controls, or close-case workflow actions.
+- Smart Exam and Payment remain the only intended operational workflow surfaces for active case work.
+- Database impact: no schema change.
+
+## Smart Exam Minimal Clinical Flow
+
+- View: `app/Views/queue/exam.php`
+- Asset: `public/assets/css/smart-exam.css`
+- Preset area now uses compact one-line preset buttons for the main clinical path.
+- Center duplicate patient snapshot is collapsed into a detail disclosure so Patient Context remains the primary safety surface.
+- Clinical note is visually prioritized before vitals; services and drugs/supplies are stacked as one continuous order-entry flow.
+- Summary rail exposes sticker preview, receive/close, and waiting-payment as primary controls; no-charge close stays available under secondary finish options.
+- Database impact: no schema change.
+
+## Treatment Preset Management
+
+- Controller: `app/Controllers/TreatmentPresetController.php`
+- View: `app/Views/treatment_presets/index.php`
+- Asset: `public/assets/css/treatment-presets.css`
+- Routes:
+  - `GET:treatment-presets`
+  - `POST:treatment-presets-store`
+  - `POST:treatment-presets-delete`
+  - `POST:queue-apply-treatment-preset`
+- Admin can create/edit/disable Treatment Presets without editing code.
+- Presets can bundle services from `services`, medications from `inventory_items` where `item_type = DRUG`, and supplies where `item_type = SUPPLY`.
+- Smart Exam renders active Treatment Presets as compact cards with a confirmation dialog before applying.
+- Applying a preset adds `visit_services`, `visit_item_usages`, and `stock_movements` rows in one transaction.
+
+## Reports & Backup Center
+
+- Controller: `app/Controllers/ReportController.php`
+- View: `app/Views/reports/index.php`
+- Assets: `public/assets/css/reports.css`, `public/assets/js/reports.js`
+- Role: Admin-only analytics, historical reporting, export, and backup management.
+- Dashboard remains the real-time operation surface; Reports avoids duplicating dashboard KPI blocks.
+- Daily Analytics uses the selected date for patient count, paid revenue, receipt count, and average receipt.
+- Patient Report supports client-side search and sort, with CSV export and printable/PDF report links.
+- Monthly analytics include revenue trend, patient trend, service ranking, and payment method mix.
+- Export Center supports patient, revenue, inventory alert, appointment, and monthly report exports.
+- Backup Center reads existing SQL backup files from `storage/exports` and links to the existing backup download action.
+- Database impact: no schema change.

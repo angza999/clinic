@@ -3,7 +3,7 @@ $user = current_user();
 $clinicName = (string) system_setting('clinic_name', config('app.name'));
 $currentPage = current_page();
 $pageTitleText = (string) ($pageTitle ?? $clinicName);
-$workflowCompactPages = ['appointments', 'queue', 'queue-exam', 'payments', 'import', 'pharmacy', 'pharmacy-labels'];
+$workflowCompactPages = ['appointments', 'queue', 'queue-exam', 'payments', 'import', 'pharmacy', 'pharmacy-labels', 'treatment-presets', 'dashboard'];
 $defaultTopbarMode = in_array($currentPage, $workflowCompactPages, true) ? 'compact' : 'default';
 $pageTopbarMode = (string) ($pageTopbarMode ?? $defaultTopbarMode);
 $pageDescriptions = [
@@ -23,6 +23,7 @@ $pageDescriptions = [
     'reports' => 'สรุปรายงานประจำวัน ประจำเดือน และไฟล์สำรองข้อมูล',
     'settings' => 'กำหนดข้อมูลคลินิก รูปแบบเอกสาร และการแจ้งเตือน',
     'production' => 'ตรวจความพร้อมก่อนใช้งานจริง Backup, Smart Card, Printer, Privacy และ Smoke checks',
+    'treatment-presets' => 'จัดการชุดการรักษาที่เพิ่มบริการ ยา และเวชภัณฑ์เข้า Smart Exam ได้ในคลิกเดียว',
     'dashboard' => 'ภาพรวมการให้บริการ รายได้ และสถานะงานประจำวัน',
 ];
 $pageDescription = $pageDescriptions[$currentPage] ?? 'ระบบบริหารจัดการคลินิกพยาบาล';
@@ -41,6 +42,40 @@ $navItems = [
     ['page' => 'settings', 'label' => 'ตั้งค่าคลินิก', 'icon' => 'bi-sliders2', 'url' => route_url('settings'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'settings'],
     ['page' => 'production', 'label' => 'ตรวจระบบใช้งานจริง', 'icon' => 'bi-shield-check', 'url' => route_url('production'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'production'],
     ['page' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-speedometer2', 'url' => route_url('dashboard'), 'visible' => true, 'active' => $currentPage === 'dashboard'],
+];
+
+$navGroups = [
+    [
+        'label' => 'งานประจำวัน',
+        'items' => [
+            ['page' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'bi-speedometer2', 'url' => route_url('dashboard'), 'visible' => true, 'active' => $currentPage === 'dashboard'],
+            ['page' => 'queue', 'label' => 'คิววันนี้', 'icon' => 'bi-house-heart-fill', 'url' => route_url('queue'), 'visible' => true, 'active' => $currentPage === 'queue'],
+            ['page' => 'patients', 'label' => 'ลงทะเบียน', 'icon' => 'bi-person-vcard-fill', 'url' => route_url('patients'), 'visible' => true, 'active' => in_array($currentPage, ['patients', 'patient-show'], true)],
+            ['page' => 'payments', 'label' => 'การเงิน', 'icon' => 'bi-cash-coin', 'url' => route_url('payments'), 'visible' => has_role(['ADMIN', 'CASHIER', 'NURSE']), 'active' => $currentPage === 'payments'],
+        ],
+    ],
+    [
+        'label' => 'การรักษา',
+        'items' => [
+            ['page' => 'treatment-presets', 'label' => 'Preset การรักษา', 'icon' => 'bi-ui-checks-grid', 'url' => route_url('treatment-presets'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'treatment-presets'],
+            ['page' => 'inventory', 'label' => 'คลังยา', 'icon' => 'bi-capsule-pill', 'url' => route_url('inventory'), 'visible' => has_role(['ADMIN', 'NURSE']), 'active' => $currentPage === 'inventory'],
+            ['page' => 'services', 'label' => 'บริการและราคา', 'icon' => 'bi-clipboard2-pulse-fill', 'url' => route_url('services'), 'visible' => has_role(['ADMIN', 'NURSE']), 'active' => $currentPage === 'services'],
+        ],
+    ],
+    [
+        'label' => 'รายงาน',
+        'items' => [
+            ['page' => 'reports', 'label' => 'รายงาน', 'icon' => 'bi-bar-chart-fill', 'url' => route_url('reports'), 'visible' => has_role('ADMIN'), 'active' => in_array($currentPage, ['reports', 'report-print'], true)],
+            ['page' => 'dashboard-stats', 'label' => 'สถิติ', 'icon' => 'bi-graph-up-arrow', 'url' => route_url('dashboard') . '#dashboardAnalytics', 'visible' => true, 'active' => false],
+        ],
+    ],
+    [
+        'label' => 'ระบบ',
+        'items' => [
+            ['page' => 'users', 'label' => 'จัดการผู้ใช้', 'icon' => 'bi-person-gear', 'url' => route_url('users'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'users'],
+            ['page' => 'settings', 'label' => 'ตั้งค่าคลินิก', 'icon' => 'bi-gear-fill', 'url' => route_url('settings'), 'visible' => has_role('ADMIN'), 'active' => $currentPage === 'settings'],
+        ],
+    ],
 ];
 ?>
 <!doctype html>
@@ -67,12 +102,25 @@ $navItems = [
             </div>
 
             <nav class="sidebar-nav">
-                <?php foreach ($navItems as $navItem): ?>
-                    <?php if (!$navItem['visible']) { continue; } ?>
-                    <a class="nav-link <?= $navItem['active'] ? 'active' : '' ?>" href="<?= e($navItem['url']) ?>">
-                        <span class="nav-link-icon"><i class="bi <?= e($navItem['icon']) ?>"></i></span>
-                        <span class="nav-link-text"><?= e($navItem['label']) ?></span>
-                    </a>
+                <?php foreach ($navGroups as $navGroup): ?>
+                    <?php
+                    $visibleItems = [];
+                    foreach ($navGroup['items'] as $navItem) {
+                        if ($navItem['visible']) {
+                            $visibleItems[] = $navItem;
+                        }
+                    }
+                    if (!$visibleItems) { continue; }
+                    ?>
+                    <div class="sidebar-nav-group">
+                        <div class="sidebar-nav-heading"><?= e($navGroup['label']) ?></div>
+                        <?php foreach ($visibleItems as $navItem): ?>
+                            <a class="nav-link <?= $navItem['active'] ? 'active' : '' ?>" href="<?= e($navItem['url']) ?>">
+                                <span class="nav-link-icon"><i class="bi <?= e($navItem['icon']) ?>"></i></span>
+                                <span class="nav-link-text"><?= e($navItem['label']) ?></span>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endforeach; ?>
             </nav>
 

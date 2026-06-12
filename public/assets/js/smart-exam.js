@@ -26,6 +26,15 @@
   const compactStepPreset = document.getElementById('smartExamStepPresetCompact');
   const compactStepClinical = document.getElementById('smartExamStepClinicalCompact');
   const compactStepFinish = document.getElementById('smartExamStepFinishCompact');
+  const patientContextCard = document.querySelector('[data-patient-context-card]');
+  const patientMenuToggle = document.querySelector('[data-patient-menu-toggle]');
+  const patientMenu = document.querySelector('[data-patient-menu]');
+  const patientDrawer = document.querySelector('[data-patient-drawer]');
+  const patientDrawerBackdrop = document.querySelector('[data-patient-drawer-backdrop]');
+  const patientDrawerTitle = document.querySelector('[data-patient-drawer-title]');
+  const patientDrawerView = document.querySelector('[data-patient-drawer-view]');
+  const patientProfileForm = document.querySelector('[data-patient-profile-form]');
+  const patientDrawerStatus = document.querySelector('[data-patient-drawer-status]');
 
   const serviceForm = document.querySelector('form.smart-add-line-form:not(.smart-add-line-form-items)');
   const itemForm = document.querySelector('form.smart-add-line-form-items');
@@ -49,6 +58,19 @@
   const medFreeNote = document.getElementById('smartMedFreeNote');
   const medInstructionInput = document.getElementById('smartItemNoteInput');
   const medInstructionPreview = document.getElementById('smartMedInstructionPreview');
+  const templateSelect = document.getElementById('smartTemplateSelect');
+  const templateDialog = document.querySelector('[data-smart-template-dialog]');
+  const templateOpenButtons = Array.from(document.querySelectorAll('[data-smart-template-open]'));
+  const templateCloseButtons = Array.from(document.querySelectorAll('[data-smart-template-close]'));
+  const treatmentPresetDialog = document.querySelector('[data-treatment-preset-dialog]');
+  const treatmentPresetTriggers = Array.from(document.querySelectorAll('[data-treatment-preset-trigger]'));
+  const treatmentPresetCloseButtons = Array.from(document.querySelectorAll('[data-treatment-preset-close]'));
+  const treatmentPresetConfirm = document.querySelector('[data-treatment-preset-confirm]');
+  const treatmentPresetTitle = document.querySelector('[data-treatment-preset-title]');
+  const treatmentPresetDescription = document.querySelector('[data-treatment-preset-description]');
+  const treatmentPresetServices = document.querySelector('[data-treatment-preset-services]');
+  const treatmentPresetMedications = document.querySelector('[data-treatment-preset-medications]');
+  const treatmentPresetSupplies = document.querySelector('[data-treatment-preset-supplies]');
 
   const servicePresetButtons = Array.from(document.querySelectorAll('.smart-service-card[data-preset-key]'));
   const appendPresetButtons = Array.from(document.querySelectorAll('[data-append-target]'));
@@ -149,6 +171,336 @@
     input.name = name;
     input.value = value;
     return input;
+  }
+
+  function closePatientMenu() {
+    if (!patientMenu || !patientMenuToggle) {
+      return;
+    }
+
+    patientMenu.hidden = true;
+    patientMenuToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function togglePatientMenu() {
+    if (!patientMenu || !patientMenuToggle) {
+      return;
+    }
+
+    const willOpen = patientMenu.hidden;
+    patientMenu.hidden = !willOpen;
+    patientMenuToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  }
+
+  function setPatientDrawerStatus(message, type = 'info') {
+    if (!patientDrawerStatus) {
+      return;
+    }
+
+    patientDrawerStatus.hidden = !message;
+    patientDrawerStatus.textContent = message || '';
+    patientDrawerStatus.dataset.type = type;
+  }
+
+  function openPatientDrawer(mode = 'view') {
+    if (!patientDrawer) {
+      return;
+    }
+
+    closePatientMenu();
+    setPatientDrawerStatus('');
+    patientDrawer.classList.add('is-open');
+    patientDrawer.setAttribute('aria-hidden', 'false');
+    if (patientDrawerBackdrop) {
+      patientDrawerBackdrop.hidden = false;
+    }
+
+    const isEdit = mode === 'edit' && patientProfileForm;
+    patientDrawer.classList.toggle('is-editing', Boolean(isEdit));
+    if (patientDrawerTitle) {
+      patientDrawerTitle.textContent = isEdit ? 'แก้ไขข้อมูลผู้รับบริการ' : 'ข้อมูลผู้รับบริการทั้งหมด';
+    }
+    if (patientDrawerView) {
+      patientDrawerView.hidden = Boolean(isEdit);
+    }
+    if (patientProfileForm) {
+      patientProfileForm.hidden = !isEdit;
+    }
+
+    const focusTarget = isEdit
+      ? patientProfileForm?.querySelector('input:not([disabled]), textarea:not([disabled]), select:not([disabled])')
+      : patientDrawer.querySelector('[data-patient-drawer-close]');
+    window.setTimeout(() => focusTarget?.focus?.(), 50);
+  }
+
+  function openTemplateDialog() {
+    if (!templateDialog) {
+      return;
+    }
+
+    if (typeof templateDialog.showModal === 'function') {
+      templateDialog.showModal();
+    } else {
+      templateDialog.setAttribute('open', 'open');
+    }
+
+    window.setTimeout(() => {
+      templateSelect?.focus();
+    }, 0);
+  }
+
+  function closeTemplateDialog() {
+    if (!templateDialog) {
+      return;
+    }
+
+    if (typeof templateDialog.close === 'function') {
+      templateDialog.close();
+    } else {
+      templateDialog.removeAttribute('open');
+    }
+  }
+
+  function parsePresetLines(rawValue) {
+    if (!rawValue) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch (error) {
+      return String(rawValue).split('|').map((line) => line.trim()).filter(Boolean);
+    }
+  }
+
+  function renderPresetList(container, lines, emptyText) {
+    if (!container) {
+      return;
+    }
+
+    container.innerHTML = '';
+    if (!lines.length) {
+      const item = document.createElement('li');
+      item.className = 'is-empty';
+      item.textContent = emptyText;
+      container.appendChild(item);
+      return;
+    }
+
+    lines.forEach((line) => {
+      const item = document.createElement('li');
+      item.textContent = line;
+      container.appendChild(item);
+    });
+  }
+
+  function openTreatmentPresetDialog(trigger) {
+    if (!treatmentPresetDialog || !trigger) {
+      return;
+    }
+
+    if (treatmentPresetConfirm) {
+      treatmentPresetConfirm.value = trigger.dataset.presetId || '';
+    }
+
+    if (treatmentPresetTitle) {
+      treatmentPresetTitle.textContent = trigger.dataset.presetName || 'Treatment Preset';
+    }
+
+    if (treatmentPresetDescription) {
+      treatmentPresetDescription.textContent = trigger.dataset.presetDescription || 'ตรวจรายการก่อนเพิ่มเข้าเคส';
+    }
+
+    renderPresetList(
+      treatmentPresetServices,
+      parsePresetLines(trigger.dataset.presetServices || ''),
+      'ไม่มีบริการในชุดนี้'
+    );
+    renderPresetList(
+      treatmentPresetMedications,
+      parsePresetLines(trigger.dataset.presetMedications || ''),
+      'ไม่มียาในชุดนี้'
+    );
+    renderPresetList(
+      treatmentPresetSupplies,
+      parsePresetLines(trigger.dataset.presetSupplies || ''),
+      'ไม่มีเวชภัณฑ์ในชุดนี้'
+    );
+
+    if (typeof treatmentPresetDialog.showModal === 'function') {
+      treatmentPresetDialog.showModal();
+    } else {
+      treatmentPresetDialog.setAttribute('open', 'open');
+    }
+  }
+
+  function closeTreatmentPresetDialog() {
+    if (!treatmentPresetDialog) {
+      return;
+    }
+
+    if (typeof treatmentPresetDialog.close === 'function') {
+      treatmentPresetDialog.close();
+    } else {
+      treatmentPresetDialog.removeAttribute('open');
+    }
+  }
+
+  function autoExpandTextarea(textarea) {
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }
+
+  function closePatientDrawer() {
+    if (!patientDrawer) {
+      return;
+    }
+
+    patientDrawer.classList.remove('is-open', 'is-editing');
+    patientDrawer.setAttribute('aria-hidden', 'true');
+    if (patientDrawerBackdrop) {
+      patientDrawerBackdrop.hidden = true;
+    }
+    setPatientDrawerStatus('');
+  }
+
+  function patientText(value, fallback = '-') {
+    const text = String(value ?? '').trim();
+    return text === '' ? fallback : text;
+  }
+
+  function setAllText(selector, value) {
+    document.querySelectorAll(selector).forEach((node) => {
+      node.textContent = value;
+    });
+  }
+
+  function updatePatientReadonly(profile) {
+    if (!profile) {
+      return;
+    }
+
+    document.querySelectorAll('[data-profile-readonly]').forEach((node) => {
+      const key = node.dataset.profileReadonly || '';
+      const value = profile[key];
+      node.textContent = patientText(value);
+    });
+  }
+
+  function updatePatientEditForm(profile) {
+    if (!profile || !patientProfileForm) {
+      return;
+    }
+
+    const fieldMap = {
+      title_name: profile.title_name,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      citizen_id: profile.citizen_id,
+      birth_date: profile.birth_date_text,
+      gender: profile.gender,
+      phone: profile.phone,
+      address: profile.address,
+      drug_allergy: profile.drug_allergy,
+      underlying_disease: profile.underlying_disease,
+      note: profile.note
+    };
+
+    Object.entries(fieldMap).forEach(([name, value]) => {
+      const field = patientProfileForm.elements.namedItem(name);
+      if (field && 'value' in field) {
+        field.value = value || '';
+      }
+    });
+  }
+
+  function updatePatientContext(profile) {
+    if (!profile) {
+      return;
+    }
+
+    const fullName = patientText(profile.full_name, '-');
+    const phone = patientText(profile.phone_text || profile.phone);
+    const allergyText = patientText(profile.drug_allergy_text, 'ไม่มีประวัติแพ้ยา');
+    const chronicText = patientText(profile.underlying_disease_text, 'ไม่มีโรคประจำตัว');
+
+    setAllText('[data-patient-full-name], .smart-encounter-name, .smart-active-name, .smart-summary-name', fullName);
+    setAllText('[data-patient-age]', patientText(profile.age_text));
+    setAllText('[data-patient-gender]', patientText(profile.gender_text));
+    setAllText('[data-patient-phone]', phone);
+    setAllText('[data-patient-visit-count]', `${Number(profile.visit_count || 0)} ครั้ง`);
+    setAllText('[data-patient-allergy]', allergyText);
+    setAllText('[data-patient-chronic]', chronicText);
+    updatePatientReadonly(profile);
+    updatePatientEditForm(profile);
+
+    const safetyBanner = document.querySelector('[data-patient-safety-banner]');
+    if (safetyBanner) {
+      safetyBanner.classList.toggle('is-danger', Boolean(profile.has_drug_allergy));
+      safetyBanner.classList.toggle('is-warning', !profile.has_drug_allergy && Boolean(profile.has_chronic));
+      safetyBanner.classList.toggle('is-clear', !profile.has_drug_allergy && !profile.has_chronic);
+    }
+
+    const summaryFlag = document.querySelector('.smart-summary-clinical-flag');
+    if (summaryFlag) {
+      summaryFlag.classList.toggle('is-alert', Boolean(profile.has_drug_allergy));
+      const flagLabel = summaryFlag.querySelector('span');
+      const flagValue = summaryFlag.querySelector('strong');
+      if (flagLabel) {
+        flagLabel.textContent = profile.has_drug_allergy ? 'แพ้ยา' : 'Drug allergy';
+      }
+      if (flagValue) {
+        flagValue.textContent = allergyText;
+      }
+    }
+  }
+
+  async function submitPatientProfile(event) {
+    event.preventDefault();
+    if (!patientProfileForm || !patientContextCard) {
+      return;
+    }
+
+    const submitter = patientProfileForm.querySelector('button[type="submit"]');
+    const action = patientContextCard.dataset.profileUpdateUrl || '';
+    if (!action) {
+      setPatientDrawerStatus('ยังไม่ได้ตั้งค่า endpoint สำหรับบันทึกข้อมูลผู้รับบริการ', 'error');
+      return;
+    }
+
+    submitter?.setAttribute('disabled', 'disabled');
+    setPatientDrawerStatus('กำลังบันทึกข้อมูล...', 'info');
+
+    try {
+      const response = await fetch(action, {
+        method: 'POST',
+        body: new FormData(patientProfileForm),
+        headers: {
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+      });
+      const contentType = response.headers.get('content-type') || '';
+      const payload = contentType.includes('application/json') ? await response.json() : null;
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || 'ไม่สามารถบันทึกข้อมูลผู้รับบริการได้');
+      }
+
+      updatePatientContext(payload.profile);
+      setPatientDrawerStatus(payload.message || 'บันทึกข้อมูลเรียบร้อย', 'success');
+      window.setTimeout(() => closePatientDrawer(), 850);
+    } catch (error) {
+      setPatientDrawerStatus(error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลผู้รับบริการได้', 'error');
+    } finally {
+      submitter?.removeAttribute('disabled');
+    }
   }
 
   function createRemoveForm(type, id) {
@@ -862,6 +1214,14 @@
     }
 
     if (event.key === 'Escape') {
+      if (patientDrawer?.classList.contains('is-open')) {
+        closePatientDrawer();
+        return;
+      }
+      if (patientMenu && !patientMenu.hidden) {
+        closePatientMenu();
+        return;
+      }
       hideExamAlert();
       showSuggestion('');
       if (document.activeElement instanceof HTMLElement) {
@@ -1054,6 +1414,51 @@
     submitOrderFormAjax(orderForm, event.submitter);
   }
 
+  patientMenuToggle?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    togglePatientMenu();
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!patientMenu || patientMenu.hidden) {
+      return;
+    }
+
+    const target = event.target;
+    if (target instanceof Node && (patientMenu.contains(target) || patientMenuToggle?.contains(target))) {
+      return;
+    }
+
+    closePatientMenu();
+  });
+
+  document.querySelectorAll('[data-patient-menu-close]').forEach((button) => {
+    button.addEventListener('click', closePatientMenu);
+  });
+
+  document.querySelectorAll('[data-patient-drawer-open]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      openPatientDrawer(button.dataset.patientDrawerOpen || 'view');
+    });
+  });
+
+  document.querySelectorAll('[data-patient-drawer-close]').forEach((button) => {
+    button.addEventListener('click', closePatientDrawer);
+  });
+
+  patientDrawerBackdrop?.addEventListener('click', closePatientDrawer);
+  patientProfileForm?.addEventListener('submit', submitPatientProfile);
+
+  document.querySelectorAll('[data-patient-menu-placeholder]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const feature = button.dataset.patientMenuPlaceholder || 'ฟังก์ชันนี้';
+      closePatientMenu();
+      showExamAlert(`${feature} อยู่ระหว่างพัฒนา`);
+      window.setTimeout(hideExamAlert, 1800);
+    });
+  });
+
   appendPresetButtons.forEach((button) => {
     button.addEventListener('click', () => {
       appendPreset(button.dataset.appendTarget || '', button.dataset.appendText || '', button);
@@ -1063,7 +1468,52 @@
   templateButtons.forEach((button) => {
     button.addEventListener('click', () => {
       applyTemplate(button.dataset.template || '', button);
+      closeTemplateDialog();
     });
+  });
+
+  templateSelect?.addEventListener('change', () => {
+    const templateName = templateSelect.value || '';
+    if (!templateName) {
+      return;
+    }
+
+    applyTemplate(templateName);
+    templateSelect.value = '';
+    closeTemplateDialog();
+  });
+
+  templateOpenButtons.forEach((button) => {
+    button.addEventListener('click', openTemplateDialog);
+  });
+
+  templateCloseButtons.forEach((button) => {
+    button.addEventListener('click', closeTemplateDialog);
+  });
+
+  templateDialog?.addEventListener('click', (event) => {
+    if (event.target === templateDialog) {
+      closeTemplateDialog();
+    }
+  });
+
+  treatmentPresetTriggers.forEach((button) => {
+    button.addEventListener('click', () => openTreatmentPresetDialog(button));
+  });
+
+  treatmentPresetCloseButtons.forEach((button) => {
+    button.addEventListener('click', closeTreatmentPresetDialog);
+  });
+
+  treatmentPresetDialog?.addEventListener('click', (event) => {
+    if (event.target === treatmentPresetDialog) {
+      closeTreatmentPresetDialog();
+    }
+  });
+
+  document.querySelectorAll('textarea[data-auto-expand]').forEach((textarea) => {
+    autoExpandTextarea(textarea);
+    textarea.addEventListener('input', () => autoExpandTextarea(textarea));
   });
 
   document.getElementById('smartExamUndo')?.addEventListener('click', restoreLast);

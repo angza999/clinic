@@ -128,6 +128,12 @@ Smart Exam is the primary nurse workflow and must stay faster than visit detail.
 - Show queue number, HN, and VN as compact chips.
 - Show drug allergy status above the fold in both the active case area and summary panel.
 - Avoid burying risk information inside advanced detail.
+- Keep Smart Exam patient actions behind a compact three-dot menu. Do not add persistent buttons for actions that are not used in every case.
+- Patient Context menu actions may include full profile, edit profile, case history, print patient card, and QR code placeholders.
+- Use a right-side drawer for full profile and edit profile so the nurse does not leave Smart Exam.
+- Allergy and chronic disease must remain visible outside the drawer even when the menu is closed.
+- Patient profile editing must respect field-level roles: Admin all supported fields; Nurse only contact and safety fields; Cashier read-only/no Smart Exam edit.
+- Save feedback should appear inside the drawer and update the visible Patient Context Card without a full page reload when possible.
 
 ### Clinical Flow
 - Preset selection must be quick and obvious.
@@ -410,6 +416,21 @@ Rules:
 - Use muted medical status colors; avoid candy pastel or decorative gradients.
 - Add shortcut hints as a small bottom utility bar, not instructional content inside the main workflow.
 
+### Single Nurse Queue Workstation
+For small clinics where one nurse runs intake, exam, payment handoff, and finishing:
+
+`Compact Today Status -> Start Case -> Active Case -> Compact Queue Board -> Single Nurse Assistant Rail`
+
+Rules:
+- The page should answer "what should I do next?" in under 3 seconds.
+- Do not show duplicate status cards at top and again below the active case.
+- Do not render a second queue board below the main board.
+- Do not use a large empty state for "no active case"; use a compact empty state with one next action.
+- Import Excel is a secondary intake action and should not compete with read card/search/new patient.
+- The right rail should show Next Action, Today Snapshot, Alerts, and Quick Actions before detailed case totals.
+- Keyboard shortcuts belong in the rail or a compact utility hint, not as large instructional text.
+- Queue rows should stay 72-88px high and show Q number, name, HN/time, wait duration, and safety flags.
+
 ### Enterprise Consistency
 Reusable workstation components should be preferred:
 - `command-header`
@@ -547,3 +568,160 @@ Rules:
 - Link to real workflows: backup, reports, settings, smart-card/printer docs.
 - Use red only for blockers, amber for attention, and teal/green for ready.
 - Admin should understand go-live risk within 10 seconds.
+
+## Single Nurse Queue Production UX
+
+Queue Workstation must optimize for one nurse serving the whole clinic.
+
+Rules:
+- Top metrics should show only actionable queue states: waiting, in service, waiting payment, completed.
+- Keep patient count, exam done, revenue, and average case time in the right rail Today Snapshot.
+- Active Case empty state must be small and action-oriented; avoid large decorative placeholders.
+- Queue cards need clear hover, selected, and active states. They should look clickable and select the active case before opening Smart Exam.
+- Queue card content should be minimal for scan speed: queue number, patient name, wait time, and priority only.
+- HN, VN, allergies, chronic disease, visit count, and billing details belong in Active Case after selection.
+- Wait-priority colors should affect the whole card: 0-15 min green, 15-30 yellow, 30-60 orange, over 60 red.
+- Keep the Queue Board as the center of the page and keep all four status columns visible on notebook/desktop; scroll inside columns for long queues.
+- Empty columns should shrink to a compact state instead of occupying dashboard-height space.
+- The Next Patient widget belongs above Active Case and should offer call-only and call-and-open-exam actions.
+- Active Case should show a compact workflow timeline so the nurse sees the current stage without reading long helper text.
+- Next Action must be status-driven and expose one primary button only.
+- Right rail should include Recent Activity and Financial Snapshot so the nurse does not leave the screen to understand what just happened.
+- Alerts should be operational: low stock, waiting payment, smart-card offline, printer not ready, backup not done today, and cases stuck over 30 minutes.
+- Queue shortcuts: F1 search, F2 new patient, F3 Smart Exam, F4 service work, F5 next queue, F9 payment.
+
+## Queue Workstation V2 UX
+
+Queue V2 should feel like a one-flow workstation for a single nurse.
+
+Rules:
+- The right rail must be one compact `TODAY STATUS` panel, not multiple stacked dashboard cards.
+- Today Status sections should be short blocks: overview, finance, alerts, latest, activity summary, backup, shortcuts.
+- Active Case must expose one main action based on readiness: continue service, send/open payment, or close case and call next patient.
+- The close-next button should appear only when the current case can safely finish or should clearly guide to payment when it cannot.
+- Sticker printing is a contextual Active Case action and should be hidden when the case has no medication/item usage.
+- Patient history should be a compact details drawer, not a separate full page during queue work.
+- Empty states should be small and action-oriented.
+- Do not duplicate patient totals, revenue, alerts, or current case details across multiple panels.
+- Keyboard shortcuts should continue to support F1 search, F2 new patient, F3 Smart Exam, F4 service work, F5 next queue, and F9 payment.
+
+## Queue Workstation Final Production UX
+
+Queue live work must feel like an operational board, not a dashboard.
+
+Rules:
+- Show only live workflow columns in Queue Board: waiting, in service, and waiting payment.
+- Move completed cases into a History tab so the live board stays focused on work that still needs action.
+- Queue cards must be wide enough to show queue number, patient name, HN, waiting time, and priority without truncating the core identity.
+- Active Case is the single source of patient detail. Do not duplicate allergy, chronic disease, visit count, billing counts, or timeline in the queue cards or right rail.
+- Patient Safety Banner must sit above Active Case content and use orange/red emphasis only for real safety risk.
+- The primary action area must expose exactly one main button: "next step" changes by status.
+- Today Status alerts on the queue page should stay critical-only: queue over 30 minutes, smart-card offline, and printer offline.
+- Backup readiness belongs in Admin/Production readiness, not the nurse's live queue rail.
+- Recent Patient should be renamed/treated as Recent Search or Favorite Patient to avoid duplicating Queue Board.
+- Test at 1366x768 and 1920x1080; horizontal overflow is a blocker.
+
+## Smart Exam Progressive Disclosure UX
+
+Smart Exam must prioritize what a single nurse needs while actively treating a patient.
+
+Rules:
+- Keep patient identity and safety context visible without requiring scroll: name, HN/VN, age, gender, phone, allergy, chronic disease, visit count, and last visit.
+- Put historical detail behind one-click disclosure. The default screen should show only the latest meaningful rows.
+- The center column is the clinical work area: vitals, CC/PI/PE/Dx, service/medicine entry, and follow-up.
+- The right rail remains sticky and action-oriented: summary, readiness, billing, and finish actions.
+- Do not duplicate patient snapshot blocks across left context, center work, and right summary.
+- Replace large banks of preset buttons with a compact dropdown first; advanced buttons may stay inside a collapsible block.
+- Helper text should be hidden or minimized when the label and control already explain the task.
+- The page must stay usable on a 14-inch notebook without turning into a long dashboard.
+
+## Case History UX
+
+`visit-edit` should be presented to users as "ประวัติเคส" and feel like a clinical record review screen, not a work queue or Smart Exam clone.
+
+Rules:
+- Start with a compact patient summary and safety flags.
+- Use timeline and table patterns for history, not order-entry forms.
+- Service, drug, payment, and audit sections must be read-only by default.
+- Do not show add/remove buttons, payment send buttons, close-case buttons, or clinical workflow next-step panels on this page.
+- Admin-only correction should be designed separately and clearly marked; do not quietly expose editing controls to Nurse/Cashier roles.
+- Empty states should explain that no historical data exists, not suggest an operational action.
+
+## Workflow Sidebar + Queue Alert Bar UX
+
+Navigation must reflect the clinic's real one-nurse flow, not the code module map.
+
+Rules:
+- Group sidebar items by use frequency: Daily Work, Clinic Management, Reports, Admin.
+- Daily Work must stay at the top: Queue Today, Patient Registration, Payments, Pharmacy Stickers.
+- Keep admin-only tools visually separated from front-desk/nurse workflow.
+- Queue Station must keep three primary surfaces only: Start Case, Active Case, Queue Board.
+- Replace duplicate Next Patient widgets with one compact Alert Bar above Active Case.
+- Queue Board uses four Kanban columns in the current product direction: Waiting, In Service, Waiting Payment, Completed.
+- Queue cards should open Smart Exam directly. Avoid intermediate preview-only clicks unless explicitly requested.
+- Remove unused tab/history-board styles when the board is no longer tabbed.
+
+## Smart Exam Minimal Clinical Flow UX
+
+Smart Exam should feel like one compact treatment workstation, not separate dashboard widgets.
+
+Rules:
+- Preserve the single-nurse top-down flow: Patient Context, Preset, Clinical Note, Vitals, Services, Drugs/Supplies, Summary, Finish.
+- Keep the patient context visible and do not duplicate full patient snapshots in the center column.
+- Presets should be one-line, low-height controls. Keep descriptions and advanced preset banks out of the default visual path.
+- Services and drugs/supplies must read as one continuous order-entry sequence. Avoid side-by-side service/drug panels when they create eye travel on 14-inch notebooks.
+- Summary rail should show no more than three primary controls at once. Rare finish paths can live under a secondary disclosure.
+- Empty states should be short and operational: state what is missing, not explain the whole feature.
+- Avoid adding new colors. Use teal for primary actions, red/orange for safety warnings, gray/white for normal structure, and blue only for information.
+- Treatment Preset cards in Smart Exam are bundle actions, not decorative shortcuts.
+- Clicking a Treatment Preset must open a confirmation dialog that lists bundled services, medications, and supplies before stock is deducted.
+- Keep Treatment Preset cards compact in the preset toolbar; the detailed item list belongs in the dialog.
+- The confirmation copy must be explicit that applying the preset adds items to the case and deducts stock.
+- Do not show all bundle details inline on the Smart Exam surface; it increases cognitive load for the one-nurse workflow.
+
+## Dashboard Polish V2 UX
+
+Dashboard should feel like a professional commercial Clinic SaaS overview, not an internal report page.
+
+Rules:
+- Keep the greeting header compact and place a short Notification Strip directly beneath it for the top three operational signals only.
+- KPI cards must include icon, label, value, and a short status line so they do not feel empty.
+- KPI value typography should be prominent, but card height should stay compact enough for 14-inch notebooks.
+- Sidebar grouping should help daily workflow first: Dashboard, Queue, Registration, Payments before deeper clinical/admin tools.
+- Dashboard sidebar IA should stay lean: Daily Work, Treatment, Reports/Statistics, and System. Keep import, production checks, appointment, and pharmacy label routes available through contextual links instead of crowding the primary sidebar.
+- The Statistics sidebar shortcut should jump to the Dashboard analytics area instead of creating a duplicate analytics page.
+- Empty states must include icon, title, and helpful description, not a plain "none" sentence.
+- Inventory Watch should only cover medicine/supply risk: low stock and near-expiry. Backup belongs in System Health.
+- Finance Today should show revenue target progress using the same data already available to the Dashboard; do not add query or schema work for visual polish.
+- Use one shadow, one radius family, and subtle hover translate to keep a premium but calm healthcare UI.
+
+## Reports & Backup Commercial UX
+
+Reports must not duplicate the Dashboard. Dashboard is for real-time operation; Reports is for analytics, historical review, export, and backup/data management.
+
+Rules:
+- Start with a Report Center hero that explains analysis, export, and backup in one sentence.
+- Daily Analytics should be date-scoped: patient count, revenue, receipt count, and average receipt.
+- Patient Report should be a searchable/sortable table with export links, not a static dashboard summary.
+- Revenue and patient trends should use visual chart surfaces before raw tables.
+- Service Analytics should be a ranking list with progress bars so the operator sees the top services quickly.
+- Payment Analytics should show payment method mix visually and avoid repeating cashier workstation KPIs.
+- Export Center and Backup Center must be separate sections; export is for analysis, backup is for data safety.
+- Backup Center can show latest file, file count, storage use, and today's backup status, but it should not replace Production Readiness checks.
+- Keep card radius, shadow, typography, and responsive behavior aligned with Dashboard V2.
+
+## Medical Inventory Command Center UX
+
+Inventory should feel like a commercial medical supply command center, not a form-first CRUD screen.
+
+Rules:
+- Keep KPI cards at the top for total items, low stock, near expiry, expired, stock value, and received quantity today.
+- Search must be prominent and support item name, item code, lot, and barcode-ready workflows.
+- Use filter chips for all, drug, supply, low stock, near expiry, and expired states.
+- The inventory table is the primary surface; row actions should be compact behind a menu to reduce visual clutter.
+- Stock quantity should include a progress bar so users can scan supply pressure quickly.
+- Expiry should show operational meaning such as remaining days or expired, not only the raw date.
+- Receive stock, adjust stock, and item master forms should open as focused modals/drawers with realtime preview.
+- Alert Center should highlight low stock, near expiry, expired, and reorder work without duplicating table rows.
+- Movement history should read as a timeline and allow quick filtering by IN, OUT, and ADJUST.
+- Barcode UI can be prepared without binding hardware until the scanner integration phase.

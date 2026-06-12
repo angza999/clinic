@@ -53,6 +53,39 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
 
 ## Current Notable Changes
 
+## 2026-06-07 - Smart Exam Production Density Polish
+
+### Type
+- ux
+- bugfix
+
+### Summary
+- Reduced Smart Exam header height, patient context wrapping, and clinical card vertical waste.
+- Added safer birthdate/age handling for Buddhist Era dates so patient context does not show impossible ages.
+- Made clinical/vital layout more production-friendly: two-column clinical/vital composition on wide screens, stacked layout on notebook widths.
+
+### Why
+- The Smart Exam screen is the main one-nurse workstation; important clinical inputs should appear faster without header/context layout consuming the working area.
+
+### Files
+- `app/Views/queue/exam.php`
+- `public/assets/css/smart-exam.css`
+
+### Flow Impact
+- smart exam
+
+### Database Impact
+- none
+
+### UI Impact
+- More compact header, more stable left patient context, denser clinical/vital area, less vertical scrolling.
+
+### AI Context Updates Required
+- CHANGELOG_AI.md
+
+### Notes
+- Business logic and database structure were not changed.
+
 ## 2026-05-23 - Service Workstation Phase 2 Price History
 
 ### Type
@@ -1676,3 +1709,221 @@ Whenever work changes business logic, workflow, schema, validation, UI pattern, 
   - `docs/DATA_PRIVACY_SECURITY.md`
 - Added sidebar entry `ตรวจระบบใช้งานจริง` for Admin.
 - Database impact: new `backup_logs` table for existing installations via migration.
+
+## 2026-06-05 - Single Nurse Queue Workstation
+
+- Refactored `GET:queue` around a one-nurse clinic flow: compact today status, start case panel, active case surface, compact queue board, and assistant rail.
+- Removed the duplicated queue hero/status strip/second board from the Queue view.
+- Added controller-side lightweight queue context for today revenue, exam completion count, low-stock count, pending cases, and latest backup status.
+- Replaced the static right summary with a Single Nurse Assistant Rail showing next action, today snapshot, current case readiness, alerts, and shortcuts.
+- Added keyboard shortcuts for queue operation: F1 search, F2 quick/new patient, F3 Smart Exam, F4 payment, F5 payments/receipts, F6 medication labels.
+- Database impact: no schema change.
+
+## 2026-06-05 - Queue Workstation Production UX Refactor
+
+- Removed duplicate top summary metrics so the top bar now focuses on four queue states only.
+- Moved patient totals, completed exams, revenue, and average case time into Today Snapshot.
+- Made Queue Board behave as a workflow selector: clicking a queue card selects the active visit and highlights it before opening Smart Exam.
+- Reduced queue card content to queue number, patient name, wait time, and automatic wait-priority for faster scan speed.
+- Added full-card wait-priority coloring: normal, caution, warning, and critical based on queue age.
+- Added Next Patient widget above Active Case with call-only and call-and-open-Smart-Exam actions.
+- Added Queue Aging Alert for queues waiting over 30 and 60 minutes.
+- Added compact workflow timeline inside Active Case.
+- Added Quick Patient Preview fields in Active Case: allergy, chronic disease, visit count, queue duration, and billing summary.
+- Added status-driven Next Action labels for waiting, in-service, waiting-payment, and completed cases.
+- Added Financial Snapshot and Recent Activity to the right rail.
+- Expanded operational alerts for low stock, waiting payment, smart-card bridge, printer readiness, backup today, and cases stuck over 30 minutes.
+- Updated keyboard shortcuts to F1 search, F2 new patient, F3 Smart Exam, F4 service work, F5 call next queue, and F9 payment.
+- Database impact: no schema change.
+
+## 2026-06-05 - Queue Workstation Version 2
+
+- Consolidated the right rail into one compact Today Status panel with daily overview, finance, critical alerts, latest work, activity summary, backup reminder, and shortcuts.
+- Added `POST:queue-close-next` so a paid/no-charge active case can be completed and the next waiting queue can be promoted automatically.
+- Added guardrails for close-next: waiting cases must open Smart Exam first, unpaid billable cases route toward finance, and overlapping active cases are blocked.
+- Added patient history quick view in Active Case for recent visits, Dx/complaint, services, items, and payment total.
+- Made medication sticker printing contextual in Active Case; it appears only when the case has medicine/item usage.
+- Added queue transition, case close-next, Smart Exam finish, and medication label print audit logging through existing `audit_logs`.
+- Updated queue JavaScript to prevent double-submit on queue status and close-next forms.
+- Database impact: no schema change.
+
+## 2026-06-05 - Queue Workstation Final Production Refactor
+
+- Reduced the live Queue Board from four columns to three: waiting, in service, and waiting payment.
+- Moved completed cases into a History tab so the live board focuses only on work that still needs action.
+- Expanded Queue cards to show queue number, patient name, HN, wait time, and priority without using HN/VN-heavy detail blocks.
+- Rebalanced Active Case as the primary clinical surface with Patient Safety Banner, compact case facts, workflow timeline, event timeline, one primary next action, sticker shortcut, and patient history drawer.
+- Removed duplicated service/item/total summary by merging those values into the active preview row.
+- Simplified Today Status alerts to critical queue blockers only: aged queues, smart-card bridge offline, and printer offline. Backup reminder is no longer shown in the queue rail.
+- Renamed the left recent list toward Recent Search to reduce duplication with Queue Board.
+- Verified `GET:queue` at 1366x768 and 1920x1080 with no horizontal overflow and no SQLSTATE error.
+- Database impact: no schema change.
+
+## 2026-06-05 - Smart Exam Progressive Disclosure
+
+- Added a left Patient Context surface to Smart Exam with patient photo, name, HN/VN, age, gender, phone, allergy, chronic disease, visit count, latest history, latest medication, and full patient file link.
+- Rebalanced Smart Exam into three surfaces: Patient Context, Clinical Work, and Sticky Summary.
+- Reduced duplicate clinical context by hiding the center duplicate Active Case and Patient Snapshot blocks on the Smart Exam page.
+- Added a Smart Template dropdown for faster preset selection and moved advanced quick buttons into a collapsible section.
+- Reduced Smart Exam visual weight by hiding repeated helper text, compressing card padding, and lowering textarea height.
+- Verified PHP syntax, JavaScript syntax, and diff whitespace checks.
+- Database impact: no schema change.
+
+## 2026-06-06 - Case History
+
+- Refactored `visit-edit` from a treatment workflow page into a read-only-first "ประวัติเคส" page.
+- Removed the visible clinical workflow form, nursing templates, service add/remove controls, medicine/equipment add/remove controls, payment handoff button, and case finish workflow from the page.
+- Added Patient Summary, current clinical snapshot, Visit Timeline, Service History, Drug History, Payment History, and Audit Log sections.
+- Updated `VisitController::edit()` to load review histories and audit rows instead of active service/item master data for order entry.
+- Added responsive review styling in `public/assets/css/app.css`.
+- Verified PHP syntax and browser rendering for `GET:visit-edit&id=33`; no SQLSTATE error, no visit-edit action forms, and no horizontal overflow.
+- Database impact: no schema change.
+
+## 2026-06-06 - Workflow Sidebar + Queue Alert Bar
+
+- Refactored Sidebar Navigation from module order into workflow groups: Daily Work, Clinic Management, Reports, and Admin.
+- Moved Queue Today, Patient Registration, Payments, and Pharmacy Stickers to the top Daily Work group for one-nurse operation.
+- Kept Appointments but moved it into Clinic Management instead of daily workflow.
+- Removed the visible Next Patient card from Queue Station and replaced it with a compact top Alert Bar.
+- Restored Queue Board to four Kanban columns: Waiting, In Service, Waiting Payment, Completed.
+- Changed queue cards to open Smart Exam directly through `queue-exam&id=visit_id`.
+- Removed unused Queue Board tab/history CSS and JavaScript handlers.
+- Verified PHP syntax and diff whitespace checks.
+- Database impact: no schema change.
+
+## 2026-06-06 - Smart Exam Patient Context Three-Dot Menu
+
+- Added a compact three-dot menu to the Smart Exam Patient Context card.
+- Added menu actions for full patient data, edit patient profile, case history, patient card print placeholder, QR Code print placeholder, and close menu.
+- Added a right-side Patient Profile drawer for read-only review and inline profile editing without leaving Smart Exam.
+- Added `POST:queue-patient-profile-update` and `QueueController::updatePatientProfile()` with role-based field permissions.
+- Admin can edit all supported patient profile fields; Nurse can edit only phone, address, chronic disease, drug allergy, and note.
+- Patient profile saves return JSON and update the visible Patient Context Card immediately.
+- Added audit logging through existing `audit_logs` using action `UPDATE_PATIENT_PROFILE` and `table_name = patients`.
+- Verified PHP syntax for `QueueController`, `queue/exam.php`, and `public/index.php`; verified JavaScript syntax for `smart-exam.js`.
+- Database impact: no schema change.
+
+## 2026-06-07 - Smart Exam Minimal Clinical Flow
+
+- Refined Smart Exam into a denser single-nurse clinical flow without changing endpoints or database schema.
+- Changed service presets into compact one-line controls and hid preset descriptions from the default path.
+- Collapsed duplicate center Patient Snapshot so patient safety context lives primarily in the left Patient Context surface.
+- Reordered visual priority so Clinical Note leads before Vitals, then Services, then Drugs/Supplies.
+- Stacked service and drug order-entry cards vertically with compact quick-add rows, tighter inputs, and shorter selected-line lists.
+- Reduced sticky Summary rail height and moved no-charge close under a secondary disclosure so only three primary controls are visible.
+- Verified PHP syntax for `app/Views/queue/exam.php`.
+- Database impact: no schema change.
+
+## 2026-06-07 - Smart Exam Responsive Exam Grid Fix
+
+- Fixed Smart Exam overlap between Vital Signs and CC/PI/PE/Dx by replacing the examination area with explicit CSS Grid surfaces.
+- Moved the Smart Preset dropdown into the top row beside preset quick actions.
+- Added `smart-exam-top-grid` for Preset Quick Action + Template Dropdown and `smart-exam-work-grid` for Clinical Note + Vital Signs.
+- Vital Signs now render as ordered grid fields: BP, BP lower, Temp, Pulse, Resp, SpO2, Weight.
+- Examination containers now enforce `min-width: 0`, `max-width: 100%`, and `overflow: hidden` to prevent card overflow.
+- Below 1400px, the examination grid stacks to one column to support 1366x768 without overlap.
+- Verified PHP syntax for `app/Views/queue/exam.php`; local `queue-exam&id=43` returned HTTP 200 with no SQLSTATE/Fatal/Parse marker.
+- Database impact: no schema change.
+
+## 2026-06-07 - Smart Exam Pharmacy Compact Surface
+
+- Refined the Smart Exam drug/supply card into a compact pharmacy quick-order surface.
+- Added `smart-medication-card` for medication-only layout rules without changing service-entry behavior.
+- Quick medication cards are shorter, use a denser name/stock/status grid, and avoid oversized visual weight.
+- Medication instruction controls are grouped into a compact preset row with a concise generated instruction preview.
+- Selected drug/supply rows now render as compact table-like rows with truncated long text instead of tall cards.
+- Summary rail drug lines are constrained to prevent repeated medication detail from dominating the finish area.
+- Verified PHP syntax for `app/Views/queue/exam.php`; local `queue-exam&id=43` returned HTTP 200 with no SQLSTATE/Fatal/Parse marker.
+- Database impact: no schema change.
+
+## 2026-06-07 - Smart Exam Service Compact Surface
+
+- Refined the Smart Exam service card into a compact service order surface.
+- Added `smart-service-order-card` for service-only layout rules without changing add-service logic.
+- Quick service actions now render as compact pill buttons instead of tall dashboard-like cards.
+- Service search, select, quantity, and add controls are tighter and aligned for faster order entry.
+- Selected service lines now render as compact table-like rows with safe truncation for long service names.
+- Verified PHP syntax for `app/Views/queue/exam.php`; local `queue-exam&id=43` returned HTTP 200 with no SQLSTATE/Fatal/Parse marker.
+- Database impact: no schema change.
+
+## 2026-06-07 - Smart Exam One-Nurse Clinical Layout
+
+- Refactored the Smart Exam clinical section for a one-nurse workflow without changing business logic or database schema.
+- Collapsed Smart Template from an always-visible right panel into a modal dialog opened by `เลือก Template` / `+ เพิ่มเติม`.
+- Added a visible pencil edit action on Patient Context that opens the existing patient profile editor instead of adding an inline edit form.
+- Reordered clinical fields to CC, PI, Dx, PE and added textarea auto-expand for longer CC/PI/PE text.
+- Merged Vital Signs into the clinical card below PE with a compact grid: BP, BP lower, Temp, Pulse, Resp, SpO2, Weight.
+- Added chronic disease visibility to the sticky Summary rail alongside allergy, service count, item count, totals, sticker, and finish actions.
+- Verified PHP syntax for `app/Views/queue/exam.php`, JavaScript syntax for `smart-exam.js`, and local `queue-exam&id=43` returned HTTP 200 with no SQLSTATE/Fatal/Parse marker.
+- Database impact: no schema change.
+- 2026-06-07: Added Treatment Preset bundle foundation.
+  - Added Admin management page for Treatment Presets.
+  - Added normalized preset tables for services, medications, and supplies.
+  - Added Smart Exam Treatment Preset cards with confirmation dialog.
+  - Added transactional preset application that creates service/item lines and stock movements.
+  - Prevents accidental duplicate application of the same Treatment Preset per visit.
+
+## 2026-06-07 - Smart Exam Treatment Preset Bundles
+
+- Added Admin-only Treatment Preset management at `treatment-presets`.
+- Added Treatment Preset sidebar navigation under Clinic Management.
+- Added normalized Treatment Preset schema:
+  - `preset_master`
+  - `preset_services`
+  - `preset_medications`
+  - `preset_supplies`
+- Smart Exam now renders active Treatment Presets as compact bundle cards.
+- Clicking a Treatment Preset opens a confirmation dialog showing services, medications, and supplies before applying.
+- Applying a Treatment Preset now uses a transaction to add visit services, add item usage rows, deduct stock from inventory batches, and create `stock_movements`.
+- If stock is insufficient, the entire preset application rolls back and shows a clear warning.
+- The same Treatment Preset cannot be applied twice to the same visit by accident.
+- Updated AI context, system flow, UX guide, module notes, database schema notes, and future roadmap.
+- Database impact: new Treatment Preset tables only; existing service, visit, billing, and stock tables are reused.
+
+## 2026-06-10 - Professional Clinic Dashboard Redesign
+
+- Redesigned Dashboard into a commercial Clinic SaaS overview without changing DashboardController database queries.
+- Added compact Dashboard header with greeting, date/time, and today's clinic status.
+- Added six hero KPI cards: today's patients, in service, waiting payment, revenue, follow-up appointments, and low stock.
+- Moved urgent operational work directly under KPIs as a Priority Task Board.
+- Replaced report-like tables with CSS-based revenue and popular-service chart surfaces.
+- Added dedicated Follow-up, Finance Today, Inventory Watch, and Backup status panels.
+- Updated Dashboard responsive rules for 4 KPI columns on desktop, 2 on tablet, and 1 on mobile.
+- Reworked sidebar grouping into workflow-oriented sections: daily work, treatment, reports, and admin.
+- Database impact: no schema change.
+
+## 2026-06-10 - Dashboard Polish V2
+
+- Refined Dashboard visual hierarchy for a more premium Clinic SaaS feel without changing queries, database schema, or business logic.
+- Added a compact Notification Strip under the greeting header showing up to three important operational signals.
+- Upgraded KPI cards with status lines and tighter card density so the dashboard reads faster and wastes less vertical space.
+- Added revenue target progress to Finance Today using the existing revenue value.
+- Limited Inventory Watch to low-stock and near-expiry medication/supply risks.
+- Moved backup visibility into a new System Health section with backup status, receipt count, pending work, and backup action.
+- Cleaned the sidebar grouping so Dashboard sits in daily work and removed the duplicate `$navGroups` definition from the layout.
+- Polished sidebar IA to match Dashboard V2: daily work, treatment, reports/statistics, and system-only admin links.
+- Added a direct Statistics sidebar shortcut to the Dashboard analytics section without adding routes or database queries.
+- Verified PHP syntax for `app/Views/dashboard/index.php` and `app/Views/layouts/app.php`.
+- Database impact: no schema change.
+
+## 2026-06-10 - Reports & Backup Commercial Report Center
+
+- Redesigned Reports & Backup into a commercial Report Center focused on analytics, historical data, export, and backup management.
+- Removed the old dashboard-like summary layout and replaced it with a hero, date/month filters, Daily Analytics cards, Patient Report table, trend charts, service ranking, payment mix, Export Center, and Backup Center.
+- Added client-side patient report search and sorting for faster daily review.
+- Added monthly patient trend data to `ReportController` and made daily visit export / monthly revenue export respect the selected date/month.
+- Added export actions for appointments and monthly report CSV without changing database schema.
+- Backup Center now reads existing `storage/exports/clinic_backup_*.sql` files for latest backup, file count, file size, total storage use, and today's backup status.
+- Added dedicated `public/assets/css/reports.css` and `public/assets/js/reports.js`.
+- Verified PHP syntax and local `reports` page HTTP 200 with no SQLSTATE/Fatal markers.
+- Database impact: no schema change.
+
+## 2026-06-11 - Medical Inventory Command Center
+
+- Refactored the Inventory page from a form-heavy stock screen into a Medical Inventory Command Center.
+- Added modern KPI cards for total items, low stock, near expiry, expired, stock value, and received quantity today.
+- Added prominent search for item name, item code, lot, and barcode-ready workflows with filter chips for item type and stock/expiry status.
+- Upgraded the inventory table with sticky headers, stock progress bars, nearest-expiry status, latest lot, muted status badges, and a compact row action menu.
+- Moved receive stock, stock adjustment, and item master forms into focused modals with realtime stock preview.
+- Added Alert Center, Movement History timeline filters, Inventory Analytics, Consumption Trend, Forecast, and Barcode Ready surfaces.
+- Database impact: no schema change; existing `inventory_items`, `inventory_batches`, and `stock_movements` tables are reused.

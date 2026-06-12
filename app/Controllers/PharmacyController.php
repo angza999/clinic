@@ -195,6 +195,12 @@ class PharmacyController extends Controller
                 'hn' => (string) ($visit['hn'] ?? ''),
             ];
 
+            $logIds = [];
+            $statusCounts = [
+                'PRINTED' => 0,
+                'REPRINT' => 0,
+            ];
+
             foreach ($selectedIds as $itemId) {
                 $existingLogStmt->execute(['prescription_item_id' => $itemId]);
                 $status = ((int) $existingLogStmt->fetchColumn() > 0) ? 'REPRINT' : 'PRINTED';
@@ -207,10 +213,33 @@ class PharmacyController extends Controller
                     'payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                     'printed_by' => current_user()['id'] ?? null,
                 ]);
+                $logIds[] = (int) $pdo->lastInsertId();
+                $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
             }
 
             $pdo->prepare('UPDATE prescriptions SET status = "PRINTED", updated_at = NOW() WHERE id = :id')
                 ->execute(['id' => (int) $prescription['id']]);
+
+            try {
+                $pdo->prepare(
+                    'INSERT INTO audit_logs (user_id, action, table_name, record_id, detail_json, created_at)
+                     VALUES (:user_id, "MEDICATION_LABEL_PRINTED", "medication_print_logs", :record_id, :detail_json, NOW())'
+                )->execute([
+                    'user_id' => current_user()['id'] ?? null,
+                    'record_id' => (int) ($logIds[0] ?? 0),
+                    'detail_json' => json_encode([
+                        'visit_id' => $visitId,
+                        'patient_id' => (int) $visit['patient_id'],
+                        'prescription_id' => (int) $prescription['id'],
+                        'selected_count' => count($selectedIds),
+                        'label_size' => $labelSize,
+                        'status_counts' => $statusCounts,
+                        'log_ids' => $logIds,
+                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ]);
+            } catch (Throwable $throwable) {
+                // Printing history is already recorded; audit must not block printing.
+            }
 
             $pdo->commit();
         } catch (Throwable $throwable) {

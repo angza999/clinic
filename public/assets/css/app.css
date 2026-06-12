@@ -1941,7 +1941,27 @@ body {
 
 .sidebar-nav {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.65rem;
+}
+
+.sidebar-nav-group {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.sidebar-nav-heading {
+  color: rgba(148, 163, 184, 0.86);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  padding: 0.38rem 0.68rem 0.22rem;
+  text-transform: uppercase;
+}
+
+.sidebar-nav-group + .sidebar-nav-group {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  padding-top: 0.52rem;
 }
 
 .sidebar .nav-link {
@@ -2857,6 +2877,440 @@ label {
   color: #0f172a;
   font-weight: 850;
   letter-spacing: 0;
+}
+
+/* Case History */
+.visit-review-page {
+  display: grid;
+  gap: 16px;
+}
+
+.visit-review-hero,
+.visit-review-section {
+  border: 1px solid var(--med-border, #d9e2ec);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.045);
+}
+
+.visit-review-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.visit-review-eyebrow {
+  color: var(--med-teal, #0f766e);
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.visit-review-hero h1,
+.visit-review-section-head h2,
+.visit-review-identity h3 {
+  margin: 3px 0 0;
+  color: #0f172a;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.visit-review-hero h1 {
+  font-size: clamp(1.45rem, 2vw, 1.9rem);
+}
+
+.visit-review-hero p,
+.visit-review-identity p,
+.visit-review-identity span,
+.visit-review-section-head > span,
+.visit-review-table span,
+.visit-review-timeline-body,
+.visit-review-audit-row span {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.visit-review-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.visit-review-status,
+.visit-review-admin-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.visit-review-admin-note {
+  border: 1px solid #99f6e4;
+  background: #ecfdf5;
+  color: #0f766e;
+}
+
+.visit-review-section {
+  padding: 16px;
+}
+
+.visit-review-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.visit-review-section-head h2 {
+  font-size: 1.06rem;
+}
+
+.visit-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.visit-review-timeline-section {
+  grid-row: span 2;
+}
+
+.visit-review-patient-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.visit-review-identity {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 94px;
+  padding: 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.visit-review-avatar {
+  width: 58px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 1.45rem;
+}
+
+.visit-review-fact-grid,
+.visit-review-safety-grid,
+.visit-review-vitals {
+  display: grid;
+  gap: 8px;
+}
+
+.visit-review-fact-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.visit-review-fact-grid > div,
+.visit-review-safety-grid > div,
+.visit-review-clinical-grid > div,
+.visit-review-vitals > div {
+  min-height: 54px;
+  padding: 9px 10px;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.visit-review-fact-grid span,
+.visit-review-safety-grid span,
+.visit-review-clinical-grid span,
+.visit-review-vitals span {
+  display: block;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.visit-review-fact-grid strong,
+.visit-review-safety-grid strong,
+.visit-review-clinical-grid strong,
+.visit-review-vitals strong {
+  display: block;
+  margin-top: 3px;
+  color: #0f172a;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.visit-review-safety-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.visit-review-safety-grid .is-danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.visit-review-safety-grid .is-danger strong {
+  color: #b91c1c;
+}
+
+.visit-review-safety-grid .is-warning {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.visit-review-safety-grid .is-warning strong {
+  color: #c2410c;
+}
+
+.visit-review-safety-grid .is-clear {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.visit-review-details {
+  margin-top: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.visit-review-details summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  color: #0f766e;
+  font-weight: 850;
+}
+
+.visit-review-clinical-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.visit-review-clinical-grid > div {
+  min-height: 74px;
+}
+
+.visit-review-vitals {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  padding: 0 12px 12px;
+}
+
+.visit-review-timeline {
+  display: grid;
+  gap: 8px;
+  max-height: 620px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.visit-review-timeline-item {
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.visit-review-timeline-item.is-current {
+  border-color: #5eead4;
+  background: #ecfdf5;
+}
+
+.visit-review-timeline-item summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 12px;
+}
+
+.visit-review-timeline-item summary strong,
+.visit-review-table strong,
+.visit-review-audit-row strong {
+  display: block;
+  color: #0f172a;
+  font-weight: 850;
+}
+
+.visit-review-timeline-item summary span {
+  display: block;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.visit-review-timeline-meta {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
+}
+
+.visit-review-timeline-meta em {
+  color: #0f766e;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.visit-review-timeline-meta b {
+  color: #1e40af;
+  font-size: 0.86rem;
+}
+
+.visit-review-timeline-meta small {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.visit-review-timeline-body {
+  display: grid;
+  gap: 4px;
+  padding: 0 12px 10px;
+}
+
+.visit-review-table-wrap {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+}
+
+.visit-review-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.visit-review-table th,
+.visit-review-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.visit-review-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.visit-review-table td {
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.visit-review-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.visit-review-table a {
+  color: #0f766e;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.visit-review-table a:hover {
+  text-decoration: underline;
+}
+
+.visit-review-empty,
+.visit-review-empty-cell {
+  padding: 18px;
+  color: #64748b;
+  text-align: center;
+}
+
+.visit-review-audit-list {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.visit-review-audit-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.visit-review-audit-row time {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+@media (max-width: 1399.98px) {
+  .visit-review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visit-review-timeline-section {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .visit-review-patient-grid,
+  .visit-review-fact-grid,
+  .visit-review-clinical-grid,
+  .visit-review-vitals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .visit-review-hero,
+  .visit-review-section-head,
+  .visit-review-timeline-item summary {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .visit-review-actions,
+  .visit-review-timeline-meta {
+    justify-content: start;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .visit-review-patient-grid,
+  .visit-review-fact-grid,
+  .visit-review-safety-grid,
+  .visit-review-clinical-grid,
+  .visit-review-vitals,
+  .visit-review-audit-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .settings-command-strip h2 {

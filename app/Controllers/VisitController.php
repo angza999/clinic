@@ -22,9 +22,6 @@ class VisitController extends Controller
             exit('Visit not found');
         }
 
-        $services = db()->query('SELECT * FROM services WHERE is_active = 1 ORDER BY service_name ASC')->fetchAll();
-        $items = db()->query('SELECT * FROM inventory_items WHERE is_active = 1 ORDER BY item_name ASC')->fetchAll();
-
         $addedServicesStmt = db()->prepare(
             'SELECT visit_services.*, services.service_name
              FROM visit_services
@@ -45,56 +42,30 @@ class VisitController extends Controller
         $usedItemsStmt->execute(['visit_id' => $visitId]);
         $usedItems = $usedItemsStmt->fetchAll();
 
-        $frequentServices = db()->query(
-            'SELECT services.id, services.service_name, services.price, COALESCE(SUM(visit_services.qty), 0) AS total_qty
-             FROM services
-             LEFT JOIN visit_services ON visit_services.service_id = services.id
-             WHERE services.is_active = 1
-             GROUP BY services.id, services.service_name, services.price
-             ORDER BY total_qty DESC, services.service_name ASC
-             LIMIT 6'
-        )->fetchAll();
-
-        $frequentItems = db()->query(
-            'SELECT inventory_items.id, inventory_items.item_name, inventory_items.unit_name, inventory_items.default_price,
-                    COALESCE(SUM(visit_item_usages.qty), 0) AS total_qty
-             FROM inventory_items
-             LEFT JOIN visit_item_usages ON visit_item_usages.item_id = inventory_items.id
-             WHERE inventory_items.is_active = 1
-             GROUP BY inventory_items.id, inventory_items.item_name, inventory_items.unit_name, inventory_items.default_price
-             ORDER BY total_qty DESC, inventory_items.item_name ASC
-             LIMIT 6'
-        )->fetchAll();
-
         $serviceTotal = array_sum(array_map(static fn(array $row): float => (float) $row['line_total'], $addedServices));
         $itemTotal = array_sum(array_map(static fn(array $row): float => (float) $row['line_total'], $usedItems));
         $serviceCount = count($addedServices);
         $itemCount = count($usedItems);
         $grandTotal = $serviceTotal + $itemTotal;
-        $isEditable = has_role(['ADMIN', 'NURSE']) && is_visit_editable_status($visit['status'] ?? null);
-        $statusGuidance = $this->statusGuidance((string) ($visit['status'] ?? 'WAITING'), $grandTotal > 0);
-        $recentVisits = $this->recentVisitsForPatient((int) $visit['patient_id'], $visitId);
+        $patientId = (int) $visit['patient_id'];
 
         $this->render('visits/edit', [
-            'pageTitle' => 'รายละเอียดขั้นสูง',
+            'pageTitle' => 'ประวัติเคส',
             'visit' => $visit,
-            'services' => $services,
-            'items' => $items,
             'addedServices' => $addedServices,
             'usedItems' => $usedItems,
-            'frequentServices' => $frequentServices,
-            'frequentItems' => $frequentItems,
             'serviceTotal' => $serviceTotal,
             'itemTotal' => $itemTotal,
             'serviceCount' => $serviceCount,
             'itemCount' => $itemCount,
             'grandTotal' => $grandTotal,
             'hasBillableItems' => $grandTotal > 0,
-            'nursingTemplates' => $this->nursingTemplates(),
-            'adviceTemplates' => $this->adviceTemplates(),
-            'isEditable' => $isEditable,
-            'statusGuidance' => $statusGuidance,
-            'recentVisits' => $recentVisits,
+            'isAdminReview' => has_role(['ADMIN']),
+            'visitTimeline' => $this->visitTimelineForPatient($patientId),
+            'serviceHistory' => $this->serviceHistoryForPatient($patientId),
+            'drugHistory' => $this->drugHistoryForPatient($patientId),
+            'paymentHistory' => $this->paymentHistoryForPatient($patientId),
+            'auditLogs' => $this->auditLogsForVisit($visitId),
         ]);
     }
 
@@ -614,7 +585,7 @@ class VisitController extends Controller
                     patients.phone, patients.drug_allergy, patients.underlying_disease,
                     queue_entries.id AS queue_id, queue_entries.queue_no, queue_entries.status,
                     visit_vitals.bp_systolic, visit_vitals.bp_diastolic, visit_vitals.temp_c,
-                    visit_vitals.pulse_rate, visit_vitals.spo2, visit_vitals.weight_kg
+                    visit_vitals.pulse_rate, visit_vitals.resp_rate, visit_vitals.spo2, visit_vitals.weight_kg
              FROM visits
              INNER JOIN patients ON patients.id = visits.patient_id
              LEFT JOIN queue_entries ON queue_entries.visit_id = visits.id
@@ -636,6 +607,97 @@ class VisitController extends Controller
         }
 
         redirect('visit-edit', ['id' => $visitId]);
+    }
+
+    private function visitTimelineForPatient(int $patientId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT visits.id, visits.visit_no, visits.visit_datetime, visits.chief_complaint, visits.diagnosis,
+                    queue_entries.queue_no, queue_entries.status,
+                    COALESCE(payments.total_amount, 0) AS paid_total,
+                    payments.receipt_no
+             FROM visits
+             LEFT JOIN queue_entries ON queue_entries.visit_id = visits.id
+             LEFT JOIN payments ON payments.visit_id = visits.id AND payments.payment_status = "PAID"
+             WHERE visits.patient_id = :patient_id
+             ORDER BY visits.visit_datetime DESC, visits.id DESC
+             LIMIT 20'
+        );
+        $stmt->execute(['patient_id' => $patientId]);
+
+        return $stmt->fetchAll();
+    }
+
+    private function serviceHistoryForPatient(int $patientId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT visits.id AS visit_id, visits.visit_no, visits.visit_datetime,
+                    services.service_name, visit_services.qty, visit_services.unit_price, visit_services.line_total
+             FROM visit_services
+             INNER JOIN visits ON visits.id = visit_services.visit_id
+             INNER JOIN services ON services.id = visit_services.service_id
+             WHERE visits.patient_id = :patient_id
+             ORDER BY visits.visit_datetime DESC, visit_services.id DESC
+             LIMIT 80'
+        );
+        $stmt->execute(['patient_id' => $patientId]);
+
+        return $stmt->fetchAll();
+    }
+
+    private function drugHistoryForPatient(int $patientId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT visits.id AS visit_id, visits.visit_no, visits.visit_datetime,
+                    inventory_items.item_name, inventory_items.unit_name,
+                    visit_item_usages.qty, visit_item_usages.usage_note, visit_item_usages.line_total
+             FROM visit_item_usages
+             INNER JOIN visits ON visits.id = visit_item_usages.visit_id
+             INNER JOIN inventory_items ON inventory_items.id = visit_item_usages.item_id
+             WHERE visits.patient_id = :patient_id
+             ORDER BY visits.visit_datetime DESC, visit_item_usages.id DESC
+             LIMIT 80'
+        );
+        $stmt->execute(['patient_id' => $patientId]);
+
+        return $stmt->fetchAll();
+    }
+
+    private function paymentHistoryForPatient(int $patientId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT payments.*, visits.visit_no, visits.visit_datetime, users.full_name AS cashier_name
+             FROM payments
+             INNER JOIN visits ON visits.id = payments.visit_id
+             LEFT JOIN users ON users.id = payments.paid_by
+             WHERE visits.patient_id = :patient_id
+             ORDER BY payments.paid_at DESC, payments.id DESC
+             LIMIT 50'
+        );
+        $stmt->execute(['patient_id' => $patientId]);
+
+        return $stmt->fetchAll();
+    }
+
+    private function auditLogsForVisit(int $visitId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT audit_logs.*, users.full_name AS actor_name
+             FROM audit_logs
+             LEFT JOIN users ON users.id = audit_logs.user_id
+             WHERE (audit_logs.record_id = :visit_id_exact AND audit_logs.table_name IN (
+                    "visits", "queue_entries", "visit_services", "visit_item_usages", "payments", "prescriptions", "medication_print_logs"
+                ))
+                OR audit_logs.detail_json LIKE :visit_id_json
+             ORDER BY audit_logs.created_at DESC, audit_logs.id DESC
+             LIMIT 40'
+        );
+        $stmt->execute([
+            'visit_id_exact' => $visitId,
+            'visit_id_json' => '%"visit_id":' . $visitId . '%',
+        ]);
+
+        return $stmt->fetchAll();
     }
 
     private function recentVisitsForPatient(int $patientId, int $excludeVisitId): array

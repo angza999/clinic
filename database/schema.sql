@@ -13,6 +13,10 @@ DROP TABLE IF EXISTS `audit_logs`;
 DROP TABLE IF EXISTS `backup_logs`;
 DROP TABLE IF EXISTS `import_log_rows`;
 DROP TABLE IF EXISTS `import_logs`;
+DROP TABLE IF EXISTS `preset_supplies`;
+DROP TABLE IF EXISTS `preset_medications`;
+DROP TABLE IF EXISTS `preset_services`;
+DROP TABLE IF EXISTS `preset_master`;
 DROP TABLE IF EXISTS `smart_exam_presets`;
 DROP TABLE IF EXISTS `system_settings`;
 DROP TABLE IF EXISTS `appointments`;
@@ -273,6 +277,60 @@ CREATE TABLE `inventory_items` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_inventory_items_item_code` (`item_code`),
   KEY `idx_inventory_items_name` (`item_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `preset_master` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `preset_name` varchar(150) NOT NULL,
+  `description` text DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_preset_master_active` (`is_active`,`preset_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `preset_services` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `preset_id` bigint unsigned NOT NULL,
+  `service_id` bigint unsigned NOT NULL,
+  `qty` decimal(10,2) NOT NULL DEFAULT 1.00,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_preset_services_preset_id` (`preset_id`),
+  KEY `idx_preset_services_service_id` (`service_id`),
+  CONSTRAINT `fk_preset_services_preset_id` FOREIGN KEY (`preset_id`) REFERENCES `preset_master` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_preset_services_service_id` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `preset_medications` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `preset_id` bigint unsigned NOT NULL,
+  `medicine_id` bigint unsigned NOT NULL,
+  `qty` decimal(10,2) NOT NULL DEFAULT 1.00,
+  `instruction` text DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_preset_medications_preset_id` (`preset_id`),
+  KEY `idx_preset_medications_medicine_id` (`medicine_id`),
+  CONSTRAINT `fk_preset_medications_preset_id` FOREIGN KEY (`preset_id`) REFERENCES `preset_master` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_preset_medications_medicine_id` FOREIGN KEY (`medicine_id`) REFERENCES `inventory_items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `preset_supplies` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `preset_id` bigint unsigned NOT NULL,
+  `supply_id` bigint unsigned NOT NULL,
+  `qty` decimal(10,2) NOT NULL DEFAULT 1.00,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_preset_supplies_preset_id` (`preset_id`),
+  KEY `idx_preset_supplies_supply_id` (`supply_id`),
+  CONSTRAINT `fk_preset_supplies_preset_id` FOREIGN KEY (`preset_id`) REFERENCES `preset_master` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_preset_supplies_supply_id` FOREIGN KEY (`supply_id`) REFERENCES `inventory_items` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `inventory_batches` (

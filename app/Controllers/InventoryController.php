@@ -17,7 +17,14 @@ class InventoryController extends Controller
         $items = db()->query(
             'SELECT inventory_items.*,
                     COALESCE(SUM(inventory_batches.qty_balance), 0) AS qty_balance,
-                    MIN(CASE WHEN inventory_batches.qty_balance > 0 THEN inventory_batches.expiry_date END) AS nearest_expiry
+                    MIN(CASE WHEN inventory_batches.qty_balance > 0 THEN inventory_batches.expiry_date END) AS nearest_expiry,
+                    (
+                        SELECT latest_batch.lot_no
+                        FROM inventory_batches latest_batch
+                        WHERE latest_batch.item_id = inventory_items.id
+                        ORDER BY latest_batch.received_date DESC, latest_batch.id DESC
+                        LIMIT 1
+                    ) AS latest_lot
              FROM inventory_items
              LEFT JOIN inventory_batches ON inventory_batches.item_id = inventory_items.id
              GROUP BY inventory_items.id
@@ -49,6 +56,21 @@ class InventoryController extends Controller
              WHERE movement_type = "IN" AND DATE(movement_datetime) = CURDATE()'
         )->fetchColumn();
 
+        $consumptionTrend = db()->query(
+            'SELECT inventory_items.item_name,
+                    inventory_items.unit_name,
+                    ABS(COALESCE(SUM(stock_movements.qty), 0)) AS total_used,
+                    AVG(ABS(stock_movements.qty)) AS avg_per_movement,
+                    COUNT(stock_movements.id) AS movement_count
+             FROM stock_movements
+             INNER JOIN inventory_items ON inventory_items.id = stock_movements.item_id
+             WHERE stock_movements.movement_type = "OUT"
+               AND stock_movements.movement_datetime >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
+             GROUP BY inventory_items.id, inventory_items.item_name, inventory_items.unit_name
+             ORDER BY total_used DESC
+             LIMIT 10'
+        )->fetchAll();
+
         $this->render('inventory/index', [
             'pageTitle' => 'คลังยาและเวชภัณฑ์',
             'pageTopbarMode' => 'compact',
@@ -58,6 +80,7 @@ class InventoryController extends Controller
             'batches' => $batches,
             'movements' => $movements,
             'receivedToday' => $receivedToday,
+            'consumptionTrend' => $consumptionTrend,
         ]);
     }
 

@@ -451,6 +451,50 @@ Any new module should reuse these patterns before inventing a new page style.
 - The profile editor can update short label name, category, default dose, default frequency/timing, printable instruction, warning text, and active state.
 - Print queue is calculated from `prescriptions`, `prescription_items`, and `medication_print_logs`.
 - Label printing remains browser-print and must never deduct stock or change payment totals.
+
+## 2026-06-05 - Single Nurse Queue Workstation
+
+- Queue is now designed around a one-person clinic workflow: intake, active case, queue board, and assistant rail.
+- The queue page must not show duplicate status strips, duplicate queue boards, or large dashboard hero blocks.
+- The primary screen question is now "what should the nurse do next?" rather than "what is the dashboard summary?"
+- `QueueController::dailyQueueMetrics()` and `QueueController::queueAssistantAlerts()` provide lightweight operational context for the right rail without schema changes.
+- The right rail should guide next action, today snapshot, stock/payment alerts, and shortcuts; it is not a static case summary.
+- Keyboard shortcuts for queue should stay operational: F1 search, F2 quick/new patient, F3 Smart Exam, F4 payment, F5 receipts/payments, F6 medication labels.
+
+## 2026-06-05 - Queue Workstation Production UX Refactor
+
+- Queue top summary is now status-only: waiting, in service, waiting payment, and completed. Patient count and revenue belong in the right rail snapshot to avoid duplicate metrics.
+- Queue cards are workflow selectors: clicking a queue card sets the active/selected case through `visit_id`, shows Quick Patient Preview, and lets Next Action choose the correct next step.
+- Active Case empty state must stay compact. It should only say no active case and offer one start-service action.
+- Next Action is status-driven: waiting -> call/open Smart Exam, in service -> save services, waiting payment -> open finance, completed -> receipt/final close.
+- Right rail now includes Today Snapshot, Financial Snapshot, Recent Activity, Alerts, and shortcuts. It should remain an operational assistant for a single nurse.
+- Alerts should include low stock, waiting payment, smart-card bridge status, printer readiness, backup today, and cases stuck over 30 minutes.
+- Queue Board is now the central workflow surface: keep all four status columns visible on desktop/notebook, use compact queue cards, and scroll inside each column for more than 20 cases.
+- Queue card content is intentionally minimal: queue number, patient name, wait time, and automatic wait-priority. HN/VN/details belong in Active Case after selection.
+- Wait-priority is calculated from queue age: 0-15 min normal, 15-30 caution, 30-60 warning, over 60 critical. The full queue card changes color.
+- The Next Patient widget sits above Active Case and supports call-only or call-and-open-exam actions for the next waiting queue.
+- Queue shortcuts are aligned to one-nurse workflow: F1 search, F2 new patient, F3 Smart Exam, F4 service work, F5 call next queue, F9 send/open payment.
+
+## 2026-06-05 - Queue Workstation Version 2
+
+- Right rail is consolidated into one `TODAY STATUS` panel to avoid duplicate Today Snapshot, Financial Snapshot, Alerts, Recent Activity, and Current Case cards.
+- `TODAY STATUS` must stay compact and action-oriented: today overview, finance breakdown, critical alerts, latest case/receipt/sticker, activity summary, backup reminder, and shortcuts.
+- Active Case now supports a one-flow completion action: close the current paid/no-charge case and automatically call the next waiting patient when safe.
+- If a case still needs payment, the close-next action must redirect or guide the nurse to finance instead of completing the case.
+- Sticker label printing is shown in Active Case only when the visit has medication/item usage.
+- Patient history quick view belongs inside Active Case so the nurse can review recent visits without leaving the queue screen.
+- Queue status changes, case close-next actions, Smart Exam finish actions, and medication label print actions should write to existing `audit_logs` where available.
+- No database schema change was made for Queue V2; it uses existing queue, visit, payment, backup, prescription, medication print, and audit tables.
+
+## 2026-06-05 - Queue Workstation Final Production Refactor
+
+- Queue live board now has only three workflow columns: waiting, in service, and waiting payment.
+- Completed cases belong in a History tab, not in the live operational board.
+- Active Case is the main clinical surface. It owns patient identity, HN/VN, safety flags, wait time, billing counts, one primary next action, timeline, and patient history.
+- Patient Safety Banner is the first signal inside Active Case and must show allergy/chronic risk before any workflow action.
+- Today Status rail should show only critical operational alerts for queue work: queue aging, smart-card offline, and printer offline. Backup reminders belong in Admin/Production readiness.
+- Recent Patient on the left should be treated as Recent Search/Favorites, not a duplicate queue list.
+- No database schema change was made.
 ## 2026-05-17 - Import Excel Phase 1
 
 - เพิ่มแนวคิด Data Onboarding สำหรับ Medical Workstation: ห้าม upload แล้วเขียนฐานข้อมูลทันที ต้องผ่าน preview, mapping, validate และ confirm ก่อนเสมอ
@@ -458,3 +502,61 @@ Any new module should reuse these patterns before inventing a new page style.
 - สิทธิ์: ADMIN ใช้ได้ครบ, NURSE ใช้ได้เฉพาะ import ผู้รับบริการ, CASHIER ไม่เห็นเมนู
 - การรับ stock ตั้งต้นต้องสร้าง `inventory_batches` และ `stock_movements` พร้อม `reference_type = EXCEL_IMPORT`
 - ใช้ `PhpSpreadsheet` ผ่าน Composer (`phpoffice/phpspreadsheet`) สำหรับอ่าน/สร้าง Excel; หากยังไม่ได้ติดตั้ง หน้า import จะแจ้ง dependency ชัดเจนและรองรับ `.csv` เป็น fallback ชั่วคราว
+
+## 2026-06-05 - Smart Exam Progressive Disclosure
+
+- Smart Exam is now treated as a nurse-first clinical work surface, not a long full-detail form.
+- Always-visible information: patient identity, HN/VN, age, gender, phone, allergy, chronic disease, visit count, latest history, latest medication, clinical form, billing readiness, and finish actions.
+- One-click-away information: fuller recent visit details and full patient file link.
+- Hidden/reduced information: duplicate patient snapshot, large workflow step explanation, repeated helper copy, and advanced quick-template buttons unless expanded.
+- Layout is three-column on desktop: left Patient Context, center Clinical Work, right sticky Summary/Finish rail.
+- Smart Exam template use now supports a dropdown as the primary faster path, while individual quick buttons stay behind progressive disclosure.
+- Database impact: no schema change.
+
+## 2026-06-06 - Visit Edit Becomes Case History
+
+- `visit-edit` is no longer a primary treatment/workflow page.
+- The primary clinic flow is: Queue Workstation -> Smart Exam -> Payment -> Close Case.
+- `visit-edit` is now the read-only-first "ประวัติเคส" page: patient summary, visit timeline, service history, drug/supply history, payment history, and audit log.
+- Adding/removing services, adding/removing medicine/equipment, sending payment, and closing cases must stay in Smart Exam/Payment workflows.
+- Admin may review from this page, but inline clinical workflow controls should not be reintroduced without a separate Admin-only correction design.
+- Database impact: no schema change.
+
+## 2026-06-06 - Workflow Sidebar + Queue Alert Bar
+
+- Sidebar navigation is now grouped by real clinic workflow, not by technical module order.
+- Daily work appears first: Queue Today, Patient Registration, Payments, and Pharmacy Stickers.
+- Clinic management, reports, and admin-only tools are separated into their own groups so a new user can understand the system faster.
+- Queue Station keeps only three primary surfaces: Start Case, Active Case, and Queue Board.
+- The old Next Patient widget was removed. The next waiting patient now appears as a compact top Alert Bar with a call-queue action.
+- Queue Board is again a four-status Kanban by current product decision: Waiting, In Service, Waiting Payment, Completed.
+- Clicking a queue card opens Smart Exam directly through `queue-exam&id=visit_id`; do not reintroduce a separate preview click step unless explicitly requested.
+- Database impact: no schema change.
+
+## 2026-06-06 - Smart Exam Patient Context Actions
+
+- Patient Context in Smart Exam now keeps only everyday safety data visible and moves occasional patient-record actions behind a three-dot menu.
+- Always-visible patient safety fields remain name, HN/VN, age, gender, phone, drug allergy, chronic disease, visit count, and recent context.
+- Three-dot actions are: view full patient data, edit patient profile, open case history, print patient card placeholder, print QR placeholder, and close menu.
+- Patient profile editing happens in a right-side drawer without leaving Smart Exam.
+- Field permission: Admin can edit all supported patient profile fields; Nurse can edit only phone, address, chronic disease, drug allergy, and note.
+- Patient profile updates write `UPDATE_PATIENT_PROFILE` rows to existing `audit_logs` with `table_name = patients`.
+- Database impact: no schema change.
+
+## 2026-06-07 - Smart Exam Minimal Clinical Flow
+
+- Smart Exam now prioritizes a single top-down clinical flow: Patient Context -> Preset -> Clinical Note -> Vitals -> Services -> Drugs/Supplies -> Sticky Summary.
+- Preset buttons are compact single-row actions; descriptions stay hidden in the main workflow to reduce visual noise.
+- The duplicate center Patient Snapshot is collapsed into a small disclosure because Patient Context is the primary source of identity and safety data.
+- Services and drugs/supplies are stacked as a continuous order-entry flow instead of split competing panels.
+- Summary rail keeps sticker print, receive/close, and waiting-payment as the visible primary controls; no-charge close is moved under a secondary disclosure.
+- Database impact: no schema change.
+
+## 2026-06-07 - Smart Exam Treatment Preset Bundle
+
+- Smart Exam now supports Treatment Presets as real treatment bundles, not only text templates.
+- A Treatment Preset can contain services, medications, and supplies managed by Admin from `treatment-presets`.
+- Nurse workflow: click Treatment Preset card -> review confirmation dialog -> confirm -> system adds bundled services/items and cuts stock in a single transaction.
+- Added tables: `preset_master`, `preset_services`, `preset_medications`, and `preset_supplies`.
+- Treatment Preset application writes visit service/item rows and stock movement rows using existing visit/order/stock logic.
+- Duplicate preset application is blocked per visit to reduce accidental double stock deduction.

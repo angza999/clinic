@@ -2,15 +2,8 @@
 $queueUser = current_user() ?? ['role_code' => '', 'full_name' => '', 'role_name' => ''];
 $canManageQueue = in_array($queueUser['role_code'], ['ADMIN', 'NURSE'], true);
 $showCreateQueuePanel = $canManageQueue;
-$visibleBoards = [];
 
-if ($queueUser['role_code'] === 'CASHIER') {
-    $visibleBoards = ['WAITING_PAYMENT', 'COMPLETED'];
-} elseif ($queueUser['role_code'] === 'NURSE') {
-    $visibleBoards = ['WAITING', 'IN_SERVICE', 'WAITING_PAYMENT'];
-} else {
-    $visibleBoards = ['WAITING', 'IN_SERVICE', 'WAITING_PAYMENT', 'COMPLETED'];
-}
+$visibleBoards = ['WAITING', 'IN_SERVICE', 'WAITING_PAYMENT', 'COMPLETED'];
 
 $statusBuckets = [
     'WAITING' => [],
@@ -35,16 +28,94 @@ foreach ($statusBuckets as $status => $items) {
 }
 
 $nextWaiting = $statusBuckets['WAITING'][0] ?? null;
+$paymentQueue = $statusBuckets['WAITING_PAYMENT'][0] ?? null;
 $hasActiveVisit = !empty($activeVisit);
-$activeStatus = $activeVisit['status'] ?? 'WAITING';
+$activeStatus = (string) ($activeVisit['status'] ?? 'WAITING');
 $fromReceipt = (int) ($_GET['from_receipt'] ?? 0) === 1;
 $todayAppointments = $todayAppointments ?? [];
+$dailyMetrics = $dailyMetrics ?? [];
+$assistantAlerts = $assistantAlerts ?? [];
+$todayPatientCount = (int) ($dailyMetrics['patient_count'] ?? 0);
+$todayExamDoneCount = (int) ($dailyMetrics['exam_done_count'] ?? 0);
+$todayRevenue = (float) ($dailyMetrics['revenue_today'] ?? 0);
+$avgCaseMinutes = (int) ($dailyMetrics['avg_case_minutes'] ?? 0);
+$financialToday = $dailyMetrics['financial_today'] ?? ['CASH' => 0, 'QR' => 0, 'TRANSFER' => 0];
+$pendingCases = (int) ($assistantAlerts['pending_cases'] ?? 0);
+$overdueCases = (int) ($assistantAlerts['overdue_cases'] ?? 0);
+$smartCardOnline = (bool) ($assistantAlerts['smart_card_online'] ?? false);
+$printerReady = (bool) ($assistantAlerts['printer_ready'] ?? false);
+$recentActivity = $recentActivity ?? [];
+$activitySummary = $activitySummary ?? [];
+
+$queueWaitMinutes = static function (array $queue): int {
+    $source = $queue['checked_in_at'] ?? $queue['created_at'] ?? null;
+    return $source ? max(0, (int) floor((time() - strtotime((string) $source)) / 60)) : 0;
+};
+
+$queueAgeState = static function (int $waitMinutes, string $status = 'WAITING'): array {
+    if ($status === 'COMPLETED') {
+        return ['class' => 'done', 'label' => 'DONE', 'text' => 'เสร็จแล้ว', 'icon' => '●'];
+    }
+
+    if ($waitMinutes > 60) {
+        return ['class' => 'critical', 'label' => 'URGENT', 'text' => 'รอ ' . $waitMinutes . ' นาที', 'icon' => '🔴'];
+    }
+
+    if ($waitMinutes >= 30) {
+        return ['class' => 'warning', 'label' => 'WARNING', 'text' => 'รอ ' . $waitMinutes . ' นาที', 'icon' => '🟠'];
+    }
+
+    if ($waitMinutes >= 15) {
+        return ['class' => 'caution', 'label' => 'WATCH', 'text' => 'รอ ' . $waitMinutes . ' นาที', 'icon' => '🟡'];
+    }
+
+    return ['class' => 'normal', 'label' => 'NORMAL', 'text' => 'รอ ' . $waitMinutes . ' นาที', 'icon' => '🟢'];
+};
+
+$caseTimelineLabel = static function (string $label): string {
+    return match ($label) {
+        'REGISTERED' => 'ลงทะเบียน',
+        'OPENED_SMART_EXAM' => 'เปิด Smart Exam',
+        'ADDED_SERVICE' => 'เพิ่มบริการ',
+        'DISPENSED_MEDICATION' => 'จ่ายยา/เวชภัณฑ์',
+        'PAID' => 'รับชำระเงิน',
+        'CLOSED_CASE' => 'ปิดเคส',
+        'WAITING_SMART_EXAM' => 'รอเปิด Smart Exam',
+        'RECORDING_SERVICE' => 'กำลังบันทึกบริการ',
+        'CONTINUE_SERVICE' => 'บันทึกบริการต่อ',
+        'WAITING_PAYMENT' => 'รอชำระเงิน',
+        'COMPLETED' => 'เสร็จสิ้น',
+        'CONTINUE_WORKFLOW' => 'ดำเนินการต่อ',
+        default => $label !== '' ? $label : '-',
+    };
+};
+
+$caseTimelineTime = static function (string $time): string {
+    return $time === 'now' ? 'ตอนนี้' : ($time !== '' ? $time : '-');
+};
+
+$waitingOver30 = 0;
+$waitingOver60 = 0;
+foreach ($statusBuckets['WAITING'] as $waitingQueue) {
+    $waitMinutes = $queueWaitMinutes($waitingQueue);
+    if ($waitMinutes >= 30) {
+        $waitingOver30++;
+    }
+    if ($waitMinutes > 60) {
+        $waitingOver60++;
+    }
+}
+
+$nextPatientWait = $nextWaiting ? $queueWaitMinutes($nextWaiting) : 0;
+$nextPatientAge = $queueAgeState($nextPatientWait, 'WAITING');
+
 $queueBoards = [
-    'WAITING' => ['title' => 'รอรับบริการ', 'class' => 'status-waiting', 'empty' => 'ยังไม่มีคิวรอรับบริการ'],
-    'IN_SERVICE' => ['title' => 'กำลังตรวจ', 'class' => 'status-in-service', 'empty' => 'ยังไม่มีคิวที่กำลังตรวจ'],
-    'WAITING_PAYMENT' => ['title' => 'รอชำระเงิน', 'class' => 'status-payment', 'empty' => 'ยังไม่มีคิวรอชำระเงิน'],
-    'COMPLETED' => ['title' => 'เสร็จสิ้น', 'class' => 'status-completed', 'empty' => 'ยังไม่มีคิวที่ปิดเคสแล้ววันนี้'],
+    'WAITING' => ['title' => 'รอรับบริการ', 'class' => 'status-waiting', 'icon' => 'bi-hourglass-split', 'empty' => 'ยังไม่มีคิวรอรับบริการ'],
+    'IN_SERVICE' => ['title' => 'กำลังตรวจ', 'class' => 'status-in-service', 'icon' => 'bi-heart-pulse', 'empty' => 'ยังไม่มีคิวที่กำลังตรวจ'],
+    'WAITING_PAYMENT' => ['title' => 'รอชำระเงิน', 'class' => 'status-payment', 'icon' => 'bi-wallet2', 'empty' => 'ยังไม่มีคิวรอชำระเงิน'],
+    'COMPLETED' => ['title' => 'เสร็จสิ้น', 'class' => 'status-completed', 'icon' => 'bi-check-circle', 'empty' => 'ยังไม่มีคิวที่ปิดเคสแล้ววันนี้'],
 ];
+
 $patientOptions = array_map(static function (array $patient): array {
     $name = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
 
@@ -55,508 +126,663 @@ $patientOptions = array_map(static function (array $patient): array {
         'phone' => (string) ($patient['phone'] ?? ''),
     ];
 }, $patients ?? []);
+
+$activePatientName = $hasActiveVisit
+    ? trim(($activeVisit['first_name'] ?? '') . ' ' . ($activeVisit['last_name'] ?? ''))
+    : '';
+$activeGrandTotal = $hasActiveVisit ? (float) (($activeVisit['service_total'] ?? 0) + ($activeVisit['item_total'] ?? 0)) : 0.0;
+$activeHasPayment = $hasActiveVisit && !empty($activeVisit['payment_id']);
+$activeItemCount = $hasActiveVisit ? (int) ($activeVisit['item_count'] ?? 0) : 0;
+$activeHistoryLines = $hasActiveVisit ? (array) ($activeVisit['history_lines'] ?? []) : [];
+$activeCaseTimeline = $hasActiveVisit ? (array) ($activeVisit['case_timeline'] ?? []) : [];
+$activeCanCloseAndNext = $hasActiveVisit
+    && $activeStatus !== 'WAITING'
+    && ($activeStatus === 'COMPLETED' || $activeHasPayment || $activeGrandTotal <= 0);
+$activeNeedsPaymentBeforeClose = $hasActiveVisit
+    && $activeStatus !== 'COMPLETED'
+    && !$activeHasPayment
+    && $activeGrandTotal > 0;
+$activeStartedAt = $hasActiveVisit
+    ? ($activeVisit['called_at'] ?? $activeVisit['checked_in_at'] ?? $activeVisit['visit_datetime'] ?? null)
+    : null;
+$activeMinutes = $activeStartedAt ? max(0, (int) floor((time() - strtotime((string) $activeStartedAt)) / 60)) : 0;
+$activeWaitText = $activeMinutes > 0 ? $activeMinutes . ' นาที' : '-';
+$activeAgeText = '-';
+if ($hasActiveVisit && !empty($activeVisit['birth_date'])) {
+    try {
+        $birthDate = new DateTime((string) $activeVisit['birth_date']);
+        $activeAgeText = $birthDate->diff(new DateTime('today'))->y . ' ปี';
+    } catch (Throwable $exception) {
+        $activeAgeText = '-';
+    }
+}
+$activeAllergyText = $hasActiveVisit ? trim((string) (($activeVisit['drug_allergy'] ?? '') ?: '-')) : '-';
+$activeChronicText = $hasActiveVisit ? trim((string) (($activeVisit['underlying_disease'] ?? '') ?: '-')) : '-';
+$activeHasAllergyAlert = $hasActiveVisit && $activeAllergyText !== '' && $activeAllergyText !== '-';
+$activeHasChronicAlert = $hasActiveVisit && $activeChronicText !== '' && $activeChronicText !== '-';
+$activeSafetyClass = $activeHasAllergyAlert ? 'critical' : ($activeHasChronicAlert ? 'warning' : 'normal');
+
+$latestCase = (array) ($activitySummary['latest_case'] ?? []);
+$latestReceipt = (array) ($activitySummary['latest_receipt'] ?? []);
+$latestSticker = (array) ($activitySummary['latest_sticker'] ?? []);
+$latestCaseName = trim((string) ($latestCase['first_name'] ?? '') . ' ' . (string) ($latestCase['last_name'] ?? ''));
+$latestReceiptName = trim((string) ($latestReceipt['first_name'] ?? '') . ' ' . (string) ($latestReceipt['last_name'] ?? ''));
+$latestStickerName = trim((string) ($latestSticker['first_name'] ?? '') . ' ' . (string) ($latestSticker['last_name'] ?? ''));
+
+$primaryAction = null;
+$nextStepForm = null;
+if ($hasActiveVisit) {
+    if ($activeStatus === 'WAITING') {
+        $primaryAction = [
+            'label' => 'เรียกคิวและเปิด Smart Exam',
+            'url' => route_url('queue-exam', ['id' => (int) $activeVisit['id']]),
+            'icon' => 'bi-heart-pulse-fill',
+            'class' => 'btn-primary',
+            'shortcut' => 'F3',
+        ];
+    } elseif ($activeStatus === 'IN_SERVICE') {
+        $primaryAction = [
+            'label' => 'บันทึกบริการ',
+            'url' => route_url('queue-exam', ['id' => (int) $activeVisit['id']]),
+            'icon' => 'bi-clipboard2-pulse',
+            'class' => 'btn-primary',
+            'shortcut' => 'F4',
+        ];
+    } elseif ($activeStatus === 'WAITING_PAYMENT') {
+        $primaryAction = [
+            'label' => 'เปิดหน้าการเงิน',
+            'url' => route_url('payments'),
+            'icon' => 'bi-wallet2',
+            'class' => 'btn-primary',
+            'shortcut' => 'F9',
+        ];
+    } else {
+        $completedUrl = !empty($activeVisit['payment_id'])
+            ? route_url('receipt', ['id' => (int) $activeVisit['payment_id'], 'source' => 'queue'])
+            : route_url('payments');
+        $primaryAction = [
+            'label' => 'พิมพ์ใบเสร็จและจบเคส',
+            'url' => $completedUrl,
+            'icon' => 'bi-receipt-cutoff',
+            'class' => 'btn-primary',
+            'shortcut' => null,
+        ];
+    }
+}
+
+$nextStepLabel = $primaryAction['label'] ?? 'เริ่มรับผู้รับบริการ';
+$nextStepIcon = $primaryAction['icon'] ?? 'bi-person-vcard';
+$nextStepShortcut = $primaryAction['shortcut'] ?? null;
+$nextStepUrl = $primaryAction['url'] ?? route_url('patients');
+if ($activeCanCloseAndNext) {
+    $nextStepLabel = 'ปิดเคสและเรียกคิวถัดไป';
+    $nextStepIcon = 'bi-arrow-right-circle-fill';
+    $nextStepShortcut = 'F5';
+    $nextStepForm = [
+        'action' => route_url('queue-close-next'),
+        'visit_id' => (int) ($activeVisit['id'] ?? 0),
+    ];
+} elseif ($activeNeedsPaymentBeforeClose) {
+    $nextStepLabel = 'ส่งชำระเงินก่อนปิดเคส';
+    $nextStepIcon = 'bi-wallet2';
+    $nextStepShortcut = 'F9';
+    $nextStepUrl = route_url('payments');
+}
+
+$workflowTimeline = [
+    ['label' => 'ลงทะเบียน', 'state' => $hasActiveVisit ? 'done' : 'todo'],
+    ['label' => 'เปิด Smart Exam', 'state' => 'todo'],
+    ['label' => 'กำลังบันทึกบริการ', 'state' => 'todo'],
+    ['label' => 'รอชำระเงิน', 'state' => 'todo'],
+    ['label' => 'เสร็จสิ้น', 'state' => 'todo'],
+];
+if ($hasActiveVisit) {
+    if ($activeStatus === 'WAITING') {
+        $workflowTimeline[1]['state'] = 'current';
+    } elseif ($activeStatus === 'IN_SERVICE') {
+        $workflowTimeline[1]['state'] = 'done';
+        $workflowTimeline[2]['state'] = 'current';
+    } elseif ($activeStatus === 'WAITING_PAYMENT') {
+        $workflowTimeline[1]['state'] = 'done';
+        $workflowTimeline[2]['state'] = 'done';
+        $workflowTimeline[3]['state'] = 'current';
+    } elseif ($activeStatus === 'COMPLETED') {
+        foreach ($workflowTimeline as $index => $step) {
+            $workflowTimeline[$index]['state'] = 'done';
+        }
+    }
+}
+
+$nextActionText = 'ยังไม่มีเคส active - เริ่มจากอ่านบัตรหรือค้นหาคนไข้';
+$nextActionUrl = route_url('patients');
+$nextActionIcon = 'bi-person-vcard';
+$nextActionButtonLabel = 'เริ่มรับผู้รับบริการ';
+if ($hasActiveVisit && $primaryAction) {
+    $nextActionText = $activePatientName . ' ' . queue_status_meta($activeStatus)['label'] . ' - ' . $primaryAction['label'];
+    $nextActionUrl = $primaryAction['url'];
+    $nextActionIcon = $primaryAction['icon'];
+    $nextActionButtonLabel = $primaryAction['label'];
+} elseif ($paymentQueue) {
+    $nextActionText = 'มี ' . (int) ($counts['WAITING_PAYMENT'] ?? 0) . ' เคสรอชำระ - ไปหน้าการเงิน';
+    $nextActionUrl = route_url('payments');
+    $nextActionIcon = 'bi-wallet2';
+    $nextActionButtonLabel = 'เปิดหน้าการเงิน';
+} elseif ($nextWaiting) {
+    $nextActionText = 'คิว ' . (string) $nextWaiting['queue_no'] . ' รอเปิดตรวจ - เรียกและเปิด Smart Exam';
+    $nextActionUrl = route_url('queue-exam', ['id' => (int) $nextWaiting['visit_id']]);
+    $nextActionIcon = 'bi-heart-pulse-fill';
+    $nextActionButtonLabel = 'เรียกคิวและเปิด Smart Exam';
+}
 ?>
 
-<div class="queue-workspace smart-exam-shell">
-    <section class="card queue-command-bar">
-        <div class="queue-command-main">
-            <div class="queue-command-kicker">Queue Station</div>
-            <div class="queue-command-title">คิววันนี้</div>
-            <div class="queue-command-metrics" aria-label="Queue status">
-                <span class="waiting">
-                    <i class="bi bi-hourglass-split"></i>
-                    <small>รอรับบริการ</small>
-                    <strong><?= (int) ($counts['WAITING'] ?? 0) ?></strong>
-                </span>
-                <span class="in-service">
-                    <i class="bi bi-people-fill"></i>
-                    <small>กำลังตรวจ</small>
-                    <strong><?= (int) ($counts['IN_SERVICE'] ?? 0) ?></strong>
-                </span>
-                <span class="payment">
-                    <i class="bi bi-wallet2"></i>
-                    <small>ชำระเงิน</small>
-                    <strong><?= (int) ($counts['WAITING_PAYMENT'] ?? 0) ?></strong>
-                </span>
-                <span class="completed">
-                    <i class="bi bi-check-circle"></i>
-                    <small>เสร็จสิ้น</small>
-                    <strong><?= (int) ($counts['COMPLETED'] ?? 0) ?></strong>
-                </span>
+<div class="single-nurse-queue">
+    <section class="snq-command">
+        <div class="snq-command-title">
+            <span>Single Nurse Workstation</span>
+            <strong>คิววันนี้</strong>
+        </div>
+        <div class="snq-status-strip" aria-label="Today status">
+            <div class="snq-status-pill waiting">
+                <span>รอรับบริการ</span>
+                <strong><?= (int) ($counts['WAITING'] ?? 0) ?></strong>
+            </div>
+            <div class="snq-status-pill in-service">
+                <span>กำลังตรวจ</span>
+                <strong><?= (int) ($counts['IN_SERVICE'] ?? 0) ?></strong>
+            </div>
+            <div class="snq-status-pill payment">
+                <span>รอชำระ</span>
+                <strong><?= (int) ($counts['WAITING_PAYMENT'] ?? 0) ?></strong>
             </div>
         </div>
+    </section>
 
-        <div class="queue-command-focus">
-            <?php if ($nextWaiting): ?>
-                <span>คิวถัดไป</span>
-                <strong>คิว <?= e((string) $nextWaiting['queue_no']) ?> · <?= e($nextWaiting['patient_name']) ?></strong>
-                <small>HN <?= e((string) ($nextWaiting['hn'] ?? '-')) ?> · รอเปิดตรวจ</small>
-            <?php elseif ($hasActiveVisit): ?>
-                <span>กำลังทำงาน</span>
-                <strong>คิว <?= e((string) ($activeVisit['queue_no'] ?? '')) ?> · <?= e(($activeVisit['first_name'] ?? '') . ' ' . ($activeVisit['last_name'] ?? '')) ?></strong>
-                <small>HN <?= e((string) ($activeVisit['hn'] ?? '-')) ?> · VN <?= e((string) ($activeVisit['visit_no'] ?? '-')) ?></small>
-            <?php else: ?>
-                <span>สถานะ</span>
-                <strong>พร้อมรับเคส</strong>
-                <small>ค้นหาผู้รับบริการหรือรับคิวถัดไปเพื่อเริ่มงาน</small>
+    <?php if ($waitingOver30 > 0 || $waitingOver60 > 0): ?>
+        <section class="snq-aging-alert <?= $waitingOver60 > 0 ? 'is-critical' : 'is-warning' ?>" aria-live="polite">
+            <?php if ($waitingOver60 > 0): ?>
+                <strong>🚨 มีคิวรอเกิน 60 นาที <?= $waitingOver60 ?> ราย</strong>
             <?php endif; ?>
-        </div>
-
-        <div class="queue-command-actions">
-            <?php if ($nextWaiting && $canManageQueue): ?>
-                <form method="post" action="<?= e(route_url('queue-status')) ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="queue_id" value="<?= (int) $nextWaiting['id'] ?>">
-                    <input type="hidden" name="status" value="IN_SERVICE">
-                    <input type="hidden" name="redirect_to_visit" value="1">
-                    <button class="btn btn-primary btn-sm queue-command-next-case" id="queueCommandNextCase">
-                        <i class="bi bi-heart-pulse-fill me-1"></i>เรียกตรวจ
-                    </button>
-                </form>
-            <?php elseif ($hasActiveVisit): ?>
-                <a href="<?= e(route_url('queue-exam', ['id' => (int) $activeVisit['id']])) ?>" class="btn btn-primary btn-sm queue-command-smart-exam">
-                    <i class="bi bi-heart-pulse-fill me-1"></i>เปิด Smart Exam
-                </a>
-            <?php endif; ?>
-            <a href="<?= e(route_url('patients')) ?>" class="btn btn-outline-primary btn-sm">เพิ่มผู้รับบริการ</a>
-        </div>
-    </section>
-
-    <section class="card smart-exam-hero">
-        <div>
-            <div class="eyebrow">ภาพรวมการทำงานวันนี้</div>
-            <h2>ระบบคิวพร้อมเชื่อม Smart Exam</h2>
-            <p>รับคิว เปิดหน้าตรวจ และดูสรุปเคสจากจุดเดียว โดยลดพื้นที่ว่างและทำให้ลำดับงานชัดขึ้นสำหรับพยาบาลหน้างาน</p>
-        </div>
-    </section>
-
-    <section class="queue-status-strip smart-exam-status-strip">
-        <article class="queue-status-mini waiting"><span>รอรับบริการ</span><strong><?= (int) ($counts['WAITING'] ?? 0) ?></strong></article>
-        <article class="queue-status-mini in-service"><span>กำลังตรวจ</span><strong><?= (int) ($counts['IN_SERVICE'] ?? 0) ?></strong></article>
-        <article class="queue-status-mini payment"><span>รอชำระเงิน</span><strong><?= (int) ($counts['WAITING_PAYMENT'] ?? 0) ?></strong></article>
-        <article class="queue-status-mini completed"><span>เสร็จสิ้น</span><strong><?= (int) ($counts['COMPLETED'] ?? 0) ?></strong></article>
-    </section>
-
-    <?php if ($fromReceipt && $canManageQueue): ?>
-        <section class="queue-continuation-card" data-queue-continuation>
-            <div>
-                <div class="eyebrow">Next Case Flow</div>
-                <h3>รับเคสถัดไปได้ทันที</h3>
-                <?php if ($nextWaiting): ?>
-                    <p>มีคิวรออยู่: คิว <?= e((string) $nextWaiting['queue_no']) ?> - <?= e($nextWaiting['patient_name']) ?> กดปุ่มเดียวเพื่อเรียกและเปิด Smart Exam</p>
-                <?php else: ?>
-                    <p>ปิดเคสก่อนหน้าเรียบร้อยแล้ว ตอนนี้ยังไม่มีคิวรอรับบริการ สามารถค้นหาคนไข้หรือรับเคสใหม่ได้จากแผงซ้าย</p>
-                <?php endif; ?>
-            </div>
-            <?php if ($nextWaiting): ?>
-                <form method="post" action="<?= e(route_url('queue-status')) ?>" class="queue-continuation-action">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="queue_id" value="<?= (int) $nextWaiting['id'] ?>">
-                    <input type="hidden" name="status" value="IN_SERVICE">
-                    <input type="hidden" name="redirect_to_visit" value="1">
-                    <button class="btn btn-primary btn-lg" id="queueContinueNextCase">
-                        <i class="bi bi-arrow-right-circle-fill me-1"></i>เรียกและเปิด Smart Exam
-                    </button>
-                </form>
+            <?php if ($waitingOver30 > 0): ?>
+                <span>⚠ มีคิวรอเกิน 30 นาที <?= $waitingOver30 ?> ราย</span>
             <?php endif; ?>
         </section>
     <?php endif; ?>
 
-    <section class="smart-exam-layout">
-        <aside class="smart-panel smart-panel-left">
-            <article class="card smart-panel-card">
-                <div class="smart-panel-head">
-                    <div class="eyebrow">ขั้นตอนที่ 1</div>
-                    <h3>เริ่มเคส</h3>
-                    <p>เลือกคิวถัดไป ค้นหาคนไข้เดิม หรือรับเคสใหม่ให้พร้อมก่อนเข้าสู่หน้าตรวจ</p>
+    <?php if ($fromReceipt && $canManageQueue && $nextWaiting): ?>
+        <section class="snq-continuation" data-queue-continuation>
+            <i class="bi bi-arrow-right-circle-fill"></i>
+            <div>
+                <strong>รับเคสถัดไปได้ทันที</strong>
+                <span>คิว <?= e((string) $nextWaiting['queue_no']) ?> - <?= e($nextWaiting['patient_name']) ?></span>
+            </div>
+            <form method="post" action="<?= e(route_url('queue-status')) ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="queue_id" value="<?= (int) $nextWaiting['id'] ?>">
+                <input type="hidden" name="status" value="IN_SERVICE">
+                <input type="hidden" name="redirect_to_visit" value="1">
+                <button class="btn btn-primary btn-sm" id="queueContinueNextCase">เรียกและเปิดตรวจ</button>
+            </form>
+        </section>
+    <?php endif; ?>
+
+    <section class="snq-grid">
+        <aside class="snq-start-panel">
+            <div class="snq-panel-head">
+                <span>Start Case</span>
+                <strong>เริ่มเคส</strong>
+            </div>
+
+            <?php if ($showCreateQueuePanel): ?>
+                <div class="snq-intake-actions">
+                    <a href="<?= e(route_url('patients')) ?>" class="snq-tool-btn" data-queue-new-patient>
+                        <i class="bi bi-person-vcard"></i>
+                        <span>อ่านบัตร</span>
+                    </a>
+                    <a href="<?= e(route_url('patients')) ?>" class="snq-tool-btn">
+                        <i class="bi bi-person-plus-fill"></i>
+                        <span>คนไข้ใหม่</span>
+                    </a>
+                    <a href="<?= e(route_url('import', ['type' => 'patients'])) ?>" class="snq-tool-btn secondary">
+                        <i class="bi bi-file-earmark-spreadsheet"></i>
+                        <span>Import</span>
+                    </a>
                 </div>
 
-                <?php if ($nextWaiting): ?>
-                    <div class="smart-next-queue">
-                        <div class="smart-next-queue-top">
-                            <span class="soft-label">คิวถัดไป</span>
-                            <span class="queue-inline-chip waiting">คิว <?= (int) $nextWaiting['queue_no'] ?></span>
-                        </div>
-                        <div class="smart-next-queue-name"><?= e($nextWaiting['patient_name']) ?></div>
-                        <div class="smart-next-queue-meta">HN <?= e($nextWaiting['hn']) ?> / VN <?= e($nextWaiting['visit_no']) ?></div>
-                        <div class="smart-next-queue-note"><?= e($nextWaiting['chief_complaint'] ?: 'ยังไม่ได้ระบุอาการสำคัญ') ?></div>
-                        <?php if ($canManageQueue): ?>
-                            <form method="post" action="<?= e(route_url('queue-status')) ?>" class="mt-3">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="queue_id" value="<?= (int) $nextWaiting['id'] ?>">
-                                <input type="hidden" name="status" value="IN_SERVICE">
-                                <input type="hidden" name="redirect_to_visit" value="1">
-                                <button class="btn btn-primary w-100"><i class="bi bi-megaphone-fill me-1"></i>เรียกเข้าตรวจ</button>
-                            </form>
-                        <?php endif; ?>
+                <form method="post" action="<?= e(route_url('queue-store')) ?>" class="snq-search-card" id="queueCreateForm">
+                    <?= csrf_field() ?>
+                    <div class="queue-patient-picker" data-queue-patient-picker>
+                        <label class="form-label" for="queuePatientSearch">ค้นหาคนไข้เดิม</label>
+                        <input type="text" id="queuePatientSearch" class="form-control" placeholder="HN, ชื่อ, เบอร์โทร" autocomplete="off" data-queue-patient-search data-queue-search>
+                        <input type="hidden" name="patient_id" id="queuePatientId" value="<?= (int) ($prefillPatientId ?? 0) ?>" required data-queue-patient-id>
+                        <div class="queue-patient-selected d-none" data-queue-patient-selected></div>
+                        <div class="queue-patient-results" data-queue-patient-results></div>
                     </div>
-                <?php endif; ?>
+                    <textarea name="chief_complaint" class="form-control" rows="2" placeholder="อาการเบื้องต้น เช่น ไข้ ไอ เจ็บคอ"></textarea>
+                    <button class="btn btn-primary w-100">
+                        <i class="bi bi-person-check-fill me-1"></i>รับเคสจากคนไข้เดิม
+                    </button>
+                </form>
 
-                <?php if ($canManageQueue): ?>
-                    <div class="smart-subsection queue-appointment-panel mt-3">
-                        <div class="smart-subsection-title">นัดติดตามวันนี้ / ค้างรับบริการ</div>
-                        <div class="queue-appointment-list">
-                            <?php foreach ($todayAppointments as $appointment): ?>
-                                <?php
-                                $appointmentName = trim(($appointment['first_name'] ?? '') . ' ' . ($appointment['last_name'] ?? ''));
-                                $hasActiveAppointmentQueue = !empty($appointment['active_visit_id']);
-                                ?>
-                                <div class="queue-appointment-card">
-                                    <div>
-                                        <strong><?= e($appointmentName) ?></strong>
-                                        <span>HN <?= e((string) ($appointment['hn'] ?? '-')) ?> / <?= thai_date_only($appointment['appointment_date'] ?? null) ?></span>
-                                        <small><?= e((string) (($appointment['purpose'] ?? '') ?: 'นัดติดตามอาการ')) ?></small>
-                                    </div>
-                                    <?php if ($hasActiveAppointmentQueue): ?>
-                                        <a href="<?= e(route_url('queue-exam', ['id' => (int) $appointment['active_visit_id']])) ?>" class="btn btn-outline-primary btn-sm">เปิดคิวเดิม</a>
-                                    <?php else: ?>
-                                        <form method="post" action="<?= e(route_url('appointment-checkin')) ?>">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="appointment_id" value="<?= (int) $appointment['id'] ?>">
-                                            <button class="btn btn-primary btn-sm">รับนัดเข้าคิว</button>
-                                        </form>
-                                    <?php endif; ?>
-                                </div>
-                            <?php endforeach; ?>
-                            <?php if (!$todayAppointments): ?>
-                                <div class="queue-appointment-empty">ยังไม่มีนัดติดตามที่ต้องรับบริการวันนี้</div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <?php if ($showCreateQueuePanel): ?>
-                    <div class="queue-intake-tools" aria-label="Quick intake tools">
-                        <a href="<?= e(route_url('patients')) ?>" class="queue-intake-tool">
-                            <i class="bi bi-person-vcard"></i>
-                            <span>อ่านบัตร</span>
-                        </a>
-                        <a href="<?= e(route_url('import', ['type' => 'patients'])) ?>" class="queue-intake-tool">
-                            <i class="bi bi-file-earmark-spreadsheet"></i>
-                            <span>นำเข้าข้อมูล Excel</span>
-                        </a>
-                    </div>
-
-                    <div class="smart-subsection">
-                        <div class="smart-subsection-title">ค้นหาคนไข้เดิม</div>
-                        <form method="post" action="<?= e(route_url('queue-store')) ?>" class="stack-form mt-3" id="queueCreateForm">
-                            <?= csrf_field() ?>
-                            <div class="queue-patient-picker" data-queue-patient-picker>
-                                <label class="form-label" for="queuePatientSearch">ค้นหาจาก HN / ชื่อ / เบอร์โทร</label>
-                                <input type="text" id="queuePatientSearch" class="form-control" placeholder="เช่น HN000001, อัง, 0857" autocomplete="off" data-queue-patient-search>
-                                <input type="hidden" name="patient_id" id="queuePatientId" value="<?= (int) ($prefillPatientId ?? 0) ?>" required data-queue-patient-id>
-                                <div class="queue-patient-selected d-none" data-queue-patient-selected></div>
-                                <div class="queue-patient-results" data-queue-patient-results></div>
-                                <div class="form-text">พิมพ์บางส่วนแล้วคลิกเลือกรายชื่อก่อนกดรับเคส</div>
+                <details class="snq-quick-register" id="snqQuickRegister">
+                    <summary>
+                        <span>ลงทะเบียนด่วน</span>
+                        <small>กรอกเท่าที่จำเป็น</small>
+                    </summary>
+                    <form method="post" action="<?= e(route_url('queue-quick-register')) ?>" class="queue-quick-register-form" id="queueQuickRegisterForm">
+                        <?= csrf_field() ?>
+                        <div class="queue-quick-register-grid">
+                            <div>
+                                <label class="form-label" for="quickFullName">ชื่อ-สกุล</label>
+                                <input type="text" name="quick_full_name" id="quickFullName" class="form-control" value="<?= e((string) old('quick_full_name')) ?>" placeholder="เช่น สมชาย ใจดี" required data-quick-name>
                             </div>
                             <div>
-                                <label class="form-label">อาการเบื้องต้น</label>
-                                <textarea name="chief_complaint" class="form-control" rows="2" placeholder="เช่น ไข้ ไอ เจ็บคอ"></textarea>
+                                <label class="form-label" for="quickPhone">เบอร์โทร</label>
+                                <input type="text" name="quick_phone" id="quickPhone" class="form-control" value="<?= e((string) old('quick_phone')) ?>" placeholder="ใช้เช็คซ้ำ" data-quick-phone>
                             </div>
-                            <button class="btn btn-primary"><i class="bi bi-person-check-fill me-1"></i>รับเคสจากคนไข้เดิม</button>
-                        </form>
-                    </div>
-
-                    <div class="smart-subsection mt-3 queue-register-redirect">
-                        <div class="smart-subsection-title">คนไข้ใหม่</div>
-                        <p class="mb-3">ลงทะเบียนผู้รับบริการใหม่ให้ทำที่หน้า “ผู้รับบริการ” เพื่อเก็บข้อมูลครบและลดข้อมูลซ้ำในหน้าคิว</p>
-                        <form method="post" action="<?= e(route_url('queue-quick-register')) ?>" class="queue-quick-register-form" id="queueQuickRegisterForm">
-                            <?= csrf_field() ?>
-                            <div class="queue-quick-register-grid">
-                                <div>
-                                    <label class="form-label" for="quickFullName">ชื่อ-สกุล</label>
-                                    <input type="text" name="quick_full_name" id="quickFullName" class="form-control" value="<?= e((string) old('quick_full_name')) ?>" placeholder="เช่น สมชาย ใจดี" required data-quick-name>
-                                </div>
-                                <div>
-                                    <label class="form-label" for="quickPhone">เบอร์โทร</label>
-                                    <input type="text" name="quick_phone" id="quickPhone" class="form-control" value="<?= e((string) old('quick_phone')) ?>" placeholder="ใช้เช็คข้อมูลซ้ำ" data-quick-phone>
-                                </div>
-                                <div>
-                                    <label class="form-label" for="quickGender">เพศ</label>
-                                    <select name="quick_gender" id="quickGender" class="form-select">
-                                        <option value="">ไม่ระบุ</option>
-                                        <option value="M" <?= selected((string) old('quick_gender'), 'M') ?>>ชาย</option>
-                                        <option value="F" <?= selected((string) old('quick_gender'), 'F') ?>>หญิง</option>
-                                        <option value="O" <?= selected((string) old('quick_gender'), 'O') ?>>อื่น ๆ</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="form-label" for="quickAllergy">แพ้ยา</label>
-                                    <input type="text" name="quick_drug_allergy" id="quickAllergy" class="form-control" value="<?= e((string) old('quick_drug_allergy')) ?>" placeholder="ถ้าไม่มีปล่อยว่าง">
-                                </div>
+                            <div>
+                                <label class="form-label" for="quickGender">เพศ</label>
+                                <select name="quick_gender" id="quickGender" class="form-select">
+                                    <option value="">ไม่ระบุ</option>
+                                    <option value="M" <?= selected((string) old('quick_gender'), 'M') ?>>ชาย</option>
+                                    <option value="F" <?= selected((string) old('quick_gender'), 'F') ?>>หญิง</option>
+                                    <option value="O" <?= selected((string) old('quick_gender'), 'O') ?>>อื่น ๆ</option>
+                                </select>
                             </div>
-                            <label class="form-label mt-2" for="quickChiefComplaint">อาการสำคัญ</label>
-                            <textarea name="quick_chief_complaint" id="quickChiefComplaint" class="form-control" rows="2" placeholder="เช่น ไข้ ไอ เจ็บคอ"><?= e((string) old('quick_chief_complaint')) ?></textarea>
-                            <div class="queue-duplicate-warning d-none" data-quick-duplicate-warning></div>
-                            <label class="queue-confirm-duplicate">
-                                <input type="checkbox" name="confirm_duplicate" value="1" <?= checked((string) old('confirm_duplicate'), '1') ?>>
-                                ยืนยันสร้างคนไข้ใหม่ แม้ระบบแจ้งว่าอาจซ้ำ
-                            </label>
-                            <button class="btn btn-primary w-100 mt-2">
-                                <i class="bi bi-lightning-charge-fill me-1"></i>ลงทะเบียนด่วนและเปิด Smart Exam
-                            </button>
-                        </form>
-                        <a href="<?= e(route_url('patients')) ?>" class="btn btn-outline-primary w-100 mt-2">
-                            <i class="bi bi-person-plus-fill me-1"></i>ไปหน้าลงทะเบียนผู้รับบริการ
-                        </a>
-                    </div>
-                <?php endif; ?>
+                            <div>
+                                <label class="form-label" for="quickAllergy">แพ้ยา</label>
+                                <input type="text" name="quick_drug_allergy" id="quickAllergy" class="form-control" value="<?= e((string) old('quick_drug_allergy')) ?>" placeholder="ถ้าไม่มีปล่อยว่าง">
+                            </div>
+                        </div>
+                        <textarea name="quick_chief_complaint" id="quickChiefComplaint" class="form-control" rows="2" placeholder="อาการสำคัญ"><?= e((string) old('quick_chief_complaint')) ?></textarea>
+                        <div class="queue-duplicate-warning d-none" data-quick-duplicate-warning></div>
+                        <label class="queue-confirm-duplicate">
+                            <input type="checkbox" name="confirm_duplicate" value="1" <?= checked((string) old('confirm_duplicate'), '1') ?>>
+                            ยืนยันสร้างคนไข้ใหม่ แม้ระบบแจ้งว่าอาจซ้ำ
+                        </label>
+                        <button class="btn btn-primary w-100">
+                            <i class="bi bi-lightning-charge-fill me-1"></i>ลงทะเบียนและเปิด Smart Exam
+                        </button>
+                    </form>
+                </details>
+            <?php endif; ?>
 
-                <div class="smart-subsection mt-4">
-                    <div class="smart-subsection-title">คนไข้ล่าสุด</div>
-                    <div class="smart-recent-list mt-3">
-                        <?php foreach (array_slice($patients ?? [], 0, 5) as $patient): ?>
-                            <form method="post" action="<?= e(route_url('queue-store')) ?>" class="smart-recent-form">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="patient_id" value="<?= (int) $patient['id'] ?>">
-                                <input type="hidden" name="chief_complaint" value="">
-                                <button type="submit" class="smart-recent-card">
-                                    <strong><?= e($patient['first_name'] . ' ' . $patient['last_name']) ?></strong>
-                                    <span><?= e($patient['hn']) ?> / <?= e($patient['phone'] ?: '-') ?></span>
-                                </button>
-                            </form>
+            <?php if ($todayAppointments): ?>
+                <div class="snq-mini-section">
+                    <div class="snq-mini-title">นัดติดตามวันนี้</div>
+                    <div class="snq-appointment-list">
+                        <?php foreach ($todayAppointments as $appointment): ?>
+                            <?php
+                            $appointmentName = trim(($appointment['first_name'] ?? '') . ' ' . ($appointment['last_name'] ?? ''));
+                            $hasActiveAppointmentQueue = !empty($appointment['active_visit_id']);
+                            ?>
+                            <div class="snq-appointment-row">
+                                <div>
+                                    <strong><?= e($appointmentName) ?></strong>
+                                    <span>HN <?= e((string) ($appointment['hn'] ?? '-')) ?> · <?= thai_date_only($appointment['appointment_date'] ?? null) ?></span>
+                                </div>
+                                <?php if ($hasActiveAppointmentQueue): ?>
+                                    <a href="<?= e(route_url('queue-exam', ['id' => (int) $appointment['active_visit_id']])) ?>" class="btn btn-outline-primary btn-sm">เปิด</a>
+                                <?php else: ?>
+                                    <form method="post" action="<?= e(route_url('appointment-checkin')) ?>">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="appointment_id" value="<?= (int) $appointment['id'] ?>">
+                                        <button class="btn btn-primary btn-sm">รับคิว</button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
                         <?php endforeach; ?>
                     </div>
                 </div>
-            </article>
+            <?php endif; ?>
+
+            <div class="snq-mini-section">
+                <div class="snq-mini-title">Recent Search</div>
+                <div class="snq-recent-list">
+                    <?php foreach (array_slice($patients ?? [], 0, 5) as $patient): ?>
+                        <form method="post" action="<?= e(route_url('queue-store')) ?>" class="smart-recent-form">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="patient_id" value="<?= (int) $patient['id'] ?>">
+                            <input type="hidden" name="chief_complaint" value="">
+                            <button type="submit" class="snq-recent-row">
+                                <span><?= e($patient['first_name'] . ' ' . $patient['last_name']) ?></span>
+                                <small><?= e($patient['hn']) ?> · <?= e($patient['phone'] ?: '-') ?></small>
+                            </button>
+                        </form>
+                    <?php endforeach; ?>
+                </div>
+            </div>
         </aside>
 
-        <main class="smart-panel smart-panel-center">
-            <article class="card smart-panel-card smart-main-card">
-                <div class="smart-panel-head">
-                    <div class="eyebrow">ขั้นตอนที่ 2</div>
-                    <h3>เปิดหน้าตรวจ</h3>
-                    <p>เมื่อเลือกคนไข้หรือเรียกคิวเข้าตรวจแล้ว ให้เปิดหน้า Smart Exam เพื่อบันทึกประวัติ ตรวจร่างกาย และจบเคสแบบแยกหน้าชัดเจน</p>
+        <main class="snq-main-panel">
+            <section class="snq-next-alert-bar <?= $nextWaiting ? 'has-next ' . e((string) $nextPatientAge['class']) : 'is-empty' ?>" aria-live="polite">
+                <div class="snq-next-alert-copy">
+                    <?php if ($nextWaiting): ?>
+                        <span><?= $nextPatientAge['class'] === 'critical' ? 'คิวด่วน' : 'คิวถัดไป' ?></span>
+                        <strong>Q<?= e((string) $nextWaiting['queue_no']) ?> · <?= e((string) $nextWaiting['patient_name']) ?></strong>
+                        <small><?= e((string) $nextPatientAge['icon']) ?> <?= e((string) $nextPatientAge['text']) ?> · <?= e((string) $nextPatientAge['label']) ?></small>
+                    <?php else: ?>
+                        <span>คิวถัดไป</span>
+                        <strong>ยังไม่มีคิวรอรับบริการ</strong>
+                        <small>รับผู้รับบริการใหม่ หรือคลิกคิวใน Queue Board เพื่อเปิด Smart Exam</small>
+                    <?php endif; ?>
+                </div>
+                <?php if ($nextWaiting && $canManageQueue): ?>
+                    <form method="post" action="<?= e(route_url('queue-status')) ?>" class="snq-next-alert-action">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="queue_id" value="<?= (int) $nextWaiting['id'] ?>">
+                        <input type="hidden" name="status" value="IN_SERVICE">
+                        <input type="hidden" name="redirect_to_visit" value="1">
+                        <button class="btn btn-primary btn-sm" data-queue-call-next>
+                            <i class="bi bi-megaphone-fill me-1"></i>เรียกคิว
+                        </button>
+                    </form>
+                <?php endif; ?>
+            </section>
+
+            <article class="snq-active-card <?= $hasActiveVisit ? 'has-case' : 'is-empty' ?>">
+                <div class="snq-panel-head">
+                    <span>Active Case</span>
+                    <strong>เคสที่กำลังทำ</strong>
                 </div>
 
                 <?php if ($hasActiveVisit): ?>
-                    <div class="smart-active-case">
-                        <div>
-                            <div class="smart-active-name"><?= e($activeVisit['first_name'] . ' ' . $activeVisit['last_name']) ?></div>
-                            <div class="smart-active-meta">คิว <?= e((string) $activeVisit['queue_no']) ?> / HN <?= e($activeVisit['hn']) ?> / VN <?= e($activeVisit['visit_no']) ?></div>
+                    <div class="snq-safety-banner <?= e($activeSafetyClass) ?>">
+                        <div class="snq-safety-main">
+                            <span>Patient Safety</span>
+                            <strong><?= e($activePatientName) ?></strong>
+                            <small>HN <?= e((string) $activeVisit['hn']) ?> · <?= e($activeAgeText) ?></small>
                         </div>
-                        <span class="active-case-status <?= e(strtolower((string) $activeVisit['status'])) ?>"><?= e(queue_status_meta((string) $activeVisit['status'])['label']) ?></span>
-                    </div>
-                    <div class="smart-secondary-link">
-                        <a href="<?= e(route_url('visit-edit', ['id' => $activeVisit['id']])) ?>">เปิดรายละเอียดขั้นสูง</a>
+                        <div class="snq-safety-flags">
+                            <span class="<?= $activeHasAllergyAlert ? 'is-critical' : 'is-muted' ?>">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                แพ้ยา: <?= e($activeAllergyText ?: '-') ?>
+                            </span>
+                            <span class="<?= $activeHasChronicAlert ? 'is-warning' : 'is-muted' ?>">
+                                <i class="bi bi-heart-pulse-fill"></i>
+                                โรคประจำตัว: <?= e($activeChronicText ?: '-') ?>
+                            </span>
+                        </div>
                     </div>
 
-                    <div class="smart-open-exam-card">
-                        <h4>พร้อมสำหรับ Smart Exam</h4>
-                        <p>เมื่อเริ่มคิวแล้ว ให้เปิด Smart Exam เพื่อซักประวัติ บันทึกการรักษา และจบเคสโดยไม่รบกวนหน้าคิวหลัก</p>
-                        <div class="smart-open-exam-actions">
-                            <a href="<?= e(route_url('queue-exam', ['id' => $activeVisit['id']])) ?>" class="btn btn-primary btn-lg"><i class="bi bi-heart-pulse-fill me-1"></i>เปิดหน้า Smart Exam</a>
+                    <div class="snq-active-case-line">
+                        <span>คิว <?= e((string) $activeVisit['queue_no']) ?></span>
+                        <span>VN <?= e((string) $activeVisit['visit_no']) ?></span>
+                        <strong><?= e((string) (($activeVisit['chief_complaint'] ?? '') ?: 'ยังไม่ได้ระบุอาการสำคัญ')) ?></strong>
+                        <em class="active-case-status <?= e(strtolower($activeStatus)) ?>">
+                            <?= e(queue_status_meta($activeStatus)['label']) ?>
+                        </em>
+                    </div>
+
+                    <div class="snq-patient-preview">
+                        <div>
+                            <span>เคยมาแล้ว</span>
+                            <strong><?= (int) ($activeVisit['visit_count'] ?? 0) ?> ครั้ง</strong>
+                        </div>
+                        <div>
+                            <span>ระยะเวลาในคิว</span>
+                            <strong><?= e($activeWaitText) ?></strong>
+                        </div>
+                        <div>
+                            <span>บริการ</span>
+                            <strong><?= (int) ($activeVisit['service_count'] ?? 0) ?></strong>
+                        </div>
+                        <div>
+                            <span>ยา/อุปกรณ์</span>
+                            <strong><?= (int) ($activeVisit['item_count'] ?? 0) ?></strong>
+                        </div>
+                        <div>
+                            <span>ยอดสุทธิ</span>
+                            <strong><?= format_money($activeGrandTotal) ?></strong>
                         </div>
                     </div>
+
+                    <div class="snq-workflow-timeline" aria-label="Workflow timeline">
+                        <?php foreach ($workflowTimeline as $step): ?>
+                            <div class="snq-timeline-step <?= e($step['state']) ?>">
+                                <span><?= $step['state'] === 'done' ? '✓' : ($step['state'] === 'current' ? '●' : '○') ?></span>
+                                <strong><?= e($step['label']) ?></strong>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <div class="snq-case-events" aria-label="Case timeline">
+                        <div class="snq-case-events-title">
+                            <span>Timeline</span>
+                            <strong>ประวัติเคสปัจจุบัน</strong>
+                        </div>
+                        <div class="snq-case-event-list">
+                            <?php foreach (array_slice($activeCaseTimeline, 0, 5) as $event): ?>
+                                <div class="snq-case-event <?= e((string) ($event['state'] ?? 'done')) ?>">
+                                    <time><?= e($caseTimelineTime((string) ($event['time'] ?? ''))) ?></time>
+                                    <span><?= e($caseTimelineLabel((string) ($event['label'] ?? ''))) ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                            <?php if (!$activeCaseTimeline): ?>
+                                <div class="snq-case-event empty">
+                                    <time>--:--</time>
+                                    <span>ยังไม่มี timeline เพิ่มเติม</span>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="snq-primary-action-row">
+                        <?php if ($nextStepForm): ?>
+                            <form method="post" action="<?= e($nextStepForm['action']) ?>" class="snq-main-step-form" data-queue-close-next-form>
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="visit_id" value="<?= (int) $nextStepForm['visit_id'] ?>">
+                                <button class="btn btn-primary snq-primary-action" type="submit" data-queue-primary-action data-queue-close-next data-queue-primary-status="<?= e($activeStatus) ?>">
+                                    <i class="bi <?= e($nextStepIcon) ?> me-1"></i>
+                                    <span>ดำเนินการขั้นถัดไป</span>
+                                    <small><?= e($nextStepLabel) ?></small>
+                                    <?php if ($nextStepShortcut): ?><kbd><?= e($nextStepShortcut) ?></kbd><?php endif; ?>
+                                </button>
+                            </form>
+                        <?php else: ?>
+                            <a href="<?= e($nextStepUrl) ?>" class="btn btn-primary snq-primary-action" data-queue-primary-action data-queue-primary-status="<?= e($activeStatus) ?>" <?= $activeNeedsPaymentBeforeClose ? 'data-queue-payment-action' : '' ?>>
+                                <i class="bi <?= e($nextStepIcon) ?> me-1"></i>
+                                <span>ดำเนินการขั้นถัดไป</span>
+                                <small><?= e($nextStepLabel) ?></small>
+                                <?php if ($nextStepShortcut): ?><kbd><?= e($nextStepShortcut) ?></kbd><?php endif; ?>
+                            </a>
+                        <?php endif; ?>
+                        <div class="snq-secondary-actions">
+                            <a href="<?= e(route_url('visit-edit', ['id' => (int) $activeVisit['id']])) ?>">
+                                <i class="bi bi-clock-history"></i> ประวัติเคส
+                            </a>
+                            <?php if ($activeItemCount > 0): ?>
+                                <a href="<?= e(route_url('pharmacy-labels', ['visit_id' => (int) $activeVisit['id']])) ?>" data-queue-label-action>
+                                    <i class="bi bi-printer-fill"></i> สติ๊กเกอร์ยา
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <details class="snq-history-drawer">
+                        <summary>
+                            <span><i class="bi bi-clock-history me-1"></i>ประวัติย้อนหลัง</span>
+                            <em><?= count($activeHistoryLines) ?> รายการ</em>
+                        </summary>
+                        <div class="snq-history-list">
+                            <?php foreach ($activeHistoryLines as $historyLine): ?>
+                                <div class="snq-history-row">
+                                    <time><?= e((string) ($historyLine['date'] ?? '-')) ?></time>
+                                    <strong><?= e((string) (($historyLine['diagnosis'] ?? '-') ?: '-')) ?></strong>
+                                    <span><?= e((string) (($historyLine['chief_complaint'] ?? '-') ?: '-')) ?></span>
+                                    <small>บริการ: <?= e((string) ($historyLine['services_summary'] ?? '-')) ?></small>
+                                    <small>ยา: <?= e((string) ($historyLine['items_summary'] ?? '-')) ?></small>
+                                    <em><?= e((string) ($historyLine['paid_total_text'] ?? '0.00')) ?></em>
+                                </div>
+                            <?php endforeach; ?>
+                            <?php if (!$activeHistoryLines): ?>
+                                <div class="snq-history-empty">ยังไม่มีประวัติย้อนหลังของผู้รับบริการรายนี้</div>
+                            <?php endif; ?>
+                        </div>
+                    </details>
                 <?php else: ?>
-                    <div class="empty-state queue-empty-compact">
-                        <h3>ยังไม่มีเคสที่กำลังทำ</h3>
-                        <p>เลือกคนไข้จากด้านซ้ายหรือเรียกคิวถัดไปก่อน แล้วระบบจะแสดงปุ่มเปิดหน้า Smart Exam ให้ทันที</p>
+                    <div class="snq-empty-active">
+                        <strong>ยังไม่มีเคสที่กำลังทำ</strong>
+                        <a href="<?= e(route_url('patients')) ?>" class="btn btn-primary btn-sm">เริ่มรับผู้รับบริการ</a>
                     </div>
                 <?php endif; ?>
             </article>
 
-            <section class="queue-center-board smart-board-grid">
-                <?php foreach ($queueBoards as $statusCode => $meta): ?>
-                    <?php if (!in_array($statusCode, $visibleBoards, true)) { continue; } ?>
-                    <article class="card smart-board-card <?= e($meta['class']) ?>">
-                        <div class="smart-board-head">
-                            <h4><?= e($meta['title']) ?></h4>
-                            <span class="smart-board-count"><?= (int) ($counts[$statusCode] ?? 0) ?></span>
-                        </div>
-                        <div class="smart-board-list">
-                            <?php foreach (($statusBuckets[$statusCode] ?? []) as $queue): ?>
-                                <?php
-                                $queueTime = $queue['called_at'] ?? $queue['checked_in_at'] ?? $queue['created_at'] ?? null;
-                                $queueTimeLabel = $queueTime ? date('H:i', strtotime((string) $queueTime)) : '-';
-                                $durationSource = $queue['checked_in_at'] ?? $queue['created_at'] ?? null;
-                                $waitMinutes = $durationSource ? max(0, (int) floor((time() - strtotime((string) $durationSource)) / 60)) : 0;
-                                $statusLabel = queue_status_meta((string) $statusCode)['label'] ?? $meta['title'];
-                                $queueUrl = match ($statusCode) {
-                                    'WAITING_PAYMENT' => route_url('payments'),
-                                    'COMPLETED' => route_url('patient-show', ['id' => (int) $queue['patient_id']]),
-                                    default => route_url('queue-exam', ['id' => (int) $queue['visit_id']]),
-                                };
-                                ?>
-                                <a class="smart-board-item queue-board-row <?= ((int) ($activeVisit['queue_id'] ?? 0) === (int) $queue['id']) ? 'is-active' : '' ?>" href="<?= e($queueUrl) ?>">
-                                    <span class="queue-row-number">Q<?= e((string) $queue['queue_no']) ?></span>
-                                    <span class="queue-row-main">
-                                        <strong><?= e($queue['patient_name']) ?></strong>
-                                        <span class="queue-row-badge"><?= e($statusLabel) ?></span>
-                                    </span>
-                                    <span class="queue-row-meta">
-                                        <span>HN <?= e($queue['hn']) ?></span>
-                                        <span><?= e($queueTimeLabel) ?></span>
-                                    </span>
-                                    <span class="queue-row-flags">
-                                        <?php if ($waitMinutes >= 1 && $statusCode !== 'COMPLETED'): ?>
-                                            <span class="queue-row-flag"><?= (int) $waitMinutes ?> นาที</span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($queue['drug_allergy']) && trim((string) $queue['drug_allergy']) !== '-'): ?>
-                                            <span class="queue-row-flag alert">แพ้ยา</span>
-                                        <?php endif; ?>
-                                        <?php if ($statusCode === 'WAITING_PAYMENT'): ?>
-                                            <span class="queue-row-flag payment">ชำระเงิน</span>
-                                        <?php endif; ?>
-                                    </span>
-                                </a>
-                            <?php endforeach; ?>
-                            <?php if (empty($statusBuckets[$statusCode])): ?>
-                                <div class="smart-board-empty"><?= e($meta['empty']) ?></div>
-                            <?php endif; ?>
-                        </div>
-                    </article>
-                <?php endforeach; ?>
+            <section class="snq-board-shell">
+                <div class="snq-board-title">
+                    <div>
+                        <span>Queue Board</span>
+                        <strong>คิวที่ต้องดำเนินการ</strong>
+                    </div>
+                    <small>คลิกคิวเพื่อเปิด Smart Exam ทันที</small>
+                </div>
+                <div class="snq-board-grid">
+                        <?php foreach ($queueBoards as $statusCode => $meta): ?>
+                            <?php if (!in_array($statusCode, $visibleBoards, true)) { continue; } ?>
+                            <article class="snq-board-column <?= e($meta['class']) ?> <?= empty($statusBuckets[$statusCode]) ? 'is-empty' : '' ?>">
+                                <div class="snq-board-head">
+                                    <i class="bi <?= e($meta['icon']) ?>"></i>
+                                    <span><?= e($meta['title']) ?></span>
+                                    <strong><?= (int) ($counts[$statusCode] ?? 0) ?></strong>
+                                </div>
+                                <div class="snq-board-list">
+                                    <?php foreach (($statusBuckets[$statusCode] ?? []) as $queue): ?>
+                                        <?php
+                                        $waitMinutes = $queueWaitMinutes($queue);
+                                        $ageState = $queueAgeState($waitMinutes, $statusCode);
+                                        $queueUrl = route_url('queue-exam', ['id' => (int) $queue['visit_id']]);
+                                        $isSelectedQueue = (int) ($activeVisit['queue_id'] ?? 0) === (int) $queue['id'];
+                                        ?>
+                                        <a class="snq-queue-row age-<?= e((string) $ageState['class']) ?> <?= $isSelectedQueue ? 'is-active is-selected' : '' ?>" href="<?= e($queueUrl) ?>" data-queue-card aria-selected="<?= $isSelectedQueue ? 'true' : 'false' ?>">
+                                            <span class="snq-qno">Q<?= e((string) $queue['queue_no']) ?></span>
+                                            <span class="snq-qmain">
+                                                <strong><?= e($queue['patient_name']) ?></strong>
+                                                <small><?= e((string) ($queue['hn'] ?? '-')) ?></small>
+                                                <small class="snq-qwait"><span><?= e((string) $ageState['icon']) ?></span><span><?= e((string) $ageState['text']) ?></span></small>
+                                            </span>
+                                            <span class="snq-qflags">
+                                                <em class="priority <?= e((string) $ageState['class']) ?>"><?= e((string) $ageState['label']) ?></em>
+                                            </span>
+                                        </a>
+                                    <?php endforeach; ?>
+                                    <?php if (empty($statusBuckets[$statusCode])): ?>
+                                        <div class="snq-board-empty"><?= e($meta['empty']) ?></div>
+                                    <?php endif; ?>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                </div>
             </section>
         </main>
 
-        <aside class="smart-panel smart-panel-right">
-            <article class="card smart-panel-card smart-summary-card">
-                <div class="smart-panel-head">
-                    <div class="eyebrow">ขั้นตอนที่ 3</div>
-                    <h3>สรุปเคส</h3>
-                    <p>ดูยอดบริการและอุปกรณ์ที่ใช้จากหน้าคิวได้ทันที ส่วนการบันทึกและจบเคสให้ทำจากหน้า Smart Exam</p>
+        <aside class="snq-assistant-rail">
+            <article class="snq-rail-card snq-today-status">
+                <div class="snq-status-head">
+                    <div>
+                        <span>Today Status</span>
+                        <strong>สถานะวันนี้</strong>
+                    </div>
+                    <small>สำหรับพยาบาล 1 คน</small>
                 </div>
 
-                <?php if ($hasActiveVisit): ?>
-                    <div class="smart-rail-label">Control Rail</div>
-                    <div class="smart-summary-patient">
-                        <div class="smart-summary-name"><?= e($activeVisit['first_name'] . ' ' . $activeVisit['last_name']) ?></div>
-                        <div class="smart-summary-meta">แพ้ยา: <?= e($activeVisit['drug_allergy'] ?: '-') ?></div>
+                <section class="snq-status-block">
+                    <div class="snq-status-block-title">
+                        <i class="bi bi-activity"></i>
+                        <span>ภาพรวมวันนี้</span>
                     </div>
+                    <div class="snq-status-metrics">
+                        <div><span>ทั้งหมด</span><strong><?= $todayPatientCount ?></strong></div>
+                        <div><span>กำลังตรวจ</span><strong><?= (int) ($counts['IN_SERVICE'] ?? 0) ?></strong></div>
+                        <div><span>รอรับ</span><strong><?= (int) ($counts['WAITING'] ?? 0) ?></strong></div>
+                        <div><span>รอชำระ</span><strong><?= (int) ($counts['WAITING_PAYMENT'] ?? 0) ?></strong></div>
+                        <div><span>เสร็จสิ้น</span><strong><?= (int) ($counts['COMPLETED'] ?? 0) ?></strong></div>
+                    </div>
+                </section>
 
-                    <div class="smart-summary-section">
-                        <div class="smart-summary-title">บริการ</div>
-                        <?php foreach (($activeVisit['service_lines'] ?? []) as $line): ?>
-                            <div class="smart-summary-line">
-                                <span><?= e($line['service_name']) ?> x<?= e((string) $line['qty']) ?></span>
-                                <strong><?= format_money($line['line_total']) ?></strong>
+                <section class="snq-status-block">
+                    <div class="snq-status-block-title">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>การเงินวันนี้</span>
+                    </div>
+                    <div class="snq-money-list">
+                        <div class="grand"><span>รายได้รวม</span><strong><?= format_money($todayRevenue) ?></strong></div>
+                        <div><span>เงินสด</span><strong><?= format_money((float) ($financialToday['CASH'] ?? 0)) ?></strong></div>
+                        <div><span>QR</span><strong><?= format_money((float) ($financialToday['QR'] ?? 0)) ?></strong></div>
+                        <div><span>โอน</span><strong><?= format_money((float) ($financialToday['TRANSFER'] ?? 0)) ?></strong></div>
+                    </div>
+                </section>
+
+                <section class="snq-status-block">
+                    <div class="snq-status-block-title">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>แจ้งเตือนสำคัญ</span>
+                    </div>
+                    <div class="snq-alert-list compact">
+                        <div class="snq-alert-row <?= $overdueCases > 0 ? 'is-warning' : 'is-ok' ?>">
+                            <i class="bi bi-hourglass-split"></i><span>คิวค้างเกิน 30 นาที</span><strong><?= $overdueCases ?></strong>
+                        </div>
+                        <div class="snq-alert-row <?= $printerReady ? 'is-ok' : 'is-warning' ?>">
+                            <i class="bi bi-printer"></i><span>เครื่องพิมพ์</span><strong><?= $printerReady ? 'พร้อม' : 'ไม่พร้อม' ?></strong>
+                        </div>
+                        <div class="snq-alert-row <?= $smartCardOnline ? 'is-ok' : 'is-warning' ?>">
+                            <i class="bi bi-person-vcard"></i><span>Smart Card</span><strong><?= $smartCardOnline ? 'Online' : 'Offline' ?></strong>
+                        </div>
+                        <?php if ($overdueCases <= 0 && $printerReady && $smartCardOnline): ?>
+                            <div class="snq-alert-row is-ok">
+                                <i class="bi bi-check-circle"></i><span>Critical Alert</span><strong>ปกติ</strong>
                             </div>
-                        <?php endforeach; ?>
-                        <?php if (empty($activeVisit['service_lines'])): ?>
-                            <div class="smart-summary-empty">ยังไม่มีบริการ</div>
                         <?php endif; ?>
                     </div>
+                </section>
 
-                    <div class="smart-summary-section">
-                        <div class="smart-summary-title">อุปกรณ์ที่ใช้</div>
-                        <?php foreach (($activeVisit['item_lines'] ?? []) as $line): ?>
-                            <div class="smart-summary-line">
-                                <span><?= e($line['item_name']) ?> x<?= format_money($line['qty']) ?></span>
-                                <strong><?= format_money($line['line_total']) ?></strong>
-                            </div>
-                        <?php endforeach; ?>
-                        <?php if (empty($activeVisit['item_lines'])): ?>
-                            <div class="smart-summary-empty">ยังไม่มีอุปกรณ์ที่ใช้</div>
-                        <?php endif; ?>
+                <section class="snq-status-block">
+                    <div class="snq-status-block-title">
+                        <i class="bi bi-list-check"></i>
+                        <span>สรุปล่าสุด</span>
                     </div>
-
-                    <div class="smart-summary-total">
-                        <div class="smart-summary-line"><span>ค่าบริการ</span><strong><?= format_money($activeVisit['service_total'] ?? 0) ?></strong></div>
-                        <div class="smart-summary-line"><span>ค่าเวชภัณฑ์/อุปกรณ์</span><strong><?= format_money($activeVisit['item_total'] ?? 0) ?></strong></div>
-                        <div class="smart-summary-line grand"><span>รวมสุทธิ</span><strong><?= format_money(($activeVisit['service_total'] ?? 0) + ($activeVisit['item_total'] ?? 0)) ?></strong></div>
-                    </div>
-
-                    <?php
-                    $hasBillableLines = !empty($activeVisit['service_lines']) || !empty($activeVisit['item_lines']);
-                    $isExamProgressed = in_array((string) $activeStatus, ['IN_SERVICE', 'WAITING_PAYMENT', 'COMPLETED'], true);
-                    $isPaymentReady = in_array((string) $activeStatus, ['WAITING_PAYMENT', 'COMPLETED'], true);
-                    ?>
-                    <div class="queue-readiness-panel">
-                        <div class="smart-summary-title">สถานะการดำเนินการ</div>
-                        <div class="queue-readiness-item is-done">
-                            <i class="bi bi-check-circle-fill"></i>
-                            <span>ลงทะเบียนผู้รับบริการ</span>
+                    <div class="snq-latest-list">
+                        <div>
+                            <span>เคสล่าสุด</span>
+                            <strong><?= e($latestCaseName !== '' ? $latestCaseName : '-') ?></strong>
+                            <small><?= !empty($latestCase['updated_at']) ? e(date('H:i', strtotime((string) $latestCase['updated_at']))) : '-' ?></small>
                         </div>
-                        <div class="queue-readiness-item <?= $isExamProgressed ? 'is-done' : '' ?>">
-                            <i class="bi <?= $isExamProgressed ? 'bi-check-circle-fill' : 'bi-circle' ?>"></i>
-                            <span>เปิดตรวจ / Smart Exam</span>
+                        <div>
+                            <span>ใบเสร็จล่าสุด</span>
+                            <strong><?= e((string) (($latestReceipt['receipt_no'] ?? '') ?: '-')) ?></strong>
+                            <small><?= $latestReceiptName !== '' ? e($latestReceiptName) : '-' ?></small>
                         </div>
-                        <div class="queue-readiness-item <?= $hasBillableLines ? 'is-done' : '' ?>">
-                            <i class="bi <?= $hasBillableLines ? 'bi-check-circle-fill' : 'bi-circle' ?>"></i>
-                            <span>มีบริการหรือยาในเคส</span>
-                        </div>
-                        <div class="queue-readiness-item <?= $isPaymentReady ? 'is-done' : '' ?>">
-                            <i class="bi <?= $isPaymentReady ? 'bi-check-circle-fill' : 'bi-circle' ?>"></i>
-                            <span>พร้อมส่งชำระเงิน</span>
+                        <div>
+                            <span>สติ๊กเกอร์ล่าสุด</span>
+                            <strong><?= e((string) (($latestSticker['drug_name_snapshot'] ?? '') ?: '-')) ?></strong>
+                            <small><?= $latestStickerName !== '' ? e($latestStickerName) : '-' ?></small>
                         </div>
                     </div>
+                </section>
 
-                    <div class="smart-summary-actions">
-                        <div class="smart-summary-hint">ต้องจบเคสใน Smart Exam ก่อนส่งชำระเงิน</div>
+                <section class="snq-status-block">
+                    <div class="snq-status-block-title">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Activity Summary</span>
                     </div>
-                <?php else: ?>
-                    <div class="empty-state queue-empty-compact">
-                        <h3>ยังไม่มีรายการสรุป</h3>
-                        <p>เมื่อเลือกคนไข้และเริ่มตรวจ ระบบจะแสดงข้อมูลสรุปไว้ที่แผงนี้ทันที</p>
+                    <div class="snq-activity-summary">
+                        <div><span>เปิด Smart Exam</span><strong><?= (int) ($activitySummary['smart_exam_count'] ?? 0) ?></strong></div>
+                        <div><span>รับชำระ</span><strong><?= (int) ($activitySummary['payment_count'] ?? 0) ?></strong></div>
+                        <div><span>ใบเสร็จ</span><strong><?= (int) ($activitySummary['receipt_count'] ?? 0) ?></strong></div>
+                        <div><span>สติ๊กเกอร์ยา</span><strong><?= (int) ($activitySummary['sticker_print_count'] ?? 0) ?></strong></div>
                     </div>
-                <?php endif; ?>
+                </section>
+
+                <section class="snq-status-block shortcuts">
+                    <div class="snq-shortcut-grid">
+                        <span><kbd>F1</kbd> ค้นหา</span>
+                        <span><kbd>F2</kbd> คนไข้ใหม่</span>
+                        <span><kbd>F3</kbd> Smart Exam</span>
+                        <span><kbd>F4</kbd> บริการ</span>
+                        <span><kbd>F5</kbd> ปิด/เรียกคิว</span>
+                        <span><kbd>F9</kbd> ชำระเงิน</span>
+                    </div>
+                </section>
             </article>
         </aside>
-    </section>
-
-    <section class="smart-board-grid">
-        <?php foreach ($queueBoards as $statusCode => $meta): ?>
-            <?php if (!in_array($statusCode, $visibleBoards, true)) { continue; } ?>
-            <article class="card smart-board-card <?= e($meta['class']) ?>">
-                <div class="smart-board-head">
-                    <h4><?= e($meta['title']) ?></h4>
-                    <span class="smart-board-count"><?= (int) ($counts[$statusCode] ?? 0) ?></span>
-                </div>
-                <div class="smart-board-list">
-                    <?php foreach (($statusBuckets[$statusCode] ?? []) as $queue): ?>
-                        <?php
-                        $queueTime = $queue['called_at'] ?? $queue['checked_in_at'] ?? $queue['created_at'] ?? null;
-                        $queueTimeLabel = $queueTime ? date('H:i', strtotime((string) $queueTime)) : '-';
-                        $durationSource = $queue['checked_in_at'] ?? $queue['created_at'] ?? null;
-                        $waitMinutes = $durationSource ? max(0, (int) floor((time() - strtotime((string) $durationSource)) / 60)) : 0;
-                        $statusLabel = queue_status_meta((string) $statusCode)['label'] ?? $meta['title'];
-                        $queueUrl = match ($statusCode) {
-                            'WAITING_PAYMENT' => route_url('payments'),
-                            'COMPLETED' => route_url('patient-show', ['id' => (int) $queue['patient_id']]),
-                            default => route_url('queue-exam', ['id' => (int) $queue['visit_id']]),
-                        };
-                        ?>
-                        <a class="smart-board-item queue-board-row <?= ((int) ($activeVisit['queue_id'] ?? 0) === (int) $queue['id']) ? 'is-active' : '' ?>" href="<?= e($queueUrl) ?>">
-                            <span class="queue-row-number">Q<?= e((string) $queue['queue_no']) ?></span>
-                            <span class="queue-row-main">
-                                <strong><?= e($queue['patient_name']) ?></strong>
-                                <span class="queue-row-badge"><?= e($statusLabel) ?></span>
-                            </span>
-                            <span class="queue-row-meta">
-                                <span>HN <?= e($queue['hn']) ?></span>
-                                <span><?= e($queueTimeLabel) ?></span>
-                            </span>
-                            <span class="queue-row-flags">
-                                <?php if ($waitMinutes >= 1 && $statusCode !== 'COMPLETED'): ?>
-                                    <span class="queue-row-flag"><?= (int) $waitMinutes ?> นาที</span>
-                                <?php endif; ?>
-                                <?php if (!empty($queue['drug_allergy']) && trim((string) $queue['drug_allergy']) !== '-'): ?>
-                                    <span class="queue-row-flag alert">แพ้ยา</span>
-                                <?php endif; ?>
-                                <?php if ($statusCode === 'WAITING_PAYMENT'): ?>
-                                    <span class="queue-row-flag payment">ชำระเงิน</span>
-                                <?php endif; ?>
-                            </span>
-                        </a>
-                    <?php endforeach; ?>
-                    <?php if (empty($statusBuckets[$statusCode])): ?>
-                        <div class="smart-board-empty"><?= e($meta['empty']) ?></div>
-                    <?php endif; ?>
-                </div>
-            </article>
-        <?php endforeach; ?>
-    </section>
-
-    <section class="queue-shortcut-bar" aria-label="Queue shortcuts">
-        <span><i class="bi bi-info-circle-fill"></i> เคล็ดลับ: ค้นหาคนไข้ด้วย HN, ชื่อ, เบอร์โทร หรือเลขบัตรประชาชน เพื่อเปิด Smart Exam ได้ทันที</span>
-        <span class="queue-shortcut-list">
-            <strong>Shortcut:</strong>
-            <kbd>F1</kbd> ค้นหา
-            <kbd>F2</kbd> เพิ่มยา
-            <kbd>F3</kbd> เพิ่มบริการ
-            <kbd>F9</kbd> ส่งชำระเงิน
-        </span>
     </section>
 </div>
 

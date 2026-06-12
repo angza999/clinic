@@ -16,6 +16,7 @@ use App\Controllers\QueueController;
 use App\Controllers\ReportController;
 use App\Controllers\ServiceController;
 use App\Controllers\SettingsController;
+use App\Controllers\TreatmentPresetController;
 use App\Controllers\UserController;
 use App\Controllers\VisitController;
 
@@ -45,9 +46,12 @@ $routes = [
     'POST:queue-quick-register' => [QueueController::class, 'quickRegister'],
     'POST:appointment-checkin' => [QueueController::class, 'appointmentCheckin'],
     'POST:queue-status' => [QueueController::class, 'updateStatus'],
+    'POST:queue-close-next' => [QueueController::class, 'closeAndNext'],
     'POST:queue-apply-preset' => [QueueController::class, 'applyPreset'],
+    'POST:queue-apply-treatment-preset' => [QueueController::class, 'applyTreatmentPreset'],
     'POST:queue-smart-finish' => [QueueController::class, 'smartFinish'],
     'POST:queue-quick-complete' => [QueueController::class, 'quickComplete'],
+    'POST:queue-patient-profile-update' => [QueueController::class, 'updatePatientProfile'],
 
     'GET:appointments' => [AppointmentController::class, 'index'],
     'POST:appointments-store' => [AppointmentController::class, 'store'],
@@ -99,6 +103,10 @@ $routes = [
     'GET:settings' => [SettingsController::class, 'index'],
     'POST:settings-store' => [SettingsController::class, 'store'],
     'POST:settings-preset-store' => [SettingsController::class, 'storePreset'],
+
+    'GET:treatment-presets' => [TreatmentPresetController::class, 'index'],
+    'POST:treatment-presets-store' => [TreatmentPresetController::class, 'store'],
+    'POST:treatment-presets-delete' => [TreatmentPresetController::class, 'delete'],
 
     'GET:backup' => [BackupController::class, 'download'],
     'GET:production' => [ProductionController::class, 'index'],

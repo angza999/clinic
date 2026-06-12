@@ -18,6 +18,7 @@ class ReportController extends Controller
 
         $daily = $this->buildDailyReport($dailyDate);
         $monthly = $this->buildMonthlyReport($monthValue);
+        $backupStats = $this->buildBackupStats();
 
         $this->render('reports/index', [
             'pageTitle' => 'รายงานและสำรองข้อมูล',
@@ -25,6 +26,11 @@ class ReportController extends Controller
             'monthValue' => $monthValue,
             'daily' => $daily,
             'monthly' => $monthly,
+            'pageTitle' => 'Report Center',
+            'backupStats' => $backupStats,
+            'pageTopbarMode' => 'compact',
+            'pageStyles' => [app_url('assets/css/reports.css')],
+            'pageScripts' => [app_url('assets/js/reports.js')],
         ]);
     }
 
@@ -67,6 +73,8 @@ class ReportController extends Controller
             'visits_today' => $this->exportVisitsToday(),
             'revenue_month' => $this->exportRevenueMonth(),
             'inventory_alerts' => $this->exportInventoryAlerts(),
+            'appointments' => $this->exportAppointments(),
+            'monthly_report' => $this->exportMonthlyReport(),
             default => [null, [], []],
         };
 
@@ -211,6 +219,16 @@ class ReportController extends Controller
         );
         $paymentStmt->execute([$startDate, $endDate]);
 
+        $patientTrendStmt = db()->prepare(
+            'SELECT DATE(visit_datetime) AS visit_date,
+                    COUNT(*) AS visit_count
+             FROM visits
+             WHERE DATE(visit_datetime) BETWEEN ? AND ?
+             GROUP BY DATE(visit_datetime)
+             ORDER BY visit_date ASC'
+        );
+        $patientTrendStmt->execute([$startDate, $endDate]);
+
         $topVisitsStmt = db()->prepare(
             'SELECT visits.visit_no,
                     visits.visit_datetime,
@@ -231,6 +249,7 @@ class ReportController extends Controller
         return [
             'summary' => $summary,
             'daily_revenue' => $revenueStmt->fetchAll(),
+            'patient_trend' => $patientTrendStmt->fetchAll(),
             'popular_services' => $serviceStmt->fetchAll(),
             'payment_methods' => $paymentStmt->fetchAll(),
             'recent_visits' => $topVisitsStmt->fetchAll(),
@@ -266,28 +285,106 @@ class ReportController extends Controller
 
     private function exportVisitsToday(): array
     {
-        $rows = db()->query(
+        $date = $this->normalizeDate((string) ($_GET['date'] ?? date('Y-m-d')));
+        $stmt = db()->prepare(
             'SELECT visits.visit_no, patients.hn, patients.first_name, patients.last_name, visits.visit_datetime, queue_entries.status
              FROM visits
              INNER JOIN patients ON patients.id = visits.patient_id
              LEFT JOIN queue_entries ON queue_entries.visit_id = visits.id
-             WHERE DATE(visits.visit_datetime) = CURDATE()
+             WHERE DATE(visits.visit_datetime) = ?
              ORDER BY visits.visit_datetime ASC'
-        )->fetchAll();
+        );
+        $stmt->execute([$date]);
+        $rows = $stmt->fetchAll();
 
         return ['visits_today_export.csv', ['VN', 'HN', 'ชื่อ', 'นามสกุล', 'วันเวลา', 'สถานะ'], $rows];
     }
 
     private function exportRevenueMonth(): array
     {
-        $rows = db()->query(
+        $monthValue = $this->normalizeMonth((string) ($_GET['month'] ?? date('Y-m')));
+        $period = DateTimeImmutable::createFromFormat('Y-m-d', $monthValue . '-01') ?: new DateTimeImmutable('first day of this month');
+        $startDate = $period->format('Y-m-01');
+        $endDate = $period->format('Y-m-t');
+
+        $stmt = db()->prepare(
             'SELECT receipt_no, paid_at, total_amount, payment_method
              FROM payments
-             WHERE MONTH(paid_at) = MONTH(CURDATE()) AND YEAR(paid_at) = YEAR(CURDATE())
+             WHERE DATE(paid_at) BETWEEN ? AND ?
              ORDER BY paid_at DESC'
-        )->fetchAll();
+        );
+        $stmt->execute([$startDate, $endDate]);
+        $rows = $stmt->fetchAll();
 
         return ['revenue_month_export.csv', ['เลขที่ใบเสร็จ', 'วันที่ชำระ', 'ยอดรวม', 'วิธีชำระ'], $rows];
+    }
+
+    private function exportAppointments(): array
+    {
+        $monthValue = $this->normalizeMonth((string) ($_GET['month'] ?? date('Y-m')));
+        $period = DateTimeImmutable::createFromFormat('Y-m-d', $monthValue . '-01') ?: new DateTimeImmutable('first day of this month');
+        $startDate = $period->format('Y-m-01');
+        $endDate = $period->format('Y-m-t');
+
+        $stmt = db()->prepare(
+            'SELECT appointments.appointment_date,
+                    appointments.appointment_time,
+                    patients.hn,
+                    patients.first_name,
+                    patients.last_name,
+                    appointments.purpose,
+                    appointments.status
+             FROM appointments
+             INNER JOIN patients ON patients.id = appointments.patient_id
+             WHERE appointments.appointment_date BETWEEN ? AND ?
+             ORDER BY appointments.appointment_date ASC, appointments.appointment_time ASC, appointments.id ASC'
+        );
+        $stmt->execute([$startDate, $endDate]);
+
+        return ['appointments_' . str_replace('-', '', $monthValue) . '_export.csv', ['วันที่', 'เวลา', 'HN', 'ชื่อ', 'นามสกุล', 'วัตถุประสงค์', 'สถานะ'], $stmt->fetchAll()];
+    }
+
+    private function exportMonthlyReport(): array
+    {
+        $monthValue = $this->normalizeMonth((string) ($_GET['month'] ?? date('Y-m')));
+        $monthly = $this->buildMonthlyReport($monthValue);
+        $rows = [];
+
+        foreach (($monthly['daily_revenue'] ?? []) as $row) {
+            $rows[] = [
+                $row['paid_date'] ?? '',
+                $row['receipt_count'] ?? 0,
+                $row['total_amount'] ?? 0,
+            ];
+        }
+
+        return ['monthly_report_' . str_replace('-', '', $monthValue) . '.csv', ['วันที่', 'จำนวนใบเสร็จ', 'รายได้รวม'], $rows];
+    }
+
+    private function buildBackupStats(): array
+    {
+        $exportDirectory = storage_path('exports');
+        $files = is_dir($exportDirectory) ? glob(rtrim($exportDirectory, '/\\') . '/clinic_backup_*.sql') : [];
+        $files = $files ?: [];
+
+        usort($files, static fn(string $left, string $right): int => filemtime($right) <=> filemtime($left));
+
+        $latestFile = $files[0] ?? null;
+        $totalBytes = 0;
+        foreach ($files as $file) {
+            $totalBytes += is_file($file) ? (int) filesize($file) : 0;
+        }
+
+        return [
+            'latest_name' => $latestFile ? basename($latestFile) : null,
+            'latest_at' => $latestFile ? date('Y-m-d H:i:s', filemtime($latestFile)) : null,
+            'latest_size_bytes' => $latestFile && is_file($latestFile) ? (int) filesize($latestFile) : 0,
+            'file_count' => count($files),
+            'total_size_bytes' => $totalBytes,
+            'is_today' => $latestFile ? date('Y-m-d', filemtime($latestFile)) === date('Y-m-d') : false,
+            'directory_ready' => is_dir($exportDirectory) && is_writable($exportDirectory),
+            'directory' => $exportDirectory,
+        ];
     }
 
     private function exportInventoryAlerts(): array

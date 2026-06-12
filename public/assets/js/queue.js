@@ -27,6 +27,11 @@
   let currentMatches = [];
 
   function findNextCaseButton() {
+    const closeAndNextButton = document.querySelector('[data-queue-close-next]');
+    if (closeAndNextButton) {
+      return closeAndNextButton;
+    }
+
     const continuationButton = document.getElementById('queueContinueNextCase');
     if (continuationButton) {
       return continuationButton;
@@ -38,18 +43,87 @@
 
   function setupQueueShortcuts() {
     document.addEventListener('keydown', (event) => {
+      const key = event.key;
+      const lowerKey = key.toLowerCase();
+
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        if (key === 'F1') {
+          event.preventDefault();
+          searchInput.focus();
+          searchInput.select();
+          return;
+        }
+
+        if (key === 'F2') {
+          const newPatientLink = document.querySelector('[data-queue-new-patient]');
+          const quickRegister = document.getElementById('snqQuickRegister');
+          event.preventDefault();
+          if (quickRegister) {
+            quickRegister.open = true;
+            document.getElementById('quickFullName')?.focus();
+            return;
+          }
+          newPatientLink?.click();
+          return;
+        }
+
+        if (key === 'F3') {
+          const primaryAction = document.querySelector('[data-queue-primary-action], #queueCommandNextCase, #queueContinueNextCase');
+          if (primaryAction) {
+            event.preventDefault();
+            primaryAction.click();
+          }
+          return;
+        }
+
+        if (key === 'F4') {
+          const serviceAction = document.querySelector('[data-queue-primary-action][data-queue-primary-status="IN_SERVICE"]');
+          if (serviceAction) {
+            event.preventDefault();
+            serviceAction.click();
+          }
+          return;
+        }
+
+        if (key === 'F5') {
+          const nextButton = document.querySelector('[data-queue-close-next], [data-queue-call-next], [data-queue-start-next], #queueContinueNextCase');
+          if (nextButton) {
+            event.preventDefault();
+            nextButton.click();
+          }
+          return;
+        }
+
+        if (key === 'F9') {
+          const paymentAction = document.querySelector('[data-queue-primary-action][data-queue-primary-status="WAITING_PAYMENT"], [data-queue-payment-action]');
+          if (paymentAction) {
+            event.preventDefault();
+            paymentAction.click();
+          }
+          return;
+        }
+
+        if (key === 'F6') {
+          const labelAction = document.querySelector('[data-queue-label-action]');
+          if (labelAction) {
+            event.preventDefault();
+            labelAction.click();
+          }
+          return;
+        }
+      }
+
       if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
         return;
       }
 
-      const key = event.key.toLowerCase();
-      if (key === 's') {
+      if (lowerKey === 's') {
         event.preventDefault();
         searchInput.focus();
         searchInput.select();
       }
 
-      if (key === 'n') {
+      if (lowerKey === 'n') {
         const nextButton = findNextCaseButton();
         if (!nextButton) {
           return;
@@ -181,6 +255,17 @@
   }
 
   setupQueueShortcuts();
+  document.querySelectorAll('[data-queue-close-next-form], form[action*="queue-status"]').forEach((queueForm) => {
+    queueForm.addEventListener('submit', () => {
+      const submitButton = queueForm.querySelector('button[type="submit"], button:not([type])');
+      if (!submitButton || submitButton.disabled) {
+        return;
+      }
+
+      submitButton.disabled = true;
+      submitButton.classList.add('is-loading');
+    });
+  });
 
   resultsBox.addEventListener('click', (event) => {
     const button = event.target.closest('[data-patient-index]');

@@ -33,6 +33,10 @@ class QueueController extends Controller
             'nextWaiting' => $nextWaiting,
             'currentQueue' => $currentQueue,
             'activeVisit' => $activeVisit,
+            'dailyMetrics' => $this->dailyQueueMetrics($todayQueues),
+            'assistantAlerts' => $this->queueAssistantAlerts($todayQueues),
+            'activitySummary' => $this->todayActivitySummary(),
+            'recentActivity' => $this->recentQueueActivity(),
             'quickPresets' => $this->quickPresets(),
             'prefillPatientId' => (int) ($_GET['patient_id'] ?? 0),
             'pageStyles' => [app_url('assets/css/smart-exam.css'), app_url('assets/css/queue.css')],
@@ -44,21 +48,22 @@ class QueueController extends Controller
     {
         require_roles(['ADMIN', 'NURSE']);
         $this->ensureSmartExamSchema();
+        $this->ensureTreatmentPresetSchema();
 
         $visitId = (int) ($_GET['id'] ?? ($_GET['visit_id'] ?? 0));
         if ($visitId <= 0) {
-            flash('error', 'เนเธกเนเธเธเน€เธเธชเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเน€เธเธดเธ”เธซเธเนเธฒเธ•เธฃเธงเธ');
+            flash('error', 'ไม่พบเคสที่ต้องการเปิดตรวจ');
             redirect('queue');
         }
 
         $visit = $this->findWorkflowVisit($visitId);
         if (!$visit) {
-            flash('error', 'เนเธกเนเธเธเธเนเธญเธกเธนเธฅเน€เธเธชเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเน€เธเธดเธ”เธซเธเนเธฒเธ•เธฃเธงเธ');
+            flash('error', 'ไม่พบข้อมูลเคสนี้ กรุณากลับไปเลือกจากคิววันนี้อีกครั้ง');
             redirect('queue');
         }
 
         if (!in_array($visit['status'], ['WAITING', 'IN_SERVICE'], true)) {
-            flash('error', 'เน€เธเธชเธเธตเนเนเธกเนเธญเธขเธนเนเนเธเธชเธ–เธฒเธเธฐเธ—เธตเนเธชเธฒเธกเธฒเธฃเธ–เน€เธเธดเธ” Smart Exam เนเธ”เน');
+            flash('error', 'เคสนี้จบแล้วหรืออยู่ขั้นตอนชำระเงิน จึงไม่สามารถเปิด Smart Exam ได้');
             redirect('queue', ['visit_id' => $visitId]);
         }
 
@@ -116,6 +121,7 @@ class QueueController extends Controller
             'pageTopbarMode' => 'compact',
             'activeVisit' => $visit,
             'quickPresets' => $this->quickPresets(),
+            'treatmentPresets' => $this->treatmentPresetsForExam(),
             'patientSnapshot' => $this->patientSnapshot((int) ($visit['patient_id'] ?? 0), $visitId),
             'services' => $services,
             'items' => $items,
@@ -124,6 +130,132 @@ class QueueController extends Controller
             'expiryAlertDays' => $expiryAlertDays,
             'pageStyles' => [app_url('assets/css/smart-exam.css')],
             'pageScripts' => [app_url('assets/js/smart-exam.js')],
+        ]);
+    }
+
+    public function updatePatientProfile(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+        $this->ensureSmartExamSchema();
+
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $patientId = (int) ($_POST['patient_id'] ?? 0);
+        if ($visitId <= 0 || $patientId <= 0) {
+            $this->jsonResponse(['success' => false, 'message' => 'ไม่พบเคสหรือผู้รับบริการที่ต้องการแก้ไข'], 422);
+        }
+
+        $visit = $this->findWorkflowVisit($visitId);
+        if (!$visit || (int) ($visit['patient_id'] ?? 0) !== $patientId) {
+            $this->jsonResponse(['success' => false, 'message' => 'ข้อมูลเคสไม่ตรงกับผู้รับบริการ กรุณาโหลดหน้าใหม่'], 404);
+        }
+
+        $currentStmt = db()->prepare(
+            'SELECT id, hn, citizen_id, title_name, first_name, last_name, gender, birth_date, phone, address, underlying_disease, drug_allergy, note
+             FROM patients
+             WHERE id = :id AND is_active = 1
+             LIMIT 1'
+        );
+        $currentStmt->execute(['id' => $patientId]);
+        $current = $currentStmt->fetch();
+        if (!$current) {
+            $this->jsonResponse(['success' => false, 'message' => 'ไม่พบแฟ้มผู้รับบริการที่จะแก้ไข'], 404);
+        }
+
+        $roleCode = (string) (current_user()['role_code'] ?? '');
+        $adminFields = ['title_name', 'first_name', 'last_name', 'citizen_id', 'birth_date', 'gender', 'phone', 'address', 'underlying_disease', 'drug_allergy', 'note'];
+        $nurseFields = ['phone', 'address', 'underlying_disease', 'drug_allergy', 'note'];
+        $allowedFields = $roleCode === 'ADMIN' ? $adminFields : $nurseFields;
+
+        $input = [];
+        foreach ($allowedFields as $field) {
+            if (!array_key_exists($field, $_POST)) {
+                continue;
+            }
+
+            $input[$field] = trim((string) ($_POST[$field] ?? ''));
+        }
+
+        if ($roleCode === 'ADMIN') {
+            $input['first_name'] = $input['first_name'] ?? (string) ($current['first_name'] ?? '');
+            $input['last_name'] = $input['last_name'] ?? (string) ($current['last_name'] ?? '');
+            if ($input['first_name'] === '' || $input['last_name'] === '') {
+                $this->jsonResponse(['success' => false, 'message' => 'กรุณากรอกชื่อและนามสกุลผู้รับบริการ'], 422);
+            }
+        }
+
+        if (array_key_exists('gender', $input) && !in_array($input['gender'], ['', 'M', 'F', 'O'], true)) {
+            $this->jsonResponse(['success' => false, 'message' => 'รูปแบบเพศไม่ถูกต้อง'], 422);
+        }
+
+        if (array_key_exists('birth_date', $input)) {
+            $birthRaw = $input['birth_date'];
+            $input['birth_date'] = $this->normalizePatientBirthDate($birthRaw);
+            if ($birthRaw !== '' && $input['birth_date'] === '') {
+                $this->jsonResponse(['success' => false, 'message' => 'วันเกิดไม่ถูกต้อง กรุณากรอกเช่น 28/10/2549'], 422);
+            }
+        }
+
+        if (array_key_exists('citizen_id', $input)) {
+            $input['citizen_id'] = preg_replace('/\D+/', '', $input['citizen_id']) ?? '';
+            if ($input['citizen_id'] !== '' && strlen($input['citizen_id']) !== 13) {
+                $this->jsonResponse(['success' => false, 'message' => 'เลขบัตรประชาชนต้องมี 13 หลัก'], 422);
+            }
+
+            if ($input['citizen_id'] !== '') {
+                $dupStmt = db()->prepare('SELECT id FROM patients WHERE citizen_id = :citizen_id AND id <> :id LIMIT 1');
+                $dupStmt->execute([
+                    'citizen_id' => $input['citizen_id'],
+                    'id' => $patientId,
+                ]);
+                if ($dupStmt->fetch()) {
+                    $this->jsonResponse(['success' => false, 'message' => 'เลขบัตรประชาชนนี้มีในระบบแล้ว'], 422);
+                }
+            }
+        }
+
+        if (array_key_exists('phone', $input) && $input['phone'] !== '' && !preg_match('/^[0-9+\-\s]{8,30}$/', $input['phone'])) {
+            $this->jsonResponse(['success' => false, 'message' => 'รูปแบบเบอร์โทรไม่ถูกต้อง'], 422);
+        }
+
+        $changes = [];
+        foreach ($input as $field => $value) {
+            $normalizedValue = $value === '' ? null : $value;
+            $currentValue = $current[$field] ?? null;
+            $currentValue = $currentValue === '' ? null : $currentValue;
+            if ((string) ($currentValue ?? '') !== (string) ($normalizedValue ?? '')) {
+                $changes[$field] = [
+                    'before' => $currentValue,
+                    'after' => $normalizedValue,
+                ];
+            }
+        }
+
+        if ($changes !== []) {
+            $setParts = [];
+            $params = ['id' => $patientId];
+            foreach ($changes as $field => $change) {
+                $setParts[] = "`{$field}` = :{$field}";
+                $params[$field] = $change['after'];
+            }
+            $setParts[] = 'updated_at = NOW()';
+
+            db()->prepare(
+                'UPDATE patients SET ' . implode(', ', $setParts) . ' WHERE id = :id'
+            )->execute($params);
+
+            $this->writePatientAudit('UPDATE_PATIENT_PROFILE', $patientId, [
+                'visit_id' => $visitId,
+                'role_code' => $roleCode,
+                'changes' => $changes,
+            ]);
+        }
+
+        $profile = $this->patientProfileForResponse($patientId);
+        $this->jsonResponse([
+            'success' => true,
+            'message' => $changes === [] ? 'ไม่มีข้อมูลที่เปลี่ยนแปลง' : 'บันทึกข้อมูลผู้รับบริการเรียบร้อย',
+            'profile' => $profile,
+            'changed' => array_keys($changes),
         ]);
     }
 
@@ -162,16 +294,16 @@ class QueueController extends Controller
         $chiefComplaint = trim((string) ($_POST['chief_complaint'] ?? ''));
 
         if ($patientId <= 0) {
-            flash('error', 'เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเธเธเนเธเนเธเนเธญเธเธฃเธฑเธเน€เธเธช');
+            flash('error', 'กรุณาเลือกผู้รับบริการก่อนรับเคส');
             redirect('queue');
         }
 
         try {
             $result = ClinicWorkflow::createVisitAndQueue($patientId, $chiefComplaint, (int) current_user()['id']);
-            flash('success', 'เธฃเธฑเธเน€เธเธชเนเธซเธกเนเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง');
+            flash('success', 'รับเคสใหม่เรียบร้อยแล้ว');
             redirect('queue', ['visit_id' => $result['visit_id']]);
         } catch (Throwable $throwable) {
-            flash('error', 'เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธฃเธฑเธเน€เธเธชเนเธซเธกเนเนเธ”เน: ' . $throwable->getMessage());
+            flash('error', 'ไม่สามารถรับเคสใหม่ได้: ' . $throwable->getMessage());
             redirect('queue');
         }
     }
@@ -357,6 +489,12 @@ class QueueController extends Controller
                      SET status = "IN_SERVICE", called_at = COALESCE(called_at, NOW()), updated_at = NOW()
                      WHERE visit_id = :visit_id'
                 )->execute(['visit_id' => $visitId]);
+                $this->writeQueueAudit('QUEUE_STATUS_CHANGED', (int) ($visit['queue_id'] ?? 0), [
+                    'visit_id' => $visitId,
+                    'from_status' => 'WAITING',
+                    'to_status' => 'IN_SERVICE',
+                    'source' => 'smart_exam_preset',
+                ], $pdo);
                 $visit['status'] = 'IN_SERVICE';
             }
 
@@ -415,6 +553,87 @@ class QueueController extends Controller
         }
 
         redirect('queue-exam', ['id' => $visitId, 'preset' => $presetKey]);
+    }
+
+    public function applyTreatmentPreset(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+        $this->ensureSmartExamSchema();
+        $this->ensureTreatmentPresetSchema();
+
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+        $presetId = (int) ($_POST['treatment_preset_id'] ?? 0);
+
+        if ($visitId <= 0 || $presetId <= 0) {
+            flash('error', 'Please select a Treatment Preset and visit.');
+            redirect('queue');
+        }
+
+        $visit = $this->findWorkflowVisit($visitId);
+        $preset = $this->treatmentPresetDetail($presetId);
+
+        if (!$visit || !$preset) {
+            flash('error', 'Visit or Treatment Preset was not found.');
+            redirect('queue');
+        }
+
+        $pdo = db();
+        try {
+            $pdo->beginTransaction();
+
+            if ($visit['status'] === 'WAITING') {
+                $this->assertTransitionAllowed($visit, 'IN_SERVICE');
+                $pdo->prepare(
+                    'UPDATE queue_entries
+                     SET status = "IN_SERVICE", called_at = COALESCE(called_at, NOW()), updated_at = NOW()
+                     WHERE visit_id = :visit_id'
+                )->execute(['visit_id' => $visitId]);
+                $this->writeQueueAudit('QUEUE_STATUS_CHANGED', (int) ($visit['queue_id'] ?? 0), [
+                    'visit_id' => $visitId,
+                    'from_status' => 'WAITING',
+                    'to_status' => 'IN_SERVICE',
+                    'source' => 'treatment_preset',
+                    'preset_id' => $presetId,
+                ], $pdo);
+            }
+
+            if ($this->treatmentPresetAlreadyApplied($pdo, $visitId, $presetId)) {
+                $pdo->commit();
+                flash('warning', 'This Treatment Preset is already applied to this visit. Add extra services or medicines manually if needed.');
+                redirect('queue-exam', ['id' => $visitId]);
+            }
+
+            foreach ($preset['services'] as $service) {
+                $this->insertTreatmentPresetService($pdo, $visitId, $service, $presetId);
+            }
+
+            foreach ($preset['medications'] as $medication) {
+                $this->insertTreatmentPresetItemUsage($pdo, $visitId, $medication, $presetId, (string) $preset['preset_name']);
+            }
+
+            foreach ($preset['supplies'] as $supply) {
+                $this->insertTreatmentPresetItemUsage($pdo, $visitId, $supply, $presetId, (string) $preset['preset_name']);
+            }
+
+            $this->writeQueueAudit('TREATMENT_PRESET_APPLIED', (int) ($visit['queue_id'] ?? 0), [
+                'visit_id' => $visitId,
+                'preset_id' => $presetId,
+                'preset_name' => $preset['preset_name'],
+                'services' => count($preset['services']),
+                'medications' => count($preset['medications']),
+                'supplies' => count($preset['supplies']),
+            ], $pdo);
+
+            $pdo->commit();
+            flash('success', 'Treatment Preset "' . $preset['preset_name'] . '" was applied successfully.');
+        } catch (Throwable $throwable) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            flash('error', 'Unable to apply Treatment Preset: ' . $throwable->getMessage());
+        }
+
+        redirect('queue-exam', ['id' => $visitId]);
     }
 
     public function smartFinish(): void
@@ -531,6 +750,18 @@ class QueueController extends Controller
                 'visit_id' => $visitId,
             ]);
 
+            $this->writeQueueAudit('QUEUE_SMART_FINISH', (int) ($visit['queue_id'] ?? 0), [
+                'visit_id' => $visitId,
+                'from_status' => (string) ($visit['status'] ?? ''),
+                'to_status' => $targetStatus,
+                'finish_mode' => $finishMode,
+                'service_total' => (float) ($billingTotals['service_total'] ?? 0),
+                'item_total' => (float) ($billingTotals['item_total'] ?? 0),
+                'grand_total' => (float) ($billingTotals['grand_total'] ?? 0),
+                'payment_id' => (int) ($paymentResult['payment_id'] ?? 0),
+                'source' => 'smart_exam',
+            ], $pdo);
+
             $pdo->commit();
 
             if ($shouldReceivePayment) {
@@ -605,6 +836,13 @@ class QueueController extends Controller
                 'id' => $queueId,
             ]);
 
+            $this->writeQueueAudit('QUEUE_STATUS_CHANGED', $queueId, [
+                'from_status' => (string) ($queue['status'] ?? ''),
+                'to_status' => $targetStatus,
+                'visit_id' => (int) ($queue['visit_id'] ?? 0),
+                'source' => 'queue_workstation',
+            ]);
+
             flash('success', 'เธญเธฑเธเน€เธ”เธ•เธชเธ–เธฒเธเธฐเธเธดเธงเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง');
 
             if ($redirectToVisit && $targetStatus === 'IN_SERVICE') {
@@ -615,6 +853,105 @@ class QueueController extends Controller
         }
 
         redirect('queue');
+    }
+
+    public function closeAndNext(): void
+    {
+        require_roles(['ADMIN', 'NURSE']);
+
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+        if ($visitId <= 0) {
+            flash('error', 'ไม่พบเคสที่ต้องการปิด');
+            redirect('queue');
+        }
+
+        $nextVisitId = 0;
+
+        try {
+            $pdo = db();
+            $pdo->beginTransaction();
+
+            $queue = $this->findQueueByVisitForUpdate($pdo, $visitId);
+            if (!$queue) {
+                throw new RuntimeException('ไม่พบคิวของเคสนี้');
+            }
+
+            $status = (string) ($queue['status'] ?? '');
+            $billingTotals = $this->billingTotals($pdo, $visitId);
+            $hasPaidPayment = $this->visitHasPaidPayment($pdo, $visitId);
+            $grandTotal = (float) ($billingTotals['grand_total'] ?? 0);
+
+            if ($status === 'WAITING') {
+                throw new RuntimeException('เคสนี้ยังไม่ได้เริ่มตรวจ กรุณาเปิด Smart Exam ก่อนปิดเคส');
+            }
+
+            if ($status !== 'COMPLETED' && !$hasPaidPayment && $grandTotal > 0) {
+                $pdo->rollBack();
+                flash('warning', 'ยังมียอดค้างชำระ กรุณาส่งชำระเงินก่อนปิดเคส');
+                redirect('payments');
+            }
+
+            if ($status !== 'COMPLETED') {
+                $this->assertTransitionAllowed($queue, 'COMPLETED');
+                $pdo->prepare(
+                    'UPDATE queue_entries
+                     SET status = "COMPLETED", finished_at = COALESCE(finished_at, NOW()), updated_at = NOW()
+                     WHERE id = :id'
+                )->execute(['id' => (int) $queue['id']]);
+
+                $this->writeQueueAudit('QUEUE_CASE_CLOSED', (int) $queue['id'], [
+                    'visit_id' => $visitId,
+                    'from_status' => $status,
+                    'to_status' => 'COMPLETED',
+                    'grand_total' => $grandTotal,
+                    'has_paid_payment' => $hasPaidPayment,
+                    'source' => 'close_and_next',
+                ], $pdo);
+            }
+
+            $otherActive = $this->findOtherInServiceQueue($pdo, (int) $queue['id']);
+            if ($otherActive) {
+                $pdo->commit();
+                flash('warning', 'ยังมีเคสที่กำลังตรวจอยู่ ระบบจึงไม่เรียกคิวใหม่ซ้อน');
+                redirect('queue', ['visit_id' => (int) $otherActive['visit_id']]);
+            }
+
+            $nextQueue = $this->nextWaitingQueueForUpdate($pdo);
+            if ($nextQueue) {
+                $this->assertTransitionAllowed($nextQueue, 'IN_SERVICE');
+                $pdo->prepare(
+                    'UPDATE queue_entries
+                     SET status = "IN_SERVICE", called_at = COALESCE(called_at, NOW()), updated_at = NOW()
+                     WHERE id = :id'
+                )->execute(['id' => (int) $nextQueue['id']]);
+
+                $nextVisitId = (int) $nextQueue['visit_id'];
+                $this->writeQueueAudit('QUEUE_NEXT_CALLED', (int) $nextQueue['id'], [
+                    'visit_id' => $nextVisitId,
+                    'from_status' => (string) ($nextQueue['status'] ?? ''),
+                    'to_status' => 'IN_SERVICE',
+                    'closed_visit_id' => $visitId,
+                    'source' => 'close_and_next',
+                ], $pdo);
+            }
+
+            $pdo->commit();
+
+            if ($nextVisitId > 0) {
+                flash('success', 'ปิดเคสแล้ว และเรียกคิวถัดไปขึ้นทำงานต่อ');
+                redirect('queue', ['visit_id' => $nextVisitId]);
+            }
+
+            flash('success', 'ปิดเคสแล้ว วันนี้ยังไม่มีคิวถัดไป');
+            redirect('queue');
+        } catch (Throwable $throwable) {
+            if (db()->inTransaction()) {
+                db()->rollBack();
+            }
+
+            flash('error', 'ปิดเคสและเรียกคิวถัดไปไม่สำเร็จ: ' . $throwable->getMessage());
+            redirect('queue', ['visit_id' => $visitId]);
+        }
     }
 
     private function todayQueues(): array
@@ -731,11 +1068,315 @@ class QueueController extends Controller
         return null;
     }
 
+    private function dailyQueueMetrics(array $todayQueues): array
+    {
+        $patientIds = [];
+        foreach ($todayQueues as $queue) {
+            $patientId = (int) ($queue['patient_id'] ?? 0);
+            if ($patientId > 0) {
+                $patientIds[$patientId] = true;
+            }
+        }
+
+        $revenueToday = 0.0;
+        $financialToday = [
+            'CASH' => 0.0,
+            'QR' => 0.0,
+            'TRANSFER' => 0.0,
+        ];
+        if ($this->tableExists('payments')) {
+            $revenueToday = (float) db()->query(
+                'SELECT COALESCE(SUM(total_amount), 0)
+                 FROM payments
+                 WHERE payment_status = "PAID"
+                   AND DATE(paid_at) = CURDATE()'
+            )->fetchColumn();
+
+            $methodStmt = db()->query(
+                'SELECT payment_method, COALESCE(SUM(total_amount), 0) AS total_amount
+                 FROM payments
+                 WHERE payment_status = "PAID"
+                   AND DATE(paid_at) = CURDATE()
+                 GROUP BY payment_method'
+            );
+            foreach ($methodStmt->fetchAll() as $row) {
+                $method = (string) ($row['payment_method'] ?? '');
+                if (array_key_exists($method, $financialToday)) {
+                    $financialToday[$method] = (float) ($row['total_amount'] ?? 0);
+                }
+            }
+        }
+
+        $avgCaseMinutes = 0;
+        if ($this->tableExists('queue_entries')) {
+            $avgCaseMinutes = (int) round((float) db()->query(
+                'SELECT COALESCE(AVG(TIMESTAMPDIFF(MINUTE, COALESCE(called_at, checked_in_at, created_at), COALESCE(finished_at, updated_at))), 0)
+                 FROM queue_entries
+                 WHERE queue_date = CURDATE()
+                   AND status = "COMPLETED"
+                   AND COALESCE(finished_at, updated_at) IS NOT NULL'
+            )->fetchColumn());
+        }
+
+        return [
+            'patient_count' => count($patientIds),
+            'exam_done_count' => count(array_filter(
+                $todayQueues,
+                static fn(array $queue): bool => in_array((string) ($queue['status'] ?? ''), ['WAITING_PAYMENT', 'COMPLETED'], true)
+            )),
+            'payment_waiting_count' => count(array_filter(
+                $todayQueues,
+                static fn(array $queue): bool => (string) ($queue['status'] ?? '') === 'WAITING_PAYMENT'
+            )),
+            'revenue_today' => $revenueToday,
+            'avg_case_minutes' => $avgCaseMinutes,
+            'financial_today' => $financialToday,
+        ];
+    }
+
+    private function queueAssistantAlerts(array $todayQueues): array
+    {
+        $lowStockCount = 0;
+        if ($this->tableExists('inventory_items') && $this->tableExists('inventory_batches')) {
+            $lowStockCount = (int) db()->query(
+                'SELECT COUNT(*)
+                 FROM inventory_items
+                 LEFT JOIN (
+                    SELECT item_id, SUM(qty_balance) AS qty_balance
+                    FROM inventory_batches
+                    GROUP BY item_id
+                 ) stock_totals ON stock_totals.item_id = inventory_items.id
+                 WHERE inventory_items.is_active = 1
+                   AND COALESCE(stock_totals.qty_balance, 0) <= inventory_items.reorder_level'
+            )->fetchColumn();
+        }
+
+        $latestBackup = null;
+        if ($this->tableExists('backup_logs')) {
+            $latestBackup = db()->query(
+                'SELECT status, created_at
+                 FROM backup_logs
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT 1'
+            )->fetch() ?: null;
+        }
+
+        $pendingCases = count(array_filter(
+            $todayQueues,
+            static fn(array $queue): bool => in_array((string) ($queue['status'] ?? ''), ['WAITING', 'IN_SERVICE', 'WAITING_PAYMENT'], true)
+        ));
+
+        $overdueCases = 0;
+        foreach ($todayQueues as $queue) {
+            $status = (string) ($queue['status'] ?? '');
+            if (!in_array($status, ['WAITING', 'IN_SERVICE', 'WAITING_PAYMENT'], true)) {
+                continue;
+            }
+
+            $startedAt = $queue['called_at'] ?? $queue['checked_in_at'] ?? $queue['created_at'] ?? null;
+            if ($startedAt && (time() - strtotime((string) $startedAt)) >= 1800) {
+                $overdueCases++;
+            }
+        }
+
+        $backupDoneToday = false;
+        if (!empty($latestBackup['created_at'])) {
+            $backupDoneToday = date('Y-m-d', strtotime((string) $latestBackup['created_at'])) === date('Y-m-d')
+                && (string) ($latestBackup['status'] ?? '') !== 'FAILED';
+        }
+
+        return [
+            'low_stock_count' => $lowStockCount,
+            'urgent_count' => 0,
+            'pending_cases' => $pendingCases,
+            'overdue_cases' => $overdueCases,
+            'latest_backup' => $latestBackup,
+            'backup_done_today' => $backupDoneToday,
+            'smart_card_online' => $this->smartCardBridgeOnline(),
+            'printer_ready' => false,
+        ];
+    }
+
+    private function smartCardBridgeOnline(): bool
+    {
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 0.35,
+                'ignore_errors' => true,
+            ],
+        ]);
+        $payload = @file_get_contents('http://127.0.0.1:8189/health', false, $context);
+        if (!$payload) {
+            return false;
+        }
+
+        $health = json_decode($payload, true);
+        return is_array($health) && !empty($health['ok']);
+    }
+
+    private function todayActivitySummary(): array
+    {
+        $pdo = db();
+        $paymentCount = 0;
+        $receiptCount = 0;
+        $stickerPrintCount = 0;
+        $smartExamCount = 0;
+        $latestReceipt = null;
+        $latestSticker = null;
+        $latestCase = null;
+
+        if ($this->tableExists('queue_entries')) {
+            $smartExamCount = (int) $pdo->query(
+                'SELECT COUNT(*)
+                 FROM queue_entries
+                 WHERE queue_date = CURDATE()
+                   AND called_at IS NOT NULL'
+            )->fetchColumn();
+
+            $latestCase = $pdo->query(
+                'SELECT queue_entries.queue_no, queue_entries.status, queue_entries.updated_at,
+                        patients.first_name, patients.last_name
+                 FROM queue_entries
+                 INNER JOIN visits ON visits.id = queue_entries.visit_id
+                 INNER JOIN patients ON patients.id = visits.patient_id
+                 WHERE queue_entries.queue_date = CURDATE()
+                 ORDER BY queue_entries.updated_at DESC, queue_entries.id DESC
+                 LIMIT 1'
+            )->fetch() ?: null;
+        }
+
+        if ($this->tableExists('payments')) {
+            $paymentCount = (int) $pdo->query(
+                'SELECT COUNT(*)
+                 FROM payments
+                 WHERE payment_status = "PAID"
+                   AND DATE(paid_at) = CURDATE()'
+            )->fetchColumn();
+            $receiptCount = $paymentCount;
+
+            $latestReceipt = $pdo->query(
+                'SELECT payments.receipt_no, payments.total_amount, payments.paid_at,
+                        patients.first_name, patients.last_name
+                 FROM payments
+                 INNER JOIN visits ON visits.id = payments.visit_id
+                 INNER JOIN patients ON patients.id = visits.patient_id
+                 WHERE payments.payment_status = "PAID"
+                   AND DATE(payments.paid_at) = CURDATE()
+                 ORDER BY payments.paid_at DESC, payments.id DESC
+                 LIMIT 1'
+            )->fetch() ?: null;
+        }
+
+        if ($this->tableExists('medication_print_logs')) {
+            $stickerPrintCount = (int) $pdo->query(
+                'SELECT COUNT(*)
+                 FROM medication_print_logs
+                 WHERE DATE(printed_at) = CURDATE()'
+            )->fetchColumn();
+
+            $latestSticker = $pdo->query(
+                'SELECT medication_print_logs.printed_at, prescription_items.drug_name_snapshot,
+                        patients.first_name, patients.last_name
+                 FROM medication_print_logs
+                 INNER JOIN prescription_items ON prescription_items.id = medication_print_logs.prescription_item_id
+                 INNER JOIN patients ON patients.id = medication_print_logs.patient_id
+                 WHERE DATE(medication_print_logs.printed_at) = CURDATE()
+                 ORDER BY medication_print_logs.printed_at DESC, medication_print_logs.id DESC
+                 LIMIT 1'
+            )->fetch() ?: null;
+        }
+
+        return [
+            'smart_exam_count' => $smartExamCount,
+            'payment_count' => $paymentCount,
+            'receipt_count' => $receiptCount,
+            'sticker_print_count' => $stickerPrintCount,
+            'latest_case' => $latestCase,
+            'latest_receipt' => $latestReceipt,
+            'latest_sticker' => $latestSticker,
+        ];
+    }
+
+    private function recentQueueActivity(): array
+    {
+        $events = [];
+        $stmt = db()->query(
+            'SELECT queue_entries.queue_no, queue_entries.status, queue_entries.created_at, queue_entries.called_at, queue_entries.updated_at, queue_entries.finished_at,
+                    visits.id AS visit_id, visits.visit_no, patients.first_name, patients.last_name,
+                    payments.receipt_no, payments.total_amount, payments.paid_at,
+                    service_events.latest_service_at, service_events.latest_service_name
+             FROM queue_entries
+             INNER JOIN visits ON visits.id = queue_entries.visit_id
+             INNER JOIN patients ON patients.id = visits.patient_id
+             LEFT JOIN payments ON payments.visit_id = visits.id AND payments.payment_status = "PAID"
+             LEFT JOIN (
+                SELECT visit_services.visit_id, MAX(visit_services.created_at) AS latest_service_at, MAX(services.service_name) AS latest_service_name
+                FROM visit_services
+                INNER JOIN services ON services.id = visit_services.service_id
+                GROUP BY visit_services.visit_id
+             ) AS service_events ON service_events.visit_id = visits.id
+             WHERE queue_entries.queue_date = CURDATE()
+             ORDER BY queue_entries.updated_at DESC, queue_entries.id DESC
+             LIMIT 20'
+        );
+
+        foreach ($stmt->fetchAll() as $row) {
+            $patientName = trim((string) ($row['first_name'] ?? '') . ' ' . (string) ($row['last_name'] ?? ''));
+            $patientName = $patientName !== '' ? $patientName : 'ไม่ระบุชื่อ';
+
+            $this->pushQueueActivity($events, $row['created_at'] ?? null, 'เปิดเคส ' . $patientName, 'bi-person-check');
+            $this->pushQueueActivity($events, $row['called_at'] ?? null, 'เปิด Smart Exam ' . $patientName, 'bi-heart-pulse');
+            if (!empty($row['latest_service_at'])) {
+                $this->pushQueueActivity($events, $row['latest_service_at'], 'เพิ่มบริการ ' . (string) ($row['latest_service_name'] ?? ''), 'bi-plus-circle');
+            }
+            if ((string) ($row['status'] ?? '') === 'WAITING_PAYMENT') {
+                $this->pushQueueActivity($events, $row['updated_at'] ?? null, 'ส่งชำระเงิน ' . $patientName, 'bi-wallet2');
+            }
+            $this->pushQueueActivity($events, $row['paid_at'] ?? null, 'รับชำระเงิน ' . $patientName, 'bi-cash-stack');
+            $this->pushQueueActivity($events, $row['finished_at'] ?? null, 'จบเคส ' . $patientName, 'bi-check-circle');
+        }
+
+        usort($events, static function (array $a, array $b): int {
+            return strcmp((string) ($b['at'] ?? ''), (string) ($a['at'] ?? ''));
+        });
+
+        return array_slice($events, 0, 10);
+    }
+
+    private function pushQueueActivity(array &$events, mixed $at, string $text, string $icon): void
+    {
+        if (empty($at)) {
+            return;
+        }
+
+        $events[] = [
+            'at' => (string) $at,
+            'time' => date('H:i', strtotime((string) $at)),
+            'text' => trim($text),
+            'icon' => $icon,
+        ];
+    }
+
+    private function tableExists(string $tableName): bool
+    {
+        $stmt = db()->prepare(
+            'SELECT COUNT(*)
+             FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = :table_name'
+        );
+        $stmt->execute(['table_name' => $tableName]);
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
     private function findWorkflowVisit(int $visitId): ?array
     {
         $stmt = db()->prepare(
-            'SELECT visits.*, queue_entries.id AS queue_id, queue_entries.queue_no, queue_entries.status, queue_entries.called_at, queue_entries.finished_at,
-                    patients.hn, patients.first_name, patients.last_name, patients.phone, patients.gender, patients.drug_allergy, patients.photo_path,
+            'SELECT visits.*, queue_entries.id AS queue_id, queue_entries.queue_no, queue_entries.status, queue_entries.checked_in_at, queue_entries.called_at, queue_entries.finished_at,
+                    patients.hn, patients.citizen_id, patients.title_name, patients.first_name, patients.last_name, patients.phone, patients.gender, patients.birth_date, patients.address, patients.drug_allergy, patients.underlying_disease, patients.note, patients.photo_path,
+                    (SELECT COUNT(*) FROM visits AS patient_visits WHERE patient_visits.patient_id = patients.id) AS visit_count,
+                    payments.id AS payment_id, payments.receipt_no, payments.paid_at,
                     visit_vitals.bp_systolic, visit_vitals.bp_diastolic, visit_vitals.temp_c, visit_vitals.pulse_rate, visit_vitals.resp_rate, visit_vitals.spo2, visit_vitals.weight_kg,
                     COALESCE(service_totals.total_service, 0) AS service_total,
                     COALESCE(item_totals.total_item, 0) AS item_total,
@@ -745,6 +1386,7 @@ class QueueController extends Controller
              INNER JOIN patients ON patients.id = visits.patient_id
              INNER JOIN queue_entries ON queue_entries.visit_id = visits.id
              LEFT JOIN visit_vitals ON visit_vitals.visit_id = visits.id
+             LEFT JOIN payments ON payments.visit_id = visits.id
              LEFT JOIN (
                 SELECT visit_id, SUM(line_total) AS total_service, COUNT(*) AS service_count
                 FROM visit_services
@@ -784,8 +1426,140 @@ class QueueController extends Controller
         );
         $itemLinesStmt->execute(['visit_id' => $visitId]);
         $visit['item_lines'] = $itemLinesStmt->fetchAll();
+        $visit['history_lines'] = $this->patientHistoryLines((int) ($visit['patient_id'] ?? 0), $visitId);
+        $visit['case_timeline'] = $this->caseTimeline($visitId, $visit);
 
         return $visit;
+    }
+
+    private function caseTimeline(int $visitId, array $visit): array
+    {
+        $events = [];
+        $this->pushCaseTimeline($events, $visit['checked_in_at'] ?? $visit['visit_datetime'] ?? $visit['created_at'] ?? null, 'REGISTERED', 'done');
+        $this->pushCaseTimeline($events, $visit['called_at'] ?? null, 'OPENED_SMART_EXAM', 'done');
+
+        $serviceAt = $this->firstVisitEventAt('visit_services', $visitId);
+        $itemAt = $this->firstVisitEventAt('visit_item_usages', $visitId);
+        $this->pushCaseTimeline($events, $serviceAt, 'ADDED_SERVICE', 'done');
+        $this->pushCaseTimeline($events, $itemAt, 'DISPENSED_MEDICATION', 'done');
+        $this->pushCaseTimeline($events, $visit['paid_at'] ?? null, 'PAID', 'done');
+        $this->pushCaseTimeline($events, $visit['finished_at'] ?? null, 'CLOSED_CASE', 'done');
+
+        if ($events === []) {
+            return [];
+        }
+
+        usort($events, static function (array $a, array $b): int {
+            return strcmp((string) ($a['at'] ?? ''), (string) ($b['at'] ?? ''));
+        });
+
+        $status = (string) ($visit['status'] ?? 'WAITING');
+        $pendingLabel = match ($status) {
+            'WAITING' => 'WAITING_SMART_EXAM',
+            'IN_SERVICE' => ((int) ($visit['service_count'] ?? 0) + (int) ($visit['item_count'] ?? 0)) > 0 ? 'CONTINUE_SERVICE' : 'RECORDING_SERVICE',
+            'WAITING_PAYMENT' => 'WAITING_PAYMENT',
+            'COMPLETED' => 'COMPLETED',
+            default => 'CONTINUE_WORKFLOW',
+        };
+
+        if ($status !== 'COMPLETED') {
+            $events[] = [
+                'at' => date('Y-m-d H:i:s'),
+                'time' => 'now',
+                'label' => $pendingLabel,
+                'state' => 'current',
+            ];
+        }
+
+        return array_slice($events, -6);
+    }
+
+    private function firstVisitEventAt(string $tableName, int $visitId): ?string
+    {
+        if (!in_array($tableName, ['visit_services', 'visit_item_usages'], true)) {
+            return null;
+        }
+
+        try {
+            $stmt = db()->prepare("SELECT MIN(created_at) FROM {$tableName} WHERE visit_id = :visit_id");
+            $stmt->execute(['visit_id' => $visitId]);
+            $value = $stmt->fetchColumn();
+
+            return $value ? (string) $value : null;
+        } catch (Throwable $exception) {
+            return null;
+        }
+    }
+
+    private function pushCaseTimeline(array &$events, mixed $at, string $label, string $state): void
+    {
+        if (empty($at)) {
+            return;
+        }
+
+        $events[] = [
+            'at' => (string) $at,
+            'time' => date('H:i', strtotime((string) $at)),
+            'label' => $label,
+            'state' => $state,
+        ];
+    }
+
+    private function patientHistoryLines(int $patientId, int $currentVisitId): array
+    {
+        if ($patientId <= 0) {
+            return [];
+        }
+
+        $stmt = db()->prepare(
+            'SELECT visits.id, visits.visit_datetime, visits.chief_complaint, visits.diagnosis,
+                    COALESCE(service_summary.services_summary, "-") AS services_summary,
+                    COALESCE(item_summary.items_summary, "-") AS items_summary,
+                    COALESCE(payments.total_amount, 0) AS paid_total,
+                    payments.receipt_no
+             FROM visits
+             LEFT JOIN payments ON payments.visit_id = visits.id AND payments.payment_status = "PAID"
+             LEFT JOIN (
+                SELECT visit_services.visit_id,
+                       GROUP_CONCAT(services.service_name ORDER BY visit_services.id SEPARATOR ", ") AS services_summary
+                FROM visit_services
+                INNER JOIN services ON services.id = visit_services.service_id
+                GROUP BY visit_services.visit_id
+             ) AS service_summary ON service_summary.visit_id = visits.id
+             LEFT JOIN (
+                SELECT visit_item_usages.visit_id,
+                       GROUP_CONCAT(inventory_items.item_name ORDER BY visit_item_usages.id SEPARATOR ", ") AS items_summary
+                FROM visit_item_usages
+                INNER JOIN inventory_items ON inventory_items.id = visit_item_usages.item_id
+                GROUP BY visit_item_usages.visit_id
+             ) AS item_summary ON item_summary.visit_id = visits.id
+             WHERE visits.patient_id = :patient_id
+               AND visits.id <> :current_visit_id
+             ORDER BY visits.visit_datetime DESC, visits.id DESC
+             LIMIT 5'
+        );
+        $stmt->execute([
+            'patient_id' => $patientId,
+            'current_visit_id' => $currentVisitId,
+        ]);
+
+        return array_map(static function (array $row): array {
+            $dateText = !empty($row['visit_datetime'])
+                ? date('d/m/Y H:i', strtotime((string) $row['visit_datetime']))
+                : '-';
+
+            return [
+                'id' => (int) ($row['id'] ?? 0),
+                'date' => $dateText,
+                'chief_complaint' => (string) (($row['chief_complaint'] ?? '') ?: '-'),
+                'diagnosis' => (string) (($row['diagnosis'] ?? '') ?: '-'),
+                'services_summary' => (string) (($row['services_summary'] ?? '') ?: '-'),
+                'items_summary' => (string) (($row['items_summary'] ?? '') ?: '-'),
+                'paid_total' => (float) ($row['paid_total'] ?? 0),
+                'paid_total_text' => format_money((float) ($row['paid_total'] ?? 0)),
+                'receipt_no' => (string) (($row['receipt_no'] ?? '') ?: '-'),
+            ];
+        }, $stmt->fetchAll());
     }
 
     private function patientSnapshot(int $patientId, int $currentVisitId): array
@@ -917,6 +1691,57 @@ class QueueController extends Controller
              LIMIT 1'
         );
         $stmt->execute(['id' => $queueId]);
+
+        $queue = $stmt->fetch();
+        return $queue ?: null;
+    }
+
+    private function findQueueByVisitForUpdate(PDO $pdo, int $visitId): ?array
+    {
+        $stmt = $pdo->prepare(
+            'SELECT queue_entries.*, visits.id AS visit_id
+             FROM queue_entries
+             INNER JOIN visits ON visits.id = queue_entries.visit_id
+             WHERE queue_entries.visit_id = :visit_id
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $stmt->execute(['visit_id' => $visitId]);
+
+        $queue = $stmt->fetch();
+        return $queue ?: null;
+    }
+
+    private function nextWaitingQueueForUpdate(PDO $pdo): ?array
+    {
+        $stmt = $pdo->query(
+            'SELECT queue_entries.*, visits.id AS visit_id
+             FROM queue_entries
+             INNER JOIN visits ON visits.id = queue_entries.visit_id
+             WHERE queue_entries.queue_date = CURDATE()
+               AND queue_entries.status = "WAITING"
+             ORDER BY queue_entries.queue_no ASC, queue_entries.id ASC
+             LIMIT 1
+             FOR UPDATE'
+        );
+
+        $queue = $stmt->fetch();
+        return $queue ?: null;
+    }
+
+    private function findOtherInServiceQueue(PDO $pdo, int $excludeQueueId): ?array
+    {
+        $stmt = $pdo->prepare(
+            'SELECT queue_entries.*, visits.id AS visit_id
+             FROM queue_entries
+             INNER JOIN visits ON visits.id = queue_entries.visit_id
+             WHERE queue_entries.queue_date = CURDATE()
+               AND queue_entries.status = "IN_SERVICE"
+               AND queue_entries.id <> :exclude_id
+             ORDER BY queue_entries.called_at ASC, queue_entries.id ASC
+             LIMIT 1'
+        );
+        $stmt->execute(['exclude_id' => $excludeQueueId]);
 
         $queue = $stmt->fetch();
         return $queue ?: null;
@@ -1108,6 +1933,348 @@ class QueueController extends Controller
 
         foreach ($defaults as $preset) {
             $stmt->execute($preset);
+        }
+    }
+
+    private function ensureTreatmentPresetSchema(): void
+    {
+        db()->exec(
+            'CREATE TABLE IF NOT EXISTS preset_master (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                preset_name VARCHAR(150) NOT NULL,
+                description TEXT NULL,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                KEY idx_preset_master_active (is_active, preset_name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+
+        db()->exec(
+            'CREATE TABLE IF NOT EXISTS preset_services (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                preset_id BIGINT UNSIGNED NOT NULL,
+                service_id BIGINT UNSIGNED NOT NULL,
+                qty DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                KEY idx_preset_services_preset_id (preset_id),
+                KEY idx_preset_services_service_id (service_id),
+                CONSTRAINT fk_preset_services_preset_id FOREIGN KEY (preset_id) REFERENCES preset_master (id) ON DELETE CASCADE,
+                CONSTRAINT fk_preset_services_service_id FOREIGN KEY (service_id) REFERENCES services (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+
+        db()->exec(
+            'CREATE TABLE IF NOT EXISTS preset_medications (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                preset_id BIGINT UNSIGNED NOT NULL,
+                medicine_id BIGINT UNSIGNED NOT NULL,
+                qty DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+                instruction TEXT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                KEY idx_preset_medications_preset_id (preset_id),
+                KEY idx_preset_medications_medicine_id (medicine_id),
+                CONSTRAINT fk_preset_medications_preset_id FOREIGN KEY (preset_id) REFERENCES preset_master (id) ON DELETE CASCADE,
+                CONSTRAINT fk_preset_medications_medicine_id FOREIGN KEY (medicine_id) REFERENCES inventory_items (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+
+        db()->exec(
+            'CREATE TABLE IF NOT EXISTS preset_supplies (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                preset_id BIGINT UNSIGNED NOT NULL,
+                supply_id BIGINT UNSIGNED NOT NULL,
+                qty DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                KEY idx_preset_supplies_preset_id (preset_id),
+                KEY idx_preset_supplies_supply_id (supply_id),
+                CONSTRAINT fk_preset_supplies_preset_id FOREIGN KEY (preset_id) REFERENCES preset_master (id) ON DELETE CASCADE,
+                CONSTRAINT fk_preset_supplies_supply_id FOREIGN KEY (supply_id) REFERENCES inventory_items (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+
+        $this->seedTreatmentPresets();
+    }
+
+    private function seedTreatmentPresets(): void
+    {
+        $count = (int) db()->query('SELECT COUNT(*) FROM preset_master')->fetchColumn();
+        if ($count > 0) {
+            return;
+        }
+
+        $this->seedTreatmentPreset('URI', 'ตรวจ URI แบบเร็ว พร้อมยาเบื้องต้น', ['SRV001'], ['Paracetamol' => 10], []);
+        $this->seedTreatmentPreset('ทำแผล', 'เพิ่มบริการทำแผลและเวชภัณฑ์พื้นฐาน', ['SRV002'], [], ['Normal Saline' => 1, 'ผ้าก๊อซ' => 2]);
+        $this->seedTreatmentPreset('ฉีดยา', 'เพิ่มค่าบริการฉีดยาเป็น bundle เริ่มต้น', ['SRV003'], [], []);
+    }
+
+    private function seedTreatmentPreset(string $name, string $description, array $serviceCodes, array $drugNames, array $supplyNames): void
+    {
+        $pdo = db();
+        $pdo->prepare(
+            'INSERT INTO preset_master (preset_name, description, is_active, created_at, updated_at)
+             VALUES (:preset_name, :description, 1, NOW(), NOW())'
+        )->execute(['preset_name' => $name, 'description' => $description]);
+        $presetId = (int) $pdo->lastInsertId();
+
+        foreach ($serviceCodes as $serviceCode) {
+            $serviceId = $this->serviceIdByCode($serviceCode);
+            if ($serviceId > 0) {
+                $pdo->prepare('INSERT INTO preset_services (preset_id, service_id, qty, created_at, updated_at) VALUES (:preset_id, :service_id, 1, NOW(), NOW())')
+                    ->execute(['preset_id' => $presetId, 'service_id' => $serviceId]);
+            }
+        }
+
+        foreach ($drugNames as $drugName => $qty) {
+            $itemId = $this->itemIdLike((string) $drugName, 'DRUG');
+            if ($itemId > 0) {
+                $pdo->prepare('INSERT INTO preset_medications (preset_id, medicine_id, qty, instruction, created_at, updated_at) VALUES (:preset_id, :medicine_id, :qty, NULL, NOW(), NOW())')
+                    ->execute(['preset_id' => $presetId, 'medicine_id' => $itemId, 'qty' => (float) $qty]);
+            }
+        }
+
+        foreach ($supplyNames as $supplyName => $qty) {
+            $itemId = $this->itemIdLike((string) $supplyName, 'SUPPLY');
+            if ($itemId > 0) {
+                $pdo->prepare('INSERT INTO preset_supplies (preset_id, supply_id, qty, created_at, updated_at) VALUES (:preset_id, :supply_id, :qty, NOW(), NOW())')
+                    ->execute(['preset_id' => $presetId, 'supply_id' => $itemId, 'qty' => (float) $qty]);
+            }
+        }
+    }
+
+    private function serviceIdByCode(string $serviceCode): int
+    {
+        $stmt = db()->prepare('SELECT id FROM services WHERE service_code = :service_code LIMIT 1');
+        $stmt->execute(['service_code' => $serviceCode]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    private function itemIdLike(string $itemName, string $itemType): int
+    {
+        $stmt = db()->prepare('SELECT id FROM inventory_items WHERE item_type = :item_type AND item_name LIKE :item_name LIMIT 1');
+        $stmt->execute(['item_type' => $itemType, 'item_name' => '%' . $itemName . '%']);
+        return (int) $stmt->fetchColumn();
+    }
+
+    private function treatmentPresetsForExam(): array
+    {
+        $rows = db()->query(
+            'SELECT id
+             FROM preset_master
+             WHERE is_active = 1
+             ORDER BY preset_name ASC'
+        )->fetchAll();
+
+        $presets = [];
+        foreach ($rows as $row) {
+            $preset = $this->treatmentPresetDetail((int) $row['id']);
+            if ($preset) {
+                $presets[] = $preset;
+            }
+        }
+
+        return $presets;
+    }
+
+    private function treatmentPresetDetail(int $presetId): ?array
+    {
+        $stmt = db()->prepare('SELECT * FROM preset_master WHERE id = :id AND is_active = 1 LIMIT 1');
+        $stmt->execute(['id' => $presetId]);
+        $preset = $stmt->fetch();
+        if (!$preset) {
+            return null;
+        }
+
+        $preset['services'] = $this->treatmentPresetServices($presetId);
+        $preset['medications'] = $this->treatmentPresetItems($presetId, 'preset_medications', 'medicine_id');
+        $preset['supplies'] = $this->treatmentPresetItems($presetId, 'preset_supplies', 'supply_id');
+
+        return $preset;
+    }
+
+    private function treatmentPresetServices(int $presetId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT preset_services.qty,
+                    services.id AS service_id,
+                    services.service_code,
+                    services.service_name,
+                    services.price
+             FROM preset_services
+             INNER JOIN services ON services.id = preset_services.service_id
+             WHERE preset_services.preset_id = :preset_id
+               AND services.is_active = 1
+             ORDER BY preset_services.id ASC'
+        );
+        $stmt->execute(['preset_id' => $presetId]);
+        return $stmt->fetchAll();
+    }
+
+    private function treatmentPresetItems(int $presetId, string $tableName, string $itemField): array
+    {
+        $instructionSelect = $tableName === 'preset_medications' ? "{$tableName}.instruction," : "NULL AS instruction,";
+        $stmt = db()->prepare(
+            "SELECT {$tableName}.qty,
+                    {$instructionSelect}
+                    inventory_items.id AS item_id,
+                    inventory_items.item_code,
+                    inventory_items.item_name,
+                    inventory_items.item_type,
+                    inventory_items.unit_name,
+                    inventory_items.default_cost,
+                    inventory_items.default_price,
+                    COALESCE(stock_totals.qty_balance, 0) AS qty_balance
+             FROM {$tableName}
+             INNER JOIN inventory_items ON inventory_items.id = {$tableName}.{$itemField}
+             LEFT JOIN (
+                SELECT item_id, SUM(qty_balance) AS qty_balance
+                FROM inventory_batches
+                GROUP BY item_id
+             ) AS stock_totals ON stock_totals.item_id = inventory_items.id
+             WHERE {$tableName}.preset_id = :preset_id
+               AND inventory_items.is_active = 1
+             ORDER BY {$tableName}.id ASC"
+        );
+        $stmt->execute(['preset_id' => $presetId]);
+        return $stmt->fetchAll();
+    }
+
+    private function treatmentPresetAlreadyApplied(PDO $pdo, int $visitId, int $presetId): bool
+    {
+        $serviceStmt = $pdo->prepare(
+            'SELECT COUNT(*)
+             FROM visit_services
+             WHERE visit_id = :visit_id
+               AND remark = :remark'
+        );
+        $serviceStmt->execute([
+            'visit_id' => $visitId,
+            'remark' => 'TREATMENT_PRESET:' . $presetId,
+        ]);
+
+        if ((int) $serviceStmt->fetchColumn() > 0) {
+            return true;
+        }
+
+        $itemStmt = $pdo->prepare(
+            'SELECT COUNT(*)
+             FROM visit_item_usages
+             WHERE visit_id = :visit_id
+               AND usage_note LIKE :usage_note'
+        );
+        $itemStmt->execute([
+            'visit_id' => $visitId,
+            'usage_note' => 'TREATMENT_PRESET:' . $presetId . ':%',
+        ]);
+
+        return (int) $itemStmt->fetchColumn() > 0;
+    }
+
+    private function insertTreatmentPresetService(PDO $pdo, int $visitId, array $service, int $presetId): void
+    {
+        $qty = max(1, (int) round((float) ($service['qty'] ?? 1)));
+        $unitPrice = (float) ($service['price'] ?? 0);
+
+        $pdo->prepare(
+            'INSERT INTO visit_services (visit_id, service_id, qty, unit_price, line_total, remark, created_at, updated_at)
+             VALUES (:visit_id, :service_id, :qty, :unit_price, :line_total, :remark, NOW(), NOW())'
+        )->execute([
+            'visit_id' => $visitId,
+            'service_id' => (int) $service['service_id'],
+            'qty' => $qty,
+            'unit_price' => $unitPrice,
+            'line_total' => $unitPrice * $qty,
+            'remark' => 'TREATMENT_PRESET:' . $presetId,
+        ]);
+    }
+
+    private function insertTreatmentPresetItemUsage(PDO $pdo, int $visitId, array $item, int $presetId, string $presetName): void
+    {
+        $qty = max(0.01, (float) ($item['qty'] ?? 1));
+        $itemId = (int) ($item['item_id'] ?? 0);
+        $itemName = (string) ($item['item_name'] ?? 'Item');
+
+        if ($itemId <= 0) {
+            throw new RuntimeException('Treatment Preset item was not found.');
+        }
+
+        $batchStmt = $pdo->prepare(
+            'SELECT id, qty_balance, cost_per_unit
+             FROM inventory_batches
+             WHERE item_id = :item_id
+               AND qty_balance > 0
+             ORDER BY expiry_date IS NULL ASC, expiry_date ASC, received_date ASC, id ASC
+             FOR UPDATE'
+        );
+        $batchStmt->execute(['item_id' => $itemId]);
+        $batches = $batchStmt->fetchAll();
+        $availableQty = array_sum(array_map(static fn(array $batch): float => (float) $batch['qty_balance'], $batches));
+
+        if ($availableQty < $qty) {
+            throw new RuntimeException('Insufficient stock for ' . $itemName . '. Available ' . format_money($availableQty) . ', required ' . format_money($qty) . '.');
+        }
+
+        $lineTotal = (float) ($item['default_price'] ?? 0) * $qty;
+        $usageNoteParts = ['TREATMENT_PRESET:' . $presetId, $presetName];
+        $instruction = trim((string) ($item['instruction'] ?? ''));
+        if ($instruction !== '') {
+            $usageNoteParts[] = $instruction;
+        }
+
+        $pdo->prepare(
+            'INSERT INTO visit_item_usages (visit_id, item_id, qty, unit_price, line_total, usage_note, created_at, updated_at)
+             VALUES (:visit_id, :item_id, :qty, :unit_price, :line_total, :usage_note, NOW(), NOW())'
+        )->execute([
+            'visit_id' => $visitId,
+            'item_id' => $itemId,
+            'qty' => $qty,
+            'unit_price' => (float) ($item['default_price'] ?? 0),
+            'line_total' => $lineTotal,
+            'usage_note' => implode(':', $usageNoteParts),
+        ]);
+        $usageId = (int) $pdo->lastInsertId();
+
+        $remainingQty = $qty;
+        foreach ($batches as $batch) {
+            if ($remainingQty <= 0) {
+                break;
+            }
+
+            $takeQty = min($remainingQty, (float) $batch['qty_balance']);
+            $newBalance = (float) $batch['qty_balance'] - $takeQty;
+
+            $pdo->prepare(
+                'UPDATE inventory_batches
+                 SET qty_balance = :qty_balance,
+                     updated_at = NOW()
+                 WHERE id = :id'
+            )->execute([
+                'qty_balance' => $newBalance,
+                'id' => (int) $batch['id'],
+            ]);
+
+            $pdo->prepare(
+                'INSERT INTO stock_movements (
+                    batch_id, item_id, movement_type, qty, unit_cost, reference_type, reference_id, note,
+                    movement_datetime, created_by, created_at, updated_at
+                 ) VALUES (
+                    :batch_id, :item_id, "OUT", :qty, :unit_cost, "VISIT_USAGE", :reference_id, :note,
+                    NOW(), :created_by, NOW(), NOW()
+                 )'
+            )->execute([
+                'batch_id' => (int) $batch['id'],
+                'item_id' => $itemId,
+                'qty' => $takeQty,
+                'unit_cost' => (float) ($batch['cost_per_unit'] ?? $item['default_cost'] ?? 0),
+                'reference_id' => $usageId,
+                'note' => 'Stock deducted by Treatment Preset: ' . $presetName,
+                'created_by' => (int) (current_user()['id'] ?? 0) ?: null,
+            ]);
+
+            $remainingQty -= $takeQty;
         }
     }
 
@@ -1592,6 +2759,196 @@ class QueueController extends Controller
         $stmt->execute(['visit_id' => $visitId]);
 
         return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function visitHasPaidPayment(PDO $pdo, int $visitId): bool
+    {
+        if (!$this->tableExists('payments')) {
+            return false;
+        }
+
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*)
+             FROM payments
+             WHERE visit_id = :visit_id
+               AND payment_status = "PAID"'
+        );
+        $stmt->execute(['visit_id' => $visitId]);
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function patientProfileForResponse(int $patientId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT patients.*,
+                    (SELECT COUNT(*) FROM visits WHERE visits.patient_id = patients.id) AS visit_count,
+                    (SELECT MAX(visit_datetime) FROM visits WHERE visits.patient_id = patients.id) AS last_visit_at
+             FROM patients
+             WHERE patients.id = :id
+             LIMIT 1'
+        );
+        $stmt->execute(['id' => $patientId]);
+        $patient = $stmt->fetch() ?: [];
+
+        $birthDate = (string) ($patient['birth_date'] ?? '');
+        $firstName = (string) ($patient['first_name'] ?? '');
+        $lastName = (string) ($patient['last_name'] ?? '');
+        $drugAllergy = trim((string) ($patient['drug_allergy'] ?? ''));
+        $chronic = trim((string) ($patient['underlying_disease'] ?? ''));
+
+        return [
+            'id' => $patientId,
+            'hn' => (string) ($patient['hn'] ?? ''),
+            'citizen_id' => (string) ($patient['citizen_id'] ?? ''),
+            'title_name' => (string) ($patient['title_name'] ?? ''),
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'full_name' => trim($firstName . ' ' . $lastName),
+            'gender' => (string) ($patient['gender'] ?? ''),
+            'gender_text' => $this->patientGenderText((string) ($patient['gender'] ?? '')),
+            'birth_date' => $birthDate,
+            'birth_date_text' => $this->patientBirthDateText($birthDate),
+            'age_text' => $this->patientAgeText($birthDate),
+            'phone' => (string) ($patient['phone'] ?? ''),
+            'phone_text' => trim((string) ($patient['phone'] ?? '')) !== '' ? (string) $patient['phone'] : '-',
+            'address' => (string) ($patient['address'] ?? ''),
+            'underlying_disease' => (string) ($patient['underlying_disease'] ?? ''),
+            'underlying_disease_text' => $chronic !== '' && $chronic !== '-' ? $chronic : 'ไม่มีโรคประจำตัว',
+            'drug_allergy' => (string) ($patient['drug_allergy'] ?? ''),
+            'drug_allergy_text' => $drugAllergy !== '' && $drugAllergy !== '-' ? $drugAllergy : 'ไม่มีประวัติแพ้ยา',
+            'note' => (string) ($patient['note'] ?? ''),
+            'visit_count' => (int) ($patient['visit_count'] ?? 0),
+            'last_visit_at' => (string) ($patient['last_visit_at'] ?? ''),
+            'last_visit_text' => !empty($patient['last_visit_at']) ? thai_date((string) $patient['last_visit_at']) : '-',
+            'has_drug_allergy' => $drugAllergy !== '' && $drugAllergy !== '-',
+            'has_chronic' => $chronic !== '' && $chronic !== '-',
+        ];
+    }
+
+    private function patientGenderText(string $gender): string
+    {
+        return match ($gender) {
+            'M' => 'ชาย',
+            'F' => 'หญิง',
+            'O' => 'อื่นๆ',
+            default => '-',
+        };
+    }
+
+    private function patientAgeText(string $birthDate): string
+    {
+        if ($birthDate === '') {
+            return '-';
+        }
+
+        try {
+            return (new \DateTimeImmutable($birthDate))->diff(new \DateTimeImmutable('today'))->y . ' ปี';
+        } catch (Throwable $throwable) {
+            return '-';
+        }
+    }
+
+    private function patientBirthDateText(string $birthDate): string
+    {
+        if ($birthDate === '') {
+            return '';
+        }
+
+        try {
+            $date = new \DateTimeImmutable($birthDate);
+            return $date->format('d/m/') . ((int) $date->format('Y') + 543);
+        } catch (Throwable $throwable) {
+            return '';
+        }
+    }
+
+    private function normalizePatientBirthDate(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $day = 0;
+        $month = 0;
+        $year = 0;
+        $normalized = preg_replace('/\s+/', '', $value) ?? '';
+
+        if (preg_match('/^(\d{1,4})[\/.-](\d{1,2})[\/.-](\d{1,4})$/', $normalized, $matches)) {
+            if (strlen($matches[1]) === 4) {
+                $year = (int) $matches[1];
+                $month = (int) $matches[2];
+                $day = (int) $matches[3];
+            } else {
+                $day = (int) $matches[1];
+                $month = (int) $matches[2];
+                $year = (int) $matches[3];
+            }
+        } else {
+            $digits = preg_replace('/\D+/', '', $normalized) ?? '';
+            if (strlen($digits) !== 8) {
+                return '';
+            }
+
+            $firstFour = (int) substr($digits, 0, 4);
+            if ($firstFour >= 1900) {
+                $year = $firstFour;
+                $month = (int) substr($digits, 4, 2);
+                $day = (int) substr($digits, 6, 2);
+            } else {
+                $day = (int) substr($digits, 0, 2);
+                $month = (int) substr($digits, 2, 2);
+                $year = (int) substr($digits, 4, 4);
+            }
+        }
+
+        if ($year > 2400) {
+            $year -= 543;
+        }
+
+        if (!checkdate($month, $day, $year)) {
+            return '';
+        }
+
+        return sprintf('%04d-%02d-%02d', $year, $month, $day);
+    }
+
+    private function writePatientAudit(string $action, int $recordId, array $detail): void
+    {
+        try {
+            $user = current_user();
+            db()->prepare(
+                'INSERT INTO audit_logs (user_id, action, table_name, record_id, detail_json, created_at)
+                 VALUES (:user_id, :action, "patients", :record_id, :detail_json, NOW())'
+            )->execute([
+                'user_id' => $user['id'] ?? null,
+                'action' => $action,
+                'record_id' => $recordId,
+                'detail_json' => json_encode($detail, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
+        } catch (Throwable $throwable) {
+            // Patient audit is important, but it must not block Smart Exam work.
+        }
+    }
+
+    private function writeQueueAudit(string $action, int $recordId, array $detail, ?PDO $pdo = null): void
+    {
+        try {
+            $database = $pdo ?? db();
+            $user = current_user();
+            $database->prepare(
+                'INSERT INTO audit_logs (user_id, action, table_name, record_id, detail_json, created_at)
+                 VALUES (:user_id, :action, "queue_entries", :record_id, :detail_json, NOW())'
+            )->execute([
+                'user_id' => $user['id'] ?? null,
+                'action' => $action,
+                'record_id' => $recordId,
+                'detail_json' => json_encode($detail, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
+        } catch (Throwable $throwable) {
+            // Audit must not block one-nurse clinic operation.
+        }
     }
 
     private function composeLegacyNursingNote(string $presentIllness, string $physicalExam, string $diagnosis): string

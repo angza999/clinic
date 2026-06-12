@@ -515,3 +515,46 @@ Notes:
 - Fresh installs get this table from `database/schema.sql`.
 - Existing installs should run `database/production_readiness.sql`.
 - Backup generation also writes an `audit_logs` action `BACKUP_CREATED`.
+
+## Queue Workstation Version 2 Schema Notes
+
+- No new table or field was added.
+- Close-and-next uses existing `queue_entries`, `visits`, `payments`, and `audit_logs`.
+- Today Status uses existing `backup_logs`, `inventory_items`, `payments`, `prescriptions`, `prescription_items`, and `medication_print_logs` when those tables exist.
+- Queue transition audit actions use existing `audit_logs` with `table_name = queue_entries`.
+- Medication sticker print audit uses existing `audit_logs` with `table_name = medication_print_logs`.
+- Future production hardening may add a dedicated queue activity table, but V2 intentionally avoids schema expansion.
+
+## Treatment Preset Schema Notes
+
+New tables:
+
+- `preset_master`
+  - Stores active/inactive treatment preset headers.
+  - Fields: `id`, `preset_name`, `description`, `is_active`, timestamps.
+- `preset_services`
+  - Links a preset to one or more `services`.
+  - Fields: `id`, `preset_id`, `service_id`, `qty`, timestamps.
+- `preset_medications`
+  - Links a preset to medication rows in `inventory_items`.
+  - Fields: `id`, `preset_id`, `medicine_id`, `qty`, `instruction`, timestamps.
+- `preset_supplies`
+  - Links a preset to supply rows in `inventory_items`.
+  - Fields: `id`, `preset_id`, `supply_id`, `qty`, timestamps.
+
+Runtime effects:
+
+- Applying a Treatment Preset creates rows in existing `visit_services` and `visit_item_usages`.
+- Item usage deducts stock from `inventory_batches` and records `stock_movements.reference_type = VISIT_USAGE`.
+- No payment table change is required; billing totals are derived from existing visit service/item lines.
+
+## Medical Inventory Command Center Schema Notes
+
+- No new table or field was added for the Inventory Command Center UI refactor.
+- Inventory KPIs are derived from existing `inventory_items`, `inventory_batches`, and `stock_movements`.
+- Low stock uses `inventory_items.reorder_level` compared with summed `inventory_batches.qty_balance`.
+- Near expiry and expired status use `inventory_batches.expiry_date` for batches with positive `qty_balance`.
+- Receive stock still inserts `inventory_batches` and `stock_movements.movement_type = IN`.
+- Manual adjustment still updates `inventory_batches.qty_balance` and inserts `stock_movements.movement_type = ADJUST`.
+- Consumption trend and forecast use existing `stock_movements.movement_type = OUT` where available.
+- Barcode UI is prepared at the interface layer only; there is no barcode column yet.
